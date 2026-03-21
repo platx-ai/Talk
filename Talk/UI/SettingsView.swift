@@ -62,11 +62,10 @@ private struct RecordingSettingsTab: View {
                     }
                 }
 
-                KeyRecorderView(hotkey: $settings.recordingHotkey)
-                    .onChange(of: settings.recordingHotkey) {
-                        settings.save()
-                        AppDelegate.shared?.applyHotKey(settings.recordingHotkey, triggerMode: settings.recordingTriggerMode)
-                    }
+                KeyRecorderView(hotkey: $settings.recordingHotkey) { newCombo in
+                    settings.save()
+                    AppDelegate.shared?.applyHotKey(newCombo, triggerMode: settings.recordingTriggerMode)
+                }
 
                 HStack {
                     Text("录音时长限制")
