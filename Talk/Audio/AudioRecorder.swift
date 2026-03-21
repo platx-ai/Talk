@@ -35,6 +35,7 @@ final class AudioRecorder: NSObject, @unchecked Sendable {
     var selectedDeviceUID: String? = nil
 
     var onAudioData: (([Float]) -> Void)?
+    var onAudioLevel: ((Float) -> Void)?
     var onRecordingComplete: (([Float], TimeInterval) -> Void)?
     var onRecordingError: ((Error) -> Void)?
 
@@ -128,6 +129,15 @@ final class AudioRecorder: NSObject, @unchecked Sendable {
 
             self.withStateLock {
                 self.audioData.append(contentsOf: chunk)
+            }
+
+            // Calculate RMS audio level for visual display
+            if !chunk.isEmpty {
+                let rms = sqrt(chunk.reduce(0) { $0 + $1 * $1 } / Float(chunk.count))
+                let level = min(1.0, rms * 5.0)
+                DispatchQueue.main.async {
+                    self.onAudioLevel?(level)
+                }
             }
 
             DispatchQueue.main.async {

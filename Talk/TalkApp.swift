@@ -150,6 +150,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             targetApp = NSWorkspace.shared.frontmostApplication
             let settings = AppSettings.load()
             AudioRecorder.shared.selectedDeviceUID = settings.selectedAudioDeviceUID
+            AudioRecorder.shared.onAudioLevel = { [weak statusBar] level in
+                statusBar?.updateFloatingAudioLevel(level)
+            }
             try AudioRecorder.shared.startRecording(sampleRate: 16000)
             statusBar.updateProcessingStatus(.recording)
             AppLogger.info("\(trigger)触发：开始录音，目标应用: \(targetApp?.localizedName ?? "unknown")", category: .ui)
@@ -169,6 +172,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             return false
         }
 
+        AudioRecorder.shared.onAudioLevel = nil
         AudioRecorder.shared.stopRecording()
         statusBar.updateProcessingStatus(.asr)
 
@@ -229,7 +233,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 )
                 HistoryManager.shared.add(historyItem)
 
-                statusBar.updateProcessingStatus(.idle)
+                statusBar.showDoneAndDismiss()
                 statusBar.showNotification(title: "完成", message: "文本已输出")
             } catch {
                 AppLogger.error("音频处理失败: \(error.localizedDescription)", category: .general)
