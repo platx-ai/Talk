@@ -124,8 +124,9 @@ struct FloatingIndicatorContentView: View {
                 audioLevelBar
             }
         }
-        .padding(.horizontal, 12)
+        .padding(.horizontal, 16)
         .padding(.vertical, 8)
+        .frame(minWidth: 140)
         .frame(height: 44)
         .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
         .overlay(
