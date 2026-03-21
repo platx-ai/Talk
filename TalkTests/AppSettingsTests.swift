@@ -108,6 +108,13 @@ struct AppSettingsTests {
         shared.recordingHotkey = origHotkey
     }
 
+    // MARK: - Idle unload
+
+    @Test func idleUnloadMinutesDefault() {
+        let settings = AppSettings()
+        #expect(settings.idleUnloadMinutes == 10)
+    }
+
     // MARK: - Custom prompt persistence
 
     @Test func customPromptAutoSaves() {

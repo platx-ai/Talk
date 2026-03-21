@@ -274,6 +274,10 @@ final class AppSettings {
 
     var memoryMode: MemoryMode = .normal { didSet { autoSave() } }
 
+    // MARK: - 空闲卸载
+
+    var idleUnloadMinutes: Int = 10 { didSet { autoSave() } }  // 0 = disabled
+
     // MARK: - 启动与退出
 
     var launchAtLogin: Bool = false { didSet { autoSave() } }
@@ -385,6 +389,9 @@ extension AppSettings {
             self.memoryMode = memMode
         }
 
+        let idleVal = defaults.integer(forKey: "idleUnloadMinutes")
+        self.idleUnloadMinutes = idleVal > 0 ? idleVal : 10
+
         self.launchAtLogin = boolValue("launchAtLogin", default: false)
         self.quitBehavior = boolValue("quitBehavior", default: true)
         self.enableDetailedLogging = boolValue("enableDetailedLogging", default: true)
@@ -429,6 +436,8 @@ extension AppSettings {
 
         defaults.set(performanceMode.rawValue, forKey: "performanceMode")
         defaults.set(memoryMode.rawValue, forKey: "memoryMode")
+
+        defaults.set(idleUnloadMinutes, forKey: "idleUnloadMinutes")
 
         defaults.set(launchAtLogin, forKey: "launchAtLogin")
         defaults.set(quitBehavior, forKey: "quitBehavior")
