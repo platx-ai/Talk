@@ -20,10 +20,28 @@ build: ## Build Debug configuration
 build-release: ## Build Release configuration
 	xcodebuild -project $(PROJECT) -scheme $(SCHEME) -configuration Release build $(SIGN_FLAGS)
 
-test: ## Run unit tests
+test: ## Run unit tests (excludes benchmarks)
 	xcodebuild -project $(PROJECT) -scheme $(SCHEME) -configuration Debug test $(SIGN_FLAGS) \
 		-destination 'platform=macOS' \
-		-only-testing:TalkTests 2>&1 | tail -20
+		-only-testing:TalkTests \
+		-skip-testing:TalkTests/ASRBenchmarks \
+		-skip-testing:TalkTests/LLMBenchmarks \
+		-skip-testing:TalkTests/PipelineBenchmarks 2>&1 | tail -20
+
+benchmark: ## Run performance benchmarks (requires models downloaded)
+	@echo "Running Talk benchmarks..."
+	@echo "Models must be downloaded first: make download-models"
+	@echo "Results will be written to /tmp/talk-benchmark-results.txt"
+	@echo ""
+	@rm -f /tmp/talk-benchmark-results.txt
+	xcodebuild -project $(PROJECT) -scheme $(SCHEME) -configuration Debug test $(SIGN_FLAGS) \
+		-destination 'platform=macOS' \
+		-only-testing:TalkTests/ASRBenchmarks \
+		-only-testing:TalkTests/LLMBenchmarks \
+		-only-testing:TalkTests/PipelineBenchmarks 2>&1 | grep -E "BENCH:|passed|failed|error:" | sed 's/.*BENCH: //'
+	@echo ""
+	@echo "===== Full Results ====="
+	@cat /tmp/talk-benchmark-results.txt 2>/dev/null || echo "(no results file found)"
 
 run: build ## Build and run the app
 	@$(eval APP := $(shell find $(BUILD_DIR) -path "*/Talk-*/Build/Products/Debug/Talk.app" -maxdepth 5 2>/dev/null | head -1))

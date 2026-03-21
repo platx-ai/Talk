@@ -40,9 +40,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let settings = AppSettings.load()
         AppLogger.cleanOldLogs()
 
-        initializeServices(settings: settings)
         setupMenuBar()
         setupHotKey(settings: settings)
+        initializeServices(settings: settings)
         setupMicrophonePermission()
         TextInjector.requestAccessibilityPermissionIfNeeded()
 
@@ -60,6 +60,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     // MARK: - 初始化服务
 
+    private(set) var isModelsReady = false
+
     private func initializeServices(settings: AppSettings) {
         if let reason = MLXRuntimeValidator.missingMetalLibraryReason() {
             AppLogger.error("启动预加载已跳过: \(reason)", category: .model)
@@ -70,6 +72,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let llmModelId = bundled.llmModelPath ?? settings.llmModelId
 
         Task {
+            statusBar?.updateProcessingStatus(.loadingModel)
+
             AppLogger.info("开始加载 ASR 模型...", category: .general)
             do {
                 try await ASRService.shared.loadModel(modelId: settings.asrModelId, bundleResourcesURL: bundled.asrBundleResourcesURL)
@@ -84,6 +88,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 AppLogger.info("LLM 模型加载完成", category: .general)
             } catch {
                 AppLogger.error("LLM 模型加载失败: \(error.localizedDescription)", category: .general)
+            }
+
+            isModelsReady = ASRService.shared.isModelLoaded && LLMService.shared.isModelLoaded
+            statusBar?.updateProcessingStatus(.idle)
+
+            if isModelsReady {
+                AppLogger.info("所有模型已就绪", category: .general)
+            } else {
+                AppLogger.warning("部分模型加载失败，功能可能受限", category: .general)
             }
         }
     }
@@ -143,6 +156,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     private func startRecording(trigger: String) async -> Bool {
         guard let statusBar = statusBar else { return false }
+
+        // 模型未就绪时，提示用户并拒绝录音
+        if !isModelsReady && (ASRService.shared.isLoading || LLMService.shared.isLoading) {
+            statusBar.updateProcessingStatus(.loadingModel)
+            statusBar.showNotification(title: "模型加载中", message: "请等待模型加载完成后再试")
+            AppLogger.info("\(trigger)触发：模型尚未就绪，拒绝录音", category: .ui)
+            return false
+        }
+
         if AudioRecorder.shared.isRecording {
             statusBar.updateProcessingStatus(.recording)
             return false
