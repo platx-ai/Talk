@@ -197,12 +197,20 @@ private struct HistoryDetailView: View {
 
     @Environment(\.dismiss) private var dismiss
     @State private var isEditing = false
+    @State private var editedPolishedText = ""
+    @State private var showLearnConfirmation = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 20) {
             HStack {
                 Text("历史详情").font(.headline)
                 Spacer()
+                if showLearnConfirmation {
+                    Text("已学习修正")
+                        .font(.caption)
+                        .foregroundStyle(.green)
+                        .transition(.opacity)
+                }
                 Button(action: { dismiss() }) {
                     Image(systemName: "xmark.circle.fill").font(.title2)
                 }
@@ -216,8 +224,8 @@ private struct HistoryDetailView: View {
                 infoRow("LLM 模型", modelShortName(item.llmModel))
             }
 
-            textSection("原始识别文本", text: item.rawText, isEditable: isEditing)
-            textSection("润色后文本", text: item.polishedText, isEditable: isEditing)
+            textSection("原始识别文本", text: item.rawText, isEditable: false)
+            polishedTextSection
 
             HStack(spacing: 12) {
                 Button(action: copyText) {
@@ -225,10 +233,23 @@ private struct HistoryDetailView: View {
                 }
                 .controlSize(.large)
 
-                Button(action: { isEditing.toggle() }) {
-                    Label("编辑", systemImage: "pencil")
+                if isEditing {
+                    Button(action: saveEdit) {
+                        Label("保存", systemImage: "checkmark")
+                    }
+                    .controlSize(.large)
+                    .buttonStyle(.borderedProminent)
+
+                    Button(action: cancelEdit) {
+                        Label("取消", systemImage: "xmark")
+                    }
+                    .controlSize(.large)
+                } else {
+                    Button(action: startEditing) {
+                        Label("编辑", systemImage: "pencil")
+                    }
+                    .controlSize(.large)
                 }
-                .controlSize(.large)
 
                 Spacer()
 
@@ -242,6 +263,30 @@ private struct HistoryDetailView: View {
         }
         .padding(20)
         .frame(width: 600, height: 500)
+        .onAppear {
+            editedPolishedText = item.polishedText
+        }
+    }
+
+    private var polishedTextSection: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("润色后文本").font(.caption).foregroundStyle(.secondary)
+            if isEditing {
+                TextEditor(text: $editedPolishedText)
+                    .font(.body)
+                    .scrollContentBackground(.hidden)
+                    .frame(minHeight: 80)
+                    .background(Color(nsColor: .textBackgroundColor))
+                    .cornerRadius(8)
+            } else {
+                Text(item.polishedText)
+                    .font(.body)
+                    .padding(12)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .background(Color(nsColor: .textBackgroundColor))
+                    .cornerRadius(8)
+            }
+        }
     }
 
     private func infoSection(_ title: String, @ViewBuilder content: () -> some View) -> some View {
@@ -271,22 +316,55 @@ private struct HistoryDetailView: View {
     private func textSection(_ title: String, text: String, isEditable: Bool) -> some View {
         VStack(alignment: .leading, spacing: 8) {
             Text(title).font(.caption).foregroundStyle(.secondary)
-            if isEditable {
-                TextEditor(text: .constant(text))
-                    .font(.body)
-                    .scrollContentBackground(.hidden)
-                    .frame(minHeight: 80)
-                    .background(Color(nsColor: .textBackgroundColor))
-                    .cornerRadius(8)
-            } else {
-                Text(text)
-                    .font(.body)
-                    .padding(12)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .background(Color(nsColor: .textBackgroundColor))
-                    .cornerRadius(8)
+            Text(text)
+                .font(.body)
+                .padding(12)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(Color(nsColor: .textBackgroundColor))
+                .cornerRadius(8)
+        }
+    }
+
+    private func startEditing() {
+        editedPolishedText = item.polishedText
+        isEditing = true
+    }
+
+    private func cancelEdit() {
+        editedPolishedText = item.polishedText
+        isEditing = false
+    }
+
+    private func saveEdit() {
+        let originalText = item.polishedText
+        let correctedText = editedPolishedText.trimmingCharacters(in: .whitespacesAndNewlines)
+
+        guard correctedText != originalText, !correctedText.isEmpty else {
+            isEditing = false
+            return
+        }
+
+        // Update the history item
+        var updatedItem = item
+        updatedItem.polishedText = correctedText
+        HistoryManager.shared.update(updatedItem)
+
+        // Learn from correction
+        VocabularyManager.shared.learnCorrection(original: originalText, corrected: correctedText)
+
+        isEditing = false
+
+        // Show confirmation
+        withAnimation {
+            showLearnConfirmation = true
+        }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
+            withAnimation {
+                showLearnConfirmation = false
             }
         }
+
+        AppLogger.info("用户修正了润色文本并已学习", category: .ui)
     }
 
     private func copyText() {

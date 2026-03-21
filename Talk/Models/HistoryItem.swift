@@ -12,7 +12,7 @@ struct HistoryItem: Codable, Identifiable, Equatable {
     let timestamp: Date
     let duration: TimeInterval
     let rawText: String
-    let polishedText: String
+    var polishedText: String
     let asrModel: String
     let llmModel: String
     var audioFilePath: String?
