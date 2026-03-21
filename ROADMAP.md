@@ -26,20 +26,28 @@
 - [x] **Recording duration timer**
   - Elapsed time displayed in the floating indicator
 
-- [ ] **Editable LLM system prompt**
-  - User can customize the polish prompt in settings
-  - Controls how aggressively LLM rewrites text
+- [x] **Editable LLM system prompt**
+  - 4 preset templates (strict correction, light polish, meeting notes, tech docs)
+  - Custom prompt overrides polish intensity
   - "Reset to default" button
 
-- [ ] **Selection replacement mode**
-  - When user has text selected, recording replaces the selection
-  - Selected text passed as context to LLM for correction-aware polishing
+- [x] **Selection edit mode**
+  - Select text + speak voice command = LLM executes the instruction
+  - Supports: typo correction, style rewrite, formatting changes
+  - Dual capture: Accessibility API (default) with Cmd+C fallback
+
+- [x] **Model loading progress**
+  - Floating indicator shows "加载模型中..." when models are loading
+  - Prevents user confusion during first-time model download
 
 - [ ] **Real-time transcription preview**
   - Live text overlay showing ASR output as the user speaks
   - Setting `showRealtimeRecognition` already exists — needs UI implementation
 
-- [ ] **Model loading progress**
+- [ ] **ASR error feedback loop**
+  - User corrects a mis-recognized word → system learns the mapping (e.g., "la laam" → "LLM")
+  - Corrections stored in vocabulary, injected as LLM context for future polishing
+  - History view: edit polished text → system auto-learns from correction
   - First-launch experience: show download/loading progress in floating indicator
   - Prevent users from thinking the app is frozen
 

@@ -70,6 +70,7 @@ struct MenuBarView: View {
     private func getStatusIcon() -> String {
         switch viewModel.processingStatus {
         case .idle: return "circle.fill"
+        case .loadingModel: return "arrow.down.circle"
         case .recording: return "record.circle.fill"
         case .asr: return "waveform"
         case .polishing: return "sparkles"
@@ -106,6 +107,7 @@ class MenuViewModel: ObservableObject {
 
     enum ProcessingStatus: String {
         case idle = "空闲"
+        case loadingModel = "加载模型中..."
         case recording = "录音中..."
         case asr = "识别中..."
         case polishing = "润色中..."

@@ -14,6 +14,7 @@ import AppKit
 @MainActor
 final class FloatingIndicatorState {
     enum Phase {
+        case loadingModel
         case recording(startDate: Date)
         case recognizing
         case polishing
@@ -137,6 +138,9 @@ struct FloatingIndicatorContentView: View {
     @ViewBuilder
     private var iconView: some View {
         switch state.phase {
+        case .loadingModel:
+            ProgressView()
+                .controlSize(.small)
         case .recording:
             Image(systemName: "mic.fill")
                 .foregroundStyle(.red)
@@ -164,6 +168,10 @@ struct FloatingIndicatorContentView: View {
     @ViewBuilder
     private var textView: some View {
         switch state.phase {
+        case .loadingModel:
+            Text("加载模型中...")
+                .font(.system(size: 13, weight: .medium))
+                .foregroundStyle(.primary)
         case .recording(let startDate):
             TimelineView(.periodic(from: startDate, by: 0.5)) { context in
                 let elapsed = context.date.timeIntervalSince(startDate)

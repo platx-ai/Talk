@@ -206,6 +206,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             let llmModelId = bundled.llmModelPath ?? settings.llmModelId
 
             do {
+                if !ASRService.shared.isModelLoaded || !LLMService.shared.isModelLoaded {
+                    statusBar.updateProcessingStatus(.loadingModel)
+                }
                 if !ASRService.shared.isModelLoaded {
                     try await ASRService.shared.loadModel(
                         modelId: settings.asrModelId,

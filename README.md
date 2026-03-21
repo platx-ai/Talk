@@ -13,6 +13,9 @@ A macOS menu bar voice input tool — hold a hotkey, speak, and your words are r
 - **On-device inference** — Powered by Apple Silicon MLX, no cloud dependency, privacy-first
 - **Speech recognition** — Qwen3-ASR-0.6B-4bit, supports Chinese and English
 - **Text polishing** — Qwen3-4B-Instruct, removes filler words, adds punctuation, smart formatting
+- **Customizable prompts** — 4 preset templates (strict/light/meeting/tech) or write your own system prompt
+- **Selection edit mode** — Select text, speak a command ("fix the typo", "make it casual"), and it's done
+- **Floating status indicator** — Always-on-top overlay showing recording/processing state with audio level meter
 - **Global hotkey** — Customizable key recorder, Push-to-Talk / Toggle modes
 - **Audio device selection** — Pick your input device, defaults to built-in microphone
 - **Auto-paste** — Injects text via Accessibility API (Cmd+V simulation)
