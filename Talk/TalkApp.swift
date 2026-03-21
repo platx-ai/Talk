@@ -126,7 +126,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func reloadHotKeyFromSettings() {
-        setupHotKey(settings: AppSettings.load())
+        let settings = AppSettings.load()
+        AppLogger.info("重新加载热键: \(settings.recordingHotkey.displayString)", category: .hotkey)
+        setupHotKey(settings: settings)
     }
 
     // MARK: - 热键处理
