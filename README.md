@@ -115,6 +115,26 @@ open Talk.xcodeproj
 
 `DEVELOPMENT_TEAM` is left empty in the project. Each developer sets their own signing team in Xcode. CLI builds use ad-hoc signing.
 
+## Roadmap
+
+See [ROADMAP.md](ROADMAP.md) for the full product roadmap.
+
+**Near-term**
+- Floating status indicator (recording → recognizing → polishing → done)
+- Real-time transcription preview overlay
+- Audio level visualization
+- Model loading progress
+
+**Mid-term**
+- Project-aware vocabulary & prompt profiles (per-repo `.talk/` config)
+- iCloud vocabulary sync across devices
+- iOS companion app with offline on-device inference
+
+**Long-term**
+- Multi-language vocabulary management
+- Team shared terminology libraries
+- Plugin system for custom post-processing pipelines
+
 ## License
 
 [MIT](LICENSE)
