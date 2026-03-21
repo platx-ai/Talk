@@ -214,7 +214,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
         do {
             targetApp = NSWorkspace.shared.frontmostApplication
-            selectedTextBeforeRecording = captureSelectedText()
+            // 只用 Accessibility API 捕获（不阻塞），不 fallback 到 Cmd+C
+            selectedTextBeforeRecording = captureSelectedTextViaAccessibility()
             if let sel = selectedTextBeforeRecording {
                 AppLogger.info("捕获到选中文本: \(sel.prefix(50))...", category: .ui)
             }
