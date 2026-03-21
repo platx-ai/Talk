@@ -156,12 +156,27 @@ final class HotKeyManager {
             // 修饰键单独模式：只关心 flagsChanged 事件
             guard type == .flagsChanged else { return }
 
-            let cgFlag = nsCGEventFlag(for: cachedKeyCode)
-            guard cgFlag != [] else { return }
-            let isDown = flags.contains(cgFlag)
+            // 主修饰键（作为 keyCode 的那个）
+            let primaryFlag = nsCGEventFlag(for: cachedKeyCode)
+            guard primaryFlag != [] else { return }
 
-            Task { @MainActor [weak self] in
-                self?.handleKeyState(isDown: isDown)
+            // 检查主修饰键是否被按下
+            let primaryDown = flags.contains(primaryFlag)
+
+            // 如果有额外修饰键要求（如 Cmd+Option 中的 Cmd），也要检查
+            if cachedModifiers != 0 {
+                let currentMods = carbonModifiers(from: flags)
+                let requiredMods = cachedModifiers
+                // 额外修饰键必须全部按下，主修饰键也必须按下
+                let isDown = primaryDown && (currentMods & requiredMods) == requiredMods
+                Task { @MainActor [weak self] in
+                    self?.handleKeyState(isDown: isDown)
+                }
+            } else {
+                // 单个修饰键（如只按 Control）
+                Task { @MainActor [weak self] in
+                    self?.handleKeyState(isDown: primaryDown)
+                }
             }
         } else {
             // 常规按键模式：匹配 keyCode + modifiers

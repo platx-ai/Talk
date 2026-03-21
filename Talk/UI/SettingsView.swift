@@ -63,6 +63,7 @@ private struct RecordingSettingsTab: View {
                 }
 
                 KeyRecorderView(hotkey: $settings.recordingHotkey) { newCombo in
+                    settings.recordingHotkey = newCombo
                     settings.save()
                     AppDelegate.shared?.applyHotKey(newCombo, triggerMode: settings.recordingTriggerMode)
                 }
