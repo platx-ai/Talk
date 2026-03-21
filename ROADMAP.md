@@ -1,37 +1,46 @@
 # Talk Roadmap
 
-## v0.2 — Visual Feedback & Polish
+## v0.2 — Visual Feedback & Polish *(in progress)*
 
 > Make the invisible visible. Users must know what Talk is doing at every moment.
 
 ### P0: Critical Fixes
 
-- [ ] **Remove personal info leaks**
+- [x] **Remove personal info leaks**
   - Remove committed `xcuserdata/` directory
   - Sanitize executable path in Accessibility permission dialog
   - Add `xcuserdata/` to `.gitignore`
 
-- [ ] **Floating status indicator**
-  - A small overlay window that appears near the cursor or screen corner when recording
-  - States: 🎙 Recording → 🔄 Recognizing → ✨ Polishing → ✅ Done
-  - Auto-dismiss after text injection
-  - Visible in full-screen apps and across monitors
+- [x] **Floating status indicator**
+  - Transparent NSPanel overlay at screen top-center
+  - States: 🎙 Recording (with timer + audio level) → 🔄 Recognizing → ✨ Polishing → 📤 Outputting → ✅ Done
+  - Auto-dismiss after 1.5s
+  - Visible in full-screen apps and across all spaces
 
 ### P1: Core UX
+
+- [x] **Audio level visualization**
+  - Real-time RMS level meter in the floating indicator
+  - Green (normal) / yellow (loud) color coding
+
+- [x] **Recording duration timer**
+  - Elapsed time displayed in the floating indicator
+
+- [ ] **Editable LLM system prompt**
+  - User can customize the polish prompt in settings
+  - Controls how aggressively LLM rewrites text
+  - "Reset to default" button
+
+- [ ] **Selection replacement mode**
+  - When user has text selected, recording replaces the selection
+  - Selected text passed as context to LLM for correction-aware polishing
 
 - [ ] **Real-time transcription preview**
   - Live text overlay showing ASR output as the user speaks
   - Setting `showRealtimeRecognition` already exists — needs UI implementation
 
-- [ ] **Audio level visualization**
-  - Waveform or level meter in the floating indicator
-  - Confirms microphone is capturing audio
-
-- [ ] **Recording duration timer**
-  - Elapsed time displayed in the floating indicator
-
 - [ ] **Model loading progress**
-  - First-launch experience: show download/loading progress in menu bar
+  - First-launch experience: show download/loading progress in floating indicator
   - Prevent users from thinking the app is frozen
 
 ---
