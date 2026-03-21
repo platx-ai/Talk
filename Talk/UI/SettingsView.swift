@@ -65,9 +65,7 @@ private struct RecordingSettingsTab: View {
                 KeyRecorderView(hotkey: $settings.recordingHotkey)
                     .onChange(of: settings.recordingHotkey) {
                         settings.save()
-                        // 强制同步 UserDefaults 后再重新加载
-                        UserDefaults.standard.synchronize()
-                        AppDelegate.shared?.reloadHotKeyFromSettings()
+                        AppDelegate.shared?.applyHotKey(settings.recordingHotkey, triggerMode: settings.recordingTriggerMode)
                     }
 
                 HStack {

@@ -131,6 +131,22 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         setupHotKey(settings: settings)
     }
 
+    /// 直接应用快捷键，不经过 UserDefaults 来回读取
+    func applyHotKey(_ combo: HotKeyCombo, triggerMode: AppSettings.RecordingTriggerMode) {
+        let mode: HotKeyManager.TriggerMode = triggerMode == .pushToTalk ? .pushToTalk : .toggle
+        HotKeyManager.shared.setTriggerMode(mode)
+
+        let hotKey = HotKeyManager.HotKeyConfiguration(modifiers: combo.carbonModifiers, keyCode: combo.carbonKeyCode)
+        HotKeyManager.shared.registerHotKey(hotKey)
+
+        Task { @MainActor in
+            HotKeyManager.shared.onHotKeyPressed = { [weak self] in self?.handleHotKeyPressed() }
+            HotKeyManager.shared.onHotKeyReleased = { [weak self] in self?.handleHotKeyReleased() }
+        }
+
+        AppLogger.info("直接应用热键: \(combo.displayString)", category: .hotkey)
+    }
+
     // MARK: - 热键处理
 
     @MainActor
