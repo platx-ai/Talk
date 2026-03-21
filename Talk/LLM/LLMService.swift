@@ -28,7 +28,7 @@ final class LLMService {
 
     // MARK: - 系统提示词
 
-    private let systemPrompt = """
+    static let defaultSystemPrompt = """
 你是一个智能文本清理助手。你的任务是对语音识别的文本进行清理和修正。
 
 任务：
@@ -109,7 +109,7 @@ final class LLMService {
 
     // MARK: - 文本润色
 
-    func polish(text: String, intensity: AppSettings.PolishIntensity) async throws -> String {
+    func polish(text: String, intensity: AppSettings.PolishIntensity, customPrompt: String? = nil, selectedText: String? = nil) async throws -> String {
         guard isModelLoaded else {
             AppLogger.error("LLM 模型未加载", category: .llm)
             throw LLMError.modelNotLoaded
@@ -122,11 +122,44 @@ final class LLMService {
 
         AppLogger.debug("开始文本润色: \(text)", category: .llm)
 
-        let prompt = systemPrompt + getPolishPrompt(intensity: intensity) + "\n\n请清理以下文本：\(text)"
+        let instructions: String
+        let userMessage: String
+
+        if let selectedText, !selectedText.isEmpty {
+            // 选中修正模式：语音输入是指令，选中文本是操作对象
+            instructions = """
+            你是一个智能文本编辑助手。用户选中了一段文本，然后用语音给出了修改指令。
+
+            你的任务是：
+            1. 理解用户的语音指令（可能包含纠错、改写、格式转换等要求）
+            2. 对选中的文本执行用户要求的操作
+            3. 直接返回修改后的完整文本，不要添加任何解释
+
+            注意：
+            - 语音指令可能包含语音识别的错误，请根据上下文理解真实意图
+            - 如果指令是纠正某个字词，找到对应的错误并替换
+            - 如果指令是改变风格（如"变成口语"），则改写整段文本
+            - 只返回修改后的文本，不要包含解释、引号或其他标记
+            """
+            userMessage = "选中的文本：\n\(selectedText)\n\n语音指令：\(text)"
+        } else {
+            // 普通润色模式
+            if let customPrompt, !customPrompt.isEmpty {
+                instructions = customPrompt
+            } else {
+                instructions = Self.defaultSystemPrompt
+            }
+            var msg = ""
+            if customPrompt == nil || customPrompt?.isEmpty == true {
+                msg += getPolishPrompt(intensity: intensity)
+            }
+            msg += "\n\n请清理以下文本：\(text)"
+            userMessage = msg
+        }
 
         do {
-            let session = ChatSession(modelContainer, instructions: systemPrompt)
-            let response = try await session.respond(to: prompt)
+            let session = ChatSession(modelContainer, instructions: instructions)
+            let response = try await session.respond(to: userMessage)
 
             let polishedText = response.trimmingCharacters(in: CharacterSet.whitespacesAndNewlines)
 

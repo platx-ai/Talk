@@ -197,6 +197,16 @@ final class AppSettings {
     var polishIntensity: PolishIntensity = .medium
     var conversationHistoryRounds: Int = 5
     var enableConversationHistory: Bool = true
+    var customSystemPrompt: String = ""  // empty means use default
+
+    // MARK: - 选中修正
+
+    enum SelectionCaptureMethod: String, Codable, CaseIterable {
+        case accessibility = "accessibility"  // AXUIElement API, low intrusion
+        case clipboard = "clipboard"          // Cmd+C, broader compatibility
+    }
+
+    var selectionCaptureMethod: SelectionCaptureMethod = .accessibility
 
     // MARK: - 输出设置
 
@@ -316,6 +326,11 @@ extension AppSettings {
         }
         settings.conversationHistoryRounds = defaults.integer(forKey: "conversationHistoryRounds") != 0 ? defaults.integer(forKey: "conversationHistoryRounds") : 5
         settings.enableConversationHistory = boolValue("enableConversationHistory", default: true)
+        settings.customSystemPrompt = defaults.string(forKey: "customSystemPrompt") ?? ""
+        if let method = defaults.string(forKey: "selectionCaptureMethod"),
+           let captureMethod = SelectionCaptureMethod(rawValue: method) {
+            settings.selectionCaptureMethod = captureMethod
+        }
 
         if let method = defaults.string(forKey: "outputMethod"),
            let outputMethod = OutputMethod(rawValue: method) {
@@ -376,6 +391,8 @@ extension AppSettings {
         defaults.set(polishIntensity.rawValue, forKey: "polishIntensity")
         defaults.set(conversationHistoryRounds, forKey: "conversationHistoryRounds")
         defaults.set(enableConversationHistory, forKey: "enableConversationHistory")
+        defaults.set(customSystemPrompt, forKey: "customSystemPrompt")
+        defaults.set(selectionCaptureMethod.rawValue, forKey: "selectionCaptureMethod")
 
         defaults.set(outputMethod.rawValue, forKey: "outputMethod")
         defaults.set(outputDelay.rawValue, forKey: "outputDelay")

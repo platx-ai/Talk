@@ -171,6 +171,45 @@ private struct LLMSettingsTab: View {
             }
 
             Section {
+                HStack {
+                    Text("预设模板")
+                    Spacer()
+                    Menu("选择模板") {
+                        Button("严格纠错") {
+                            settings.customSystemPrompt = "你是一个严格的文本纠错助手。只修正明显的语音识别错误和错别字，不改变原文的表达方式、语气和结构。保持原文风格，仅做最小修正。"
+                        }
+                        Button("轻度润色") {
+                            settings.customSystemPrompt = "你是一个文本清理助手。去除口语填充词（嗯、啊、呃），添加标点符号，修正明显错误。保留原文的表达风格和语气，不做改写。"
+                        }
+                        Button("会议纪要") {
+                            settings.customSystemPrompt = "你是一个会议纪要整理助手。将语音识别的会议内容整理为结构化的纪要格式：提取要点、决议和待办事项，使用项目符号列表，标注发言人（如能识别）。"
+                        }
+                        Button("技术文档") {
+                            settings.customSystemPrompt = "你是一个技术文档整理助手。将语音输入整理为技术文档风格：保留代码标识符和技术术语的原文，使用 Markdown 格式，自动识别代码片段并用反引号包裹。"
+                        }
+                    }
+                }
+
+                TextEditor(text: $settings.customSystemPrompt)
+                    .font(.system(.body, design: .monospaced))
+                    .frame(minHeight: 120, maxHeight: 180)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 4)
+                            .stroke(Color.secondary.opacity(0.3), lineWidth: 1)
+                    )
+                HStack {
+                    Text("留空则使用默认提示词").font(.caption).foregroundColor(.secondary)
+                    Spacer()
+                    Button("恢复默认") {
+                        settings.customSystemPrompt = ""
+                    }
+                    .disabled(settings.customSystemPrompt.isEmpty)
+                }
+            } header: {
+                Text("润色提示词")
+            }
+
+            Section {
                 Text("润色功能说明：").font(.caption)
                 Text("• 去除口语填充词（嗯、啊、呃等）").font(.caption)
                 Text("• 添加合适的标点符号").font(.caption)
@@ -230,6 +269,18 @@ private struct AdvancedSettingsTab: View {
 
     var body: some View {
         Form {
+            Section {
+                Picker("选中文本捕获方式", selection: $settings.selectionCaptureMethod) {
+                    Text("Accessibility API（低侵入）").tag(AppSettings.SelectionCaptureMethod.accessibility)
+                    Text("Cmd+C 复制（兼容性好）").tag(AppSettings.SelectionCaptureMethod.clipboard)
+                }
+                Text("选中文字后录音可替换选中内容。Accessibility API 不影响剪贴板但部分应用不支持。")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+            } header: {
+                Text("选中修正")
+            }
+
             Section {
                 Toggle("启用命令词识别", isOn: $settings.enableVoiceCommands)
                 Toggle("启用个人词库", isOn: $settings.enablePersonalVocabulary)

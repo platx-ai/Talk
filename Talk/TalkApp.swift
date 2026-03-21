@@ -29,6 +29,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     private var statusBar: LocalTypeMenuBar?
     private var targetApp: NSRunningApplication?
+    private var selectedTextBeforeRecording: String?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         Self.shared = self
@@ -148,6 +149,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
         do {
             targetApp = NSWorkspace.shared.frontmostApplication
+            selectedTextBeforeRecording = captureSelectedText()
+            if let sel = selectedTextBeforeRecording {
+                AppLogger.info("捕获到选中文本: \(sel.prefix(50))...", category: .ui)
+            }
             let settings = AppSettings.load()
             AudioRecorder.shared.selectedDeviceUID = settings.selectedAudioDeviceUID
             AudioRecorder.shared.onAudioLevel = { [weak statusBar] level in
@@ -216,7 +221,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 AppLogger.info("ASR 识别完成: \(rawText)", category: .general)
 
                 statusBar.updateProcessingStatus(.polishing)
-                let polishedText = try await LLMService.shared.polish(text: rawText, intensity: settings.polishIntensity)
+                let polishedText = try await LLMService.shared.polish(
+                    text: rawText,
+                    intensity: settings.polishIntensity,
+                    customPrompt: settings.customSystemPrompt,
+                    selectedText: self.selectedTextBeforeRecording
+                )
                 AppLogger.info("LLM 润色完成: \(polishedText)", category: .general)
 
                 statusBar.updateProcessingStatus(.outputting)
@@ -241,6 +251,72 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 statusBar.showNotification(title: "处理失败", message: error.localizedDescription)
             }
         }
+    }
+
+    // MARK: - 捕获选中文本
+
+    private func captureSelectedText() -> String? {
+        let settings = AppSettings.load()
+        switch settings.selectionCaptureMethod {
+        case .accessibility:
+            // 先尝试 Accessibility API，失败则 fallback 到 Cmd+C
+            if let text = captureSelectedTextViaAccessibility() {
+                return text
+            }
+            AppLogger.debug("Accessibility API 未获取到选中文本，尝试 Cmd+C fallback", category: .ui)
+            return captureSelectedTextViaClipboard()
+        case .clipboard:
+            return captureSelectedTextViaClipboard()
+        }
+    }
+
+    /// Accessibility API 方式：通过 AXUIElement 读取选中文本，不影响剪贴板
+    private func captureSelectedTextViaAccessibility() -> String? {
+        guard let app = NSWorkspace.shared.frontmostApplication else { return nil }
+        let axApp = AXUIElementCreateApplication(app.processIdentifier)
+
+        var focusedElement: AnyObject?
+        guard AXUIElementCopyAttributeValue(axApp, kAXFocusedUIElementAttribute as CFString, &focusedElement) == .success else {
+            return nil
+        }
+
+        let element = focusedElement as! AXUIElement  // AnyObject from AXUIElementCopyAttributeValue is always AXUIElement
+
+        var selectedText: AnyObject?
+        guard AXUIElementCopyAttributeValue(element, kAXSelectedTextAttribute as CFString, &selectedText) == .success else {
+            return nil
+        }
+
+        guard let text = selectedText as? String, !text.isEmpty else {
+            return nil
+        }
+
+        AppLogger.debug("通过 Accessibility API 捕获选中文本: \(text.prefix(50))...", category: .ui)
+        return text
+    }
+
+    /// Cmd+C 方式：模拟复制，兼容性更好但会短暂占用剪贴板
+    private func captureSelectedTextViaClipboard() -> String? {
+        let pasteboard = NSPasteboard.general
+        let changeCount = pasteboard.changeCount
+
+        let source = CGEventSource(stateID: CGEventSourceStateID.hidSystemState)
+        let cmdDown = CGEvent(keyboardEventSource: source, virtualKey: 0x08, keyDown: true)
+        cmdDown?.flags = CGEventFlags.maskCommand
+        let cmdUp = CGEvent(keyboardEventSource: source, virtualKey: 0x08, keyDown: false)
+        cmdUp?.flags = CGEventFlags.maskCommand
+        cmdDown?.post(tap: CGEventTapLocation.cghidEventTap)
+        cmdUp?.post(tap: CGEventTapLocation.cghidEventTap)
+
+        Thread.sleep(forTimeInterval: 0.1)
+
+        guard pasteboard.changeCount != changeCount else {
+            return nil
+        }
+
+        let selectedText = pasteboard.string(forType: .string)
+        AppLogger.debug("通过 Cmd+C 捕获选中文本: \(selectedText?.prefix(50) ?? "nil")...", category: .ui)
+        return selectedText?.isEmpty == true ? nil : selectedText
     }
 
     private func setupMicrophonePermission() {
