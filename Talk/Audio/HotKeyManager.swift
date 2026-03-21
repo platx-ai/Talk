@@ -57,6 +57,7 @@ final class HotKeyManager {
     private nonisolated(unsafe) var _cachedKeyCode: UInt32 = defaultHotKey.keyCode
     private nonisolated(unsafe) var _cachedModifiers: UInt32 = defaultHotKey.modifiers
     private nonisolated(unsafe) var _cachedIsModifierOnly: Bool = true
+    private nonisolated(unsafe) var _cachedWasPressed: Bool = false
 
     // MARK: - 初始化
 
@@ -77,6 +78,7 @@ final class HotKeyManager {
         _cachedKeyCode = hotKey.keyCode
         _cachedModifiers = hotKey.modifiers
         _cachedIsModifierOnly = modOnly
+        _cachedWasPressed = false
 
         AppLogger.info("注册热键 - 修饰键: 0x\(String(hotKey.modifiers, radix: 16)), 键码: \(hotKey.keyCode), 修饰键模式: \(modOnly)", category: .hotkey)
 
@@ -93,11 +95,17 @@ final class HotKeyManager {
     // MARK: - CGEventTap
 
     private func installCGEventTap() {
-        // 监听按键按下、释放和修饰键变化
-        let eventMask: CGEventMask =
-            (1 << CGEventType.keyDown.rawValue) |
-            (1 << CGEventType.keyUp.rawValue) |
-            (1 << CGEventType.flagsChanged.rawValue)
+        // 只监听需要的事件类型
+        let eventMask: CGEventMask
+        if _cachedIsModifierOnly {
+            // 修饰键模式：只需要 flagsChanged
+            eventMask = 1 << CGEventType.flagsChanged.rawValue
+        } else {
+            // 普通按键模式：需要 keyDown/keyUp + flagsChanged（用于检查修饰键状态）
+            eventMask =
+                (1 << CGEventType.keyDown.rawValue) |
+                (1 << CGEventType.keyUp.rawValue)
+        }
 
         // 使用 nonisolated 的全局 C 回调，通过 userInfo 传递 context
         let context = Unmanaged.passUnretained(self).toOpaque()
@@ -156,26 +164,25 @@ final class HotKeyManager {
             // 修饰键单独模式：只关心 flagsChanged 事件
             guard type == .flagsChanged else { return }
 
-            // 主修饰键（作为 keyCode 的那个）
             let primaryFlag = nsCGEventFlag(for: cachedKeyCode)
             guard primaryFlag != [] else { return }
 
-            // 检查主修饰键是否被按下
             let primaryDown = flags.contains(primaryFlag)
 
-            // 如果有额外修饰键要求（如 Cmd+Option 中的 Cmd），也要检查
+            let isDown: Bool
             if cachedModifiers != 0 {
                 let currentMods = carbonModifiers(from: flags)
-                let requiredMods = cachedModifiers
-                // 额外修饰键必须全部按下，主修饰键也必须按下
-                let isDown = primaryDown && (currentMods & requiredMods) == requiredMods
+                isDown = primaryDown && (currentMods & cachedModifiers) == cachedModifiers
+            } else {
+                isDown = primaryDown
+            }
+
+            // 只在状态真正变化时才 dispatch 到主线程
+            let wasPressed = _cachedWasPressed
+            if isDown != wasPressed {
+                _cachedWasPressed = isDown
                 Task { @MainActor [weak self] in
                     self?.handleKeyState(isDown: isDown)
-                }
-            } else {
-                // 单个修饰键（如只按 Control）
-                Task { @MainActor [weak self] in
-                    self?.handleKeyState(isDown: primaryDown)
                 }
             }
         } else {
