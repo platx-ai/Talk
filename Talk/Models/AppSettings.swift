@@ -1,0 +1,403 @@
+//
+//  AppSettings.swift
+//  Talk
+//
+//  应用设置模型
+//
+
+import Foundation
+
+// MARK: - HotKeyCombo
+
+/// 快捷键组合（Codable / Equatable）
+struct HotKeyCombo: Codable, Equatable {
+    var carbonModifiers: UInt32
+    var carbonKeyCode: UInt32
+    var isModifierOnly: Bool
+
+    /// Control 键单独按下
+    static let defaultCombo = HotKeyCombo(carbonModifiers: 0, carbonKeyCode: 59, isModifierOnly: true)
+
+    // MARK: - 显示字符串
+
+    var displayString: String {
+        var parts: [String] = []
+
+        // 修饰键符号
+        if carbonModifiers & 0x1000 != 0 { parts.append("⌃") }
+        if carbonModifiers & 0x0800 != 0 { parts.append("⌥") }
+        if carbonModifiers & 0x0200 != 0 { parts.append("⇧") }
+        if carbonModifiers & 0x0100 != 0 { parts.append("⌘") }
+
+        if isModifierOnly {
+            // 主键本身也是修饰键
+            let modName = Self.modifierKeyName(for: carbonKeyCode)
+            let modSymbol = Self.modifierKeySymbol(for: carbonKeyCode)
+            // 如果修饰键符号还没包含，加上它
+            if !parts.contains(modSymbol) {
+                parts.insert(modSymbol, at: 0)
+            }
+            return parts.joined() + " " + modName
+        } else {
+            let keyName = Self.regularKeyName(for: carbonKeyCode)
+            return parts.joined() + " " + keyName
+        }
+    }
+
+    // MARK: - Legacy migration
+
+    /// Convert old string format (e.g. "Control", "Option + Control", "Command + Space") to HotKeyCombo
+    static func fromLegacyString(_ legacy: String) -> HotKeyCombo {
+        let tokens = legacy.split(separator: "+")
+            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() }
+            .filter { !$0.isEmpty }
+
+        func modifierMask(for token: String) -> UInt32 {
+            switch token {
+            case "command", "cmd": return 0x0100
+            case "shift": return 0x0200
+            case "option", "alt": return 0x0800
+            case "control", "ctrl": return 0x1000
+            default: return 0
+            }
+        }
+
+        func keyCode(for token: String) -> UInt32? {
+            switch token {
+            case "space": return 49
+            default: return nil
+            }
+        }
+
+        // Find the primary (non-modifier) key
+        let nonModifier = tokens.first { modifierMask(for: $0) == 0 && keyCode(for: $0) != nil }
+
+        if let primary = nonModifier, let code = keyCode(for: primary) {
+            // Regular key combo (e.g. "Command + Space")
+            var mods: UInt32 = 0
+            for t in tokens where modifierMask(for: t) != 0 {
+                mods |= modifierMask(for: t)
+            }
+            return HotKeyCombo(carbonModifiers: mods, carbonKeyCode: code, isModifierOnly: false)
+        } else {
+            // Modifier-only combo: last modifier token is the primary key, rest are additional modifiers
+            let modTokens = tokens.filter { modifierMask(for: $0) != 0 }
+            guard let primaryToken = modTokens.last else {
+                return .defaultCombo
+            }
+            let primaryKeyCode: UInt32
+            switch primaryToken {
+            case "control", "ctrl": primaryKeyCode = 59
+            case "option", "alt": primaryKeyCode = 58
+            case "shift": primaryKeyCode = 56
+            case "command", "cmd": primaryKeyCode = 55
+            default: return .defaultCombo
+            }
+            var mods: UInt32 = 0
+            for t in modTokens.dropLast() {
+                mods |= modifierMask(for: t)
+            }
+            return HotKeyCombo(carbonModifiers: mods, carbonKeyCode: primaryKeyCode, isModifierOnly: true)
+        }
+    }
+
+    // MARK: - Key name helpers
+
+    private static func modifierKeySymbol(for keyCode: UInt32) -> String {
+        switch keyCode {
+        case 59: return "⌃"  // Control
+        case 58: return "⌥"  // Option
+        case 56: return "⇧"  // Shift
+        case 55: return "⌘"  // Command
+        default: return ""
+        }
+    }
+
+    private static func modifierKeyName(for keyCode: UInt32) -> String {
+        switch keyCode {
+        case 59: return "Control"
+        case 58: return "Option"
+        case 56: return "Shift"
+        case 55: return "Command"
+        default: return "Key(\(keyCode))"
+        }
+    }
+
+    private static func regularKeyName(for keyCode: UInt32) -> String {
+        switch keyCode {
+        case 49: return "Space"
+        case 36: return "Return"
+        case 48: return "Tab"
+        case 51: return "Delete"
+        case 53: return "Escape"
+        case 122: return "F1"
+        case 120: return "F2"
+        case 99: return "F3"
+        case 118: return "F4"
+        case 96: return "F5"
+        case 97: return "F6"
+        case 98: return "F7"
+        case 100: return "F8"
+        case 101: return "F9"
+        case 109: return "F10"
+        case 103: return "F11"
+        case 111: return "F12"
+        default:
+            // Letter keys
+            let letterMap: [UInt32: String] = [
+                0:"A",11:"B",8:"C",2:"D",14:"E",3:"F",5:"G",4:"H",34:"I",
+                38:"J",40:"K",37:"L",46:"M",45:"N",31:"O",35:"P",12:"Q",
+                15:"R",1:"S",17:"T",32:"U",9:"V",13:"W",7:"X",16:"Y",6:"Z"
+            ]
+            return letterMap[keyCode] ?? "Key(\(keyCode))"
+        }
+    }
+}
+
+/// 应用设置
+@Observable
+final class AppSettings {
+    // MARK: - 录音设置
+
+    enum RecordingTriggerMode: String, Codable, CaseIterable {
+        case pushToTalk = "push_to_talk"
+        case toggle = "toggle"
+    }
+
+    var recordingTriggerMode: RecordingTriggerMode = .pushToTalk
+    var recordingHotkey: HotKeyCombo = .defaultCombo
+    var recordingMaxDuration: Int = 0
+    var silenceTimeout: Int = 0
+    var sampleRate: Int = 16000
+
+    // MARK: - ASR 设置
+
+    var asrModelId: String = "mlx-community/Qwen3-ASR-0.6B-4bit"
+
+    enum ASRLanguage: String, Codable, CaseIterable {
+        case auto = "auto"
+        case chinese = "zh"
+        case english = "en"
+        case mixed = "mixed"
+    }
+
+    var asrLanguage: ASRLanguage = .auto
+    var showRealtimeRecognition: Bool = true
+
+    // MARK: - LLM 设置
+
+    var llmModelId: String = "mlx-community/Qwen3-4B-Instruct-2507-4bit"
+
+    enum PolishIntensity: String, Codable, CaseIterable {
+        case light = "light"
+        case medium = "medium"
+        case strong = "strong"
+    }
+
+    var polishIntensity: PolishIntensity = .medium
+    var conversationHistoryRounds: Int = 5
+    var enableConversationHistory: Bool = true
+
+    // MARK: - 输出设置
+
+    enum OutputMethod: String, Codable, CaseIterable {
+        case autoPaste = "auto_paste"
+        case clipboardOnly = "clipboard_only"
+        case previewWindow = "preview_window"
+    }
+
+    var outputMethod: OutputMethod = .autoPaste
+
+    enum OutputDelay: String, Codable, CaseIterable {
+        case immediate = "immediate"
+        case afterPolish = "after_polish"
+        case custom = "custom"
+    }
+
+    var outputDelay: OutputDelay = .afterPolish
+    var customOutputDelay: Int = 1
+    var showPreviewBeforeOutput: Bool = false
+
+    // MARK: - 高级功能
+
+    var enableVoiceCommands: Bool = true
+    var enablePersonalVocabulary: Bool = true
+
+    enum AppLanguage: String, Codable, CaseIterable {
+        case system = "system"
+        case chinese = "zh-CN"
+        case english = "en-US"
+    }
+
+    var appLanguage: AppLanguage = .system
+
+    enum PerformanceMode: String, Codable, CaseIterable {
+        case speed = "speed"
+        case accuracy = "accuracy"
+        case balanced = "balanced"
+    }
+
+    var performanceMode: PerformanceMode = .speed
+
+    enum MemoryMode: String, Codable, CaseIterable {
+        case low = "low"
+        case normal = "normal"
+        case auto = "auto"
+    }
+
+    var memoryMode: MemoryMode = .normal
+
+    // MARK: - 启动与退出
+
+    var launchAtLogin: Bool = false
+    var quitBehavior: Bool = true
+
+    // MARK: - 日志
+
+    var enableDetailedLogging: Bool = true
+
+    // MARK: - 音频设备
+
+    var selectedAudioDeviceUID: String? = nil
+
+    enum LogLevel: String, Codable, CaseIterable {
+        case debug = "debug"
+        case info = "info"
+        case warning = "warning"
+        case error = "error"
+    }
+
+    var logLevel: LogLevel = .debug
+
+    init() {}
+}
+
+// MARK: - 加载和保存
+
+extension AppSettings {
+    private static let userDefaultsKey = "AppSettings"
+
+    static func load() -> AppSettings {
+        let settings = AppSettings()
+        let defaults = UserDefaults.standard
+
+        func boolValue(_ key: String, default defaultValue: Bool) -> Bool {
+            guard defaults.object(forKey: key) != nil else { return defaultValue }
+            return defaults.bool(forKey: key)
+        }
+
+        if let mode = defaults.string(forKey: "recordingTriggerMode"),
+           let triggerMode = RecordingTriggerMode(rawValue: mode) {
+            settings.recordingTriggerMode = triggerMode
+        }
+        // Load recordingHotkey: try new JSON format first, then fall back to legacy string
+        if let hotkeyData = defaults.data(forKey: "recordingHotkey"),
+           let combo = try? JSONDecoder().decode(HotKeyCombo.self, from: hotkeyData) {
+            settings.recordingHotkey = combo
+        } else if let legacyString = defaults.string(forKey: "recordingHotkey") {
+            settings.recordingHotkey = HotKeyCombo.fromLegacyString(legacyString)
+        }
+        settings.recordingMaxDuration = defaults.integer(forKey: "recordingMaxDuration")
+        settings.silenceTimeout = defaults.integer(forKey: "silenceTimeout")
+        settings.sampleRate = defaults.integer(forKey: "sampleRate") != 0 ? defaults.integer(forKey: "sampleRate") : 16000
+        settings.selectedAudioDeviceUID = defaults.string(forKey: "selectedAudioDeviceUID")
+
+        settings.asrModelId = defaults.string(forKey: "asrModelId") ?? "mlx-community/Qwen3-ASR-0.6B-4bit"
+        if let lang = defaults.string(forKey: "asrLanguage"),
+           let language = ASRLanguage(rawValue: lang) {
+            settings.asrLanguage = language
+        }
+        settings.showRealtimeRecognition = boolValue("showRealtimeRecognition", default: true)
+
+        settings.llmModelId = defaults.string(forKey: "llmModelId") ?? "mlx-community/Qwen3-4B-Instruct-2507-4bit"
+        if let intensity = defaults.string(forKey: "polishIntensity"),
+           let polishIntensity = PolishIntensity(rawValue: intensity) {
+            settings.polishIntensity = polishIntensity
+        }
+        settings.conversationHistoryRounds = defaults.integer(forKey: "conversationHistoryRounds") != 0 ? defaults.integer(forKey: "conversationHistoryRounds") : 5
+        settings.enableConversationHistory = boolValue("enableConversationHistory", default: true)
+
+        if let method = defaults.string(forKey: "outputMethod"),
+           let outputMethod = OutputMethod(rawValue: method) {
+            settings.outputMethod = outputMethod
+        }
+        if let delay = defaults.string(forKey: "outputDelay"),
+           let outputDelay = OutputDelay(rawValue: delay) {
+            settings.outputDelay = outputDelay
+        }
+        settings.customOutputDelay = defaults.integer(forKey: "customOutputDelay")
+        settings.showPreviewBeforeOutput = boolValue("showPreviewBeforeOutput", default: false)
+
+        settings.enableVoiceCommands = boolValue("enableVoiceCommands", default: true)
+        settings.enablePersonalVocabulary = boolValue("enablePersonalVocabulary", default: true)
+
+        if let lang = defaults.string(forKey: "appLanguage"),
+           let language = AppLanguage(rawValue: lang) {
+            settings.appLanguage = language
+        }
+
+        if let mode = defaults.string(forKey: "performanceMode"),
+           let perfMode = PerformanceMode(rawValue: mode) {
+            settings.performanceMode = perfMode
+        }
+        if let mode = defaults.string(forKey: "memoryMode"),
+           let memMode = MemoryMode(rawValue: mode) {
+            settings.memoryMode = memMode
+        }
+
+        settings.launchAtLogin = boolValue("launchAtLogin", default: false)
+        settings.quitBehavior = boolValue("quitBehavior", default: true)
+        settings.enableDetailedLogging = boolValue("enableDetailedLogging", default: true)
+        if let level = defaults.string(forKey: "logLevel"),
+           let logLevel = LogLevel(rawValue: level) {
+            settings.logLevel = logLevel
+        }
+
+        return settings
+    }
+
+    func save() {
+        let defaults = UserDefaults.standard
+
+        defaults.set(recordingTriggerMode.rawValue, forKey: "recordingTriggerMode")
+        if let hotkeyData = try? JSONEncoder().encode(recordingHotkey) {
+            defaults.set(hotkeyData, forKey: "recordingHotkey")
+        }
+        defaults.set(recordingMaxDuration, forKey: "recordingMaxDuration")
+        defaults.set(silenceTimeout, forKey: "silenceTimeout")
+        defaults.set(sampleRate, forKey: "sampleRate")
+        defaults.set(selectedAudioDeviceUID, forKey: "selectedAudioDeviceUID")
+
+        defaults.set(asrModelId, forKey: "asrModelId")
+        defaults.set(asrLanguage.rawValue, forKey: "asrLanguage")
+        defaults.set(showRealtimeRecognition, forKey: "showRealtimeRecognition")
+
+        defaults.set(llmModelId, forKey: "llmModelId")
+        defaults.set(polishIntensity.rawValue, forKey: "polishIntensity")
+        defaults.set(conversationHistoryRounds, forKey: "conversationHistoryRounds")
+        defaults.set(enableConversationHistory, forKey: "enableConversationHistory")
+
+        defaults.set(outputMethod.rawValue, forKey: "outputMethod")
+        defaults.set(outputDelay.rawValue, forKey: "outputDelay")
+        defaults.set(customOutputDelay, forKey: "customOutputDelay")
+        defaults.set(showPreviewBeforeOutput, forKey: "showPreviewBeforeOutput")
+
+        defaults.set(enableVoiceCommands, forKey: "enableVoiceCommands")
+        defaults.set(enablePersonalVocabulary, forKey: "enablePersonalVocabulary")
+
+        defaults.set(appLanguage.rawValue, forKey: "appLanguage")
+
+        defaults.set(performanceMode.rawValue, forKey: "performanceMode")
+        defaults.set(memoryMode.rawValue, forKey: "memoryMode")
+
+        defaults.set(launchAtLogin, forKey: "launchAtLogin")
+        defaults.set(quitBehavior, forKey: "quitBehavior")
+        defaults.set(enableDetailedLogging, forKey: "enableDetailedLogging")
+        defaults.set(logLevel.rawValue, forKey: "logLevel")
+    }
+
+    static func resetToDefaults() -> AppSettings {
+        UserDefaults.standard.removeObject(forKey: userDefaultsKey)
+        return AppSettings()
+    }
+}
