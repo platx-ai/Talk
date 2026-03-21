@@ -2,7 +2,7 @@
 //  HotKeyManager.swift
 //  Talk
 //
-//  全局热键管理器
+//  全局热键管理器 — 使用 CGEventTap 监听全局按键
 //
 
 import Foundation
@@ -22,10 +22,8 @@ final class HotKeyManager {
     var onHotKeyPressed: (() -> Void)?
     var onHotKeyReleased: (() -> Void)?
 
-    private var hotKeyRef: EventHotKeyRef?
-    private var eventHandlerRef: EventHandlerRef?
-    private var globalFlagsMonitor: Any?
-    private var localFlagsMonitor: Any?
+    private var eventTap: CFMachPort?
+    private var runLoopSource: CFRunLoopSource?
     private(set) var isRegistered = false
 
     // MARK: - 热键配置
@@ -55,6 +53,11 @@ final class HotKeyManager {
     private(set) var triggerMode: TriggerMode = .pushToTalk
     private var isKeyPressed = false
 
+    // 缓存到 nonisolated 变量，供 CGEventTap 回调读取
+    private nonisolated(unsafe) var _cachedKeyCode: UInt32 = defaultHotKey.keyCode
+    private nonisolated(unsafe) var _cachedModifiers: UInt32 = defaultHotKey.modifiers
+    private nonisolated(unsafe) var _cachedIsModifierOnly: Bool = true
+
     // MARK: - 初始化
 
     private init() {
@@ -67,182 +70,119 @@ final class HotKeyManager {
         unregisterHotKey()
 
         currentHotKey = hotKey
+        isKeyPressed = false
 
-        if isModifierOnlyHotKey(hotKey) {
-            installModifierOnlyMonitors()
-            isRegistered = true
-            AppLogger.info("热键注册成功（修饰键监听模式）", category: .hotkey)
-            return
-        }
+        // 更新 nonisolated 缓存供 CGEventTap 回调使用
+        let modOnly = hotKey.modifiers == 0 && modifierFlag(for: hotKey.keyCode) != nil
+        _cachedKeyCode = hotKey.keyCode
+        _cachedModifiers = hotKey.modifiers
+        _cachedIsModifierOnly = modOnly
 
-        let hotKeyID = EventHotKeyID(
-            signature: OSType(0x4C544B54),  // "LTKT"
-            id: 1
-        )
+        AppLogger.info("注册热键 - 修饰键: 0x\(String(hotKey.modifiers, radix: 16)), 键码: \(hotKey.keyCode), 修饰键模式: \(modOnly)", category: .hotkey)
 
-        AppLogger.info("注册热键 - 修饰键: 0x\(String(hotKey.modifiers, radix: 16)), 键码: \(hotKey.keyCode)", category: .hotkey)
-
-        let status = RegisterEventHotKey(
-            hotKey.keyCode,
-            hotKey.modifiers,
-            hotKeyID,
-            GetApplicationEventTarget(),
-            0,
-            &hotKeyRef
-        )
-
-        if status == noErr {
-            isRegistered = true
-            AppLogger.info("热键注册成功", category: .hotkey)
-            installEventHandler()
-        } else {
-            AppLogger.error("热键注册失败，错误码: \(status)", category: .hotkey)
-        }
+        installCGEventTap()
     }
 
     func unregisterHotKey() {
-        if let hotKeyRef = hotKeyRef {
-            UnregisterEventHotKey(hotKeyRef)
-            self.hotKeyRef = nil
-        }
-
-        if let eventHandlerRef = eventHandlerRef {
-            RemoveEventHandler(eventHandlerRef)
-            self.eventHandlerRef = nil
-        }
-
-        removeModifierOnlyMonitors()
-
+        removeCGEventTap()
         isKeyPressed = false
-
         isRegistered = false
         AppLogger.info("热键已注销", category: .hotkey)
     }
 
-    // MARK: - 事件处理
+    // MARK: - CGEventTap
 
-    private func installEventHandler() {
-        let eventTypes = [
-            EventTypeSpec(
-                eventClass: OSType(kEventClassKeyboard),
-                eventKind: OSType(kEventHotKeyPressed)
-            ),
-            EventTypeSpec(
-                eventClass: OSType(kEventClassKeyboard),
-                eventKind: OSType(kEventHotKeyReleased)
-            )
-        ]
+    private func installCGEventTap() {
+        // 监听按键按下、释放和修饰键变化
+        let eventMask: CGEventMask =
+            (1 << CGEventType.keyDown.rawValue) |
+            (1 << CGEventType.keyUp.rawValue) |
+            (1 << CGEventType.flagsChanged.rawValue)
 
-        AppLogger.info("安装热键事件处理器", category: .hotkey)
+        // 使用 nonisolated 的全局 C 回调，通过 userInfo 传递 context
+        let context = Unmanaged.passUnretained(self).toOpaque()
 
-        let handler: EventHandlerUPP = { (nextHandler, theEvent, userData) -> OSStatus in
-            guard let userData = userData else {
-                return noErr
-            }
-
-            let manager = Unmanaged<HotKeyManager>.fromOpaque(userData).takeUnretainedValue()
-            manager.handleHotKeyEvent(theEvent)
-
-            return noErr
-        }
-
-        InstallEventHandler(
-            GetApplicationEventTarget(),
-            handler,
-            eventTypes.count,
-            eventTypes,
-            Unmanaged.passUnretained(self).toOpaque(),
-            &eventHandlerRef
-        )
-
-        AppLogger.info("事件处理器已安装", category: .hotkey)
-    }
-
-    private func handleHotKeyEvent(_ event: EventRef?) {
-        guard let event = event else { return }
-
-        let eventKind = GetEventKind(event)
-        let isKeyDown = eventKind == OSType(kEventHotKeyPressed)
-
-        Task { @MainActor [weak self] in
-            guard let self = self else { return }
-
-            AppLogger.debug("热键事件 - 类型: \(isKeyDown ? "按下" : "释放")", category: .hotkey)
-
-            if self.triggerMode == .pushToTalk {
-                if isKeyDown && !self.isKeyPressed {
-                    self.isKeyPressed = true
-                    AppLogger.info("热键按下 → 开始录音", category: .hotkey)
-                    self.onHotKeyPressed?()
-                } else if !isKeyDown && self.isKeyPressed {
-                    self.isKeyPressed = false
-                    AppLogger.info("热键释放 → 停止录音", category: .hotkey)
-                    self.onHotKeyReleased?()
+        guard let tap = CGEvent.tapCreate(
+            tap: .cgSessionEventTap,
+            place: .headInsertEventTap,
+            options: .listenOnly,
+            eventsOfInterest: eventMask,
+            callback: { (proxy, type, event, userInfo) -> Unmanaged<CGEvent>? in
+                guard let userInfo = userInfo else {
+                    return Unmanaged.passRetained(event)
                 }
-            } else {
-                if isKeyDown && !self.isKeyPressed {
-                    self.isKeyPressed = true
-                    AppLogger.info("热键按下 → 切换录音状态", category: .hotkey)
-                    self.onHotKeyPressed?()
-                } else if !isKeyDown && self.isKeyPressed {
-                    self.isKeyPressed = false
-                    AppLogger.info("热键释放 → 重置状态", category: .hotkey)
-                }
+                let manager = Unmanaged<HotKeyManager>.fromOpaque(userInfo).takeUnretainedValue()
+                manager.handleCGEvent(type: type, event: event)
+                return Unmanaged.passRetained(event)
+            },
+            userInfo: context
+        ) else {
+            AppLogger.error("无法创建 CGEventTap — 请确认已授予辅助功能权限", category: .hotkey)
+            return
+        }
+
+        eventTap = tap
+        runLoopSource = CFMachPortCreateRunLoopSource(kCFAllocatorDefault, tap, 0)
+        CFRunLoopAddSource(CFRunLoopGetMain(), runLoopSource, .commonModes)
+        CGEvent.tapEnable(tap: tap, enable: true)
+
+        isRegistered = true
+        AppLogger.info("热键注册成功（CGEventTap 模式）", category: .hotkey)
+    }
+
+    private func removeCGEventTap() {
+        if let source = runLoopSource {
+            CFRunLoopRemoveSource(CFRunLoopGetMain(), source, .commonModes)
+            runLoopSource = nil
+        }
+        if let tap = eventTap {
+            CGEvent.tapEnable(tap: tap, enable: false)
+            eventTap = nil
+        }
+    }
+
+    // MARK: - 事件匹配
+
+    private nonisolated func handleCGEvent(type: CGEventType, event: CGEvent) {
+        let keyCode = UInt32(event.getIntegerValueField(.keyboardEventKeycode))
+        let flags = event.flags
+
+        // 读取 nonisolated 缓存
+        let cachedKeyCode = _cachedKeyCode
+        let cachedModifiers = _cachedModifiers
+        let cachedIsModifierOnly = _cachedIsModifierOnly
+
+        if cachedIsModifierOnly {
+            // 修饰键单独模式：只关心 flagsChanged 事件
+            guard type == .flagsChanged else { return }
+
+            let cgFlag = nsCGEventFlag(for: cachedKeyCode)
+            guard cgFlag != [] else { return }
+            let isDown = flags.contains(cgFlag)
+
+            Task { @MainActor [weak self] in
+                self?.handleKeyState(isDown: isDown)
+            }
+        } else {
+            // 常规按键模式：匹配 keyCode + modifiers
+            guard type == .keyDown || type == .keyUp else { return }
+            guard keyCode == cachedKeyCode else { return }
+
+            // 检查修饰键是否匹配
+            let currentMods = carbonModifiers(from: flags)
+            let mask: UInt32 = cmdKey | shiftKey | optionKey | controlKey
+            guard (currentMods & mask) == (cachedModifiers & mask) else { return }
+
+            let isDown = type == .keyDown
+
+            Task { @MainActor [weak self] in
+                self?.handleKeyState(isDown: isDown)
             }
         }
     }
 
-    private func isModifierOnlyHotKey(_ hotKey: HotKeyConfiguration) -> Bool {
-        hotKey.modifiers == 0 && modifierFlag(for: hotKey.keyCode) != nil
-    }
-
-    private func modifierFlag(for keyCode: UInt32) -> NSEvent.ModifierFlags? {
-        switch keyCode {
-        case UInt32(kVK_Control): return .control
-        case UInt32(kVK_Option): return .option
-        case UInt32(kVK_Command): return .command
-        case UInt32(kVK_Shift): return .shift
-        default: return nil
-        }
-    }
-
-    private func installModifierOnlyMonitors() {
-        removeModifierOnlyMonitors()
-
-        globalFlagsMonitor = NSEvent.addGlobalMonitorForEvents(matching: .flagsChanged) { [weak self] event in
-            Task { @MainActor in
-                self?.handleModifierFlagsChanged(event)
-            }
-        }
-
-        localFlagsMonitor = NSEvent.addLocalMonitorForEvents(matching: .flagsChanged) { [weak self] event in
-            Task { @MainActor in
-                self?.handleModifierFlagsChanged(event)
-            }
-            return event
-        }
-
-        AppLogger.info("已安装修饰键监听器", category: .hotkey)
-    }
-
-    private func removeModifierOnlyMonitors() {
-        if let globalFlagsMonitor = globalFlagsMonitor {
-            NSEvent.removeMonitor(globalFlagsMonitor)
-            self.globalFlagsMonitor = nil
-        }
-
-        if let localFlagsMonitor = localFlagsMonitor {
-            NSEvent.removeMonitor(localFlagsMonitor)
-            self.localFlagsMonitor = nil
-        }
-    }
-
-    private func handleModifierFlagsChanged(_ event: NSEvent) {
-        guard let flag = modifierFlag(for: currentHotKey.keyCode) else { return }
-
-        let isDown = event.modifierFlags.contains(flag)
-        AppLogger.debug("修饰键事件 - 类型: \(isDown ? "按下" : "释放")", category: .hotkey)
-
+    @MainActor
+    private func handleKeyState(isDown: Bool) {
         if triggerMode == .pushToTalk {
             if isDown && !isKeyPressed {
                 isKeyPressed = true
@@ -260,9 +200,39 @@ final class HotKeyManager {
                 onHotKeyPressed?()
             } else if !isDown && isKeyPressed {
                 isKeyPressed = false
-                AppLogger.info("热键释放 → 重置状态", category: .hotkey)
             }
         }
+    }
+
+    // MARK: - 辅助方法
+
+    private nonisolated func modifierFlag(for keyCode: UInt32) -> NSEvent.ModifierFlags? {
+        switch keyCode {
+        case UInt32(kVK_Control): return .control
+        case UInt32(kVK_Option): return .option
+        case UInt32(kVK_Command): return .command
+        case UInt32(kVK_Shift): return .shift
+        default: return nil
+        }
+    }
+
+    private nonisolated func nsCGEventFlag(for keyCode: UInt32) -> CGEventFlags {
+        switch keyCode {
+        case UInt32(kVK_Control): return .maskControl
+        case UInt32(kVK_Option): return .maskAlternate
+        case UInt32(kVK_Command): return .maskCommand
+        case UInt32(kVK_Shift): return .maskShift
+        default: return []
+        }
+    }
+
+    private nonisolated func carbonModifiers(from flags: CGEventFlags) -> UInt32 {
+        var result: UInt32 = 0
+        if flags.contains(.maskControl)   { result |= controlKey }
+        if flags.contains(.maskAlternate) { result |= optionKey }
+        if flags.contains(.maskShift)     { result |= shiftKey }
+        if flags.contains(.maskCommand)   { result |= cmdKey }
+        return result
     }
 
     // MARK: - 触发模式
