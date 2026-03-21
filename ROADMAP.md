@@ -1,61 +1,53 @@
 # Talk Roadmap
 
-## v0.2 — Visual Feedback & Polish *(in progress)*
+## v0.2 — Visual Feedback & Polish *(complete)*
 
 > Make the invisible visible. Users must know what Talk is doing at every moment.
 
-### P0: Critical Fixes
+### P0: Critical Fixes — All Done
 
-- [x] **Remove personal info leaks**
-  - Remove committed `xcuserdata/` directory
-  - Sanitize executable path in Accessibility permission dialog
-  - Add `xcuserdata/` to `.gitignore`
+- [x] Remove personal info leaks (xcuserdata, executable path)
+- [x] Floating status indicator (recording → recognizing → polishing → done)
+- [x] Settings persistence — singleton with auto-save, no more data loss
+- [x] CGEventTap hotkey system — replaces Carbon API, supports all key combos
+- [x] CGEventTap on background thread — no input lag in Terminal
 
-- [x] **Floating status indicator**
-  - Transparent NSPanel overlay at screen top-center
-  - States: 🎙 Recording (with timer + audio level) → 🔄 Recognizing → ✨ Polishing → 📤 Outputting → ✅ Done
-  - Auto-dismiss after 1.5s
-  - Visible in full-screen apps and across all spaces
+### P1: Core UX — All Done
 
-### P1: Core UX
+- [x] Audio level visualization (real-time RMS meter)
+- [x] Recording duration timer
+- [x] Editable LLM system prompt (4 presets + custom)
+- [x] Selection edit mode (select text → speak command → LLM executes)
+- [x] Model loading indicator ("加载模型中...")
 
-- [x] **Audio level visualization**
-  - Real-time RMS level meter in the floating indicator
-  - Green (normal) / yellow (loud) color coding
-
-- [x] **Recording duration timer**
-  - Elapsed time displayed in the floating indicator
-
-- [x] **Editable LLM system prompt**
-  - 4 preset templates (strict correction, light polish, meeting notes, tech docs)
-  - Custom prompt overrides polish intensity
-  - "Reset to default" button
-
-- [x] **Selection edit mode**
-  - Select text + speak voice command = LLM executes the instruction
-  - Supports: typo correction, style rewrite, formatting changes
-  - Dual capture: Accessibility API (default) with Cmd+C fallback
-
-- [x] **Model loading progress**
-  - Floating indicator shows "加载模型中..." when models are loading
-  - Prevents user confusion during first-time model download
+### P1: Remaining
 
 - [ ] **Real-time transcription preview**
   - Live text overlay showing ASR output as the user speaks
   - Setting `showRealtimeRecognition` already exists — needs UI implementation
+  - Blocked by: first-hotkey-press latency investigation
 
 - [ ] **ASR error feedback loop**
   - User corrects a mis-recognized word → system learns the mapping (e.g., "la laam" → "LLM")
   - Corrections stored in vocabulary, injected as LLM context for future polishing
   - History view: edit polished text → system auto-learns from correction
-  - First-launch experience: show download/loading progress in floating indicator
-  - Prevent users from thinking the app is frozen
 
 ---
 
-## v0.2.1 — Performance & Custom Model
+## v0.2.1 — Performance & Stability
 
-> The bottleneck is LLM load time (10s) and memory (9.6 GB). Inference is fast. Fix the load, shrink the model.
+> The bottleneck is LLM load time (10s) and memory (9.6 GB). Inference is fast once loaded.
+
+- [ ] **First-hotkey-press latency investigation**
+  - First CGEventTap capture after app launch is slow
+  - Need to profile: is it Metal shader compilation, model warmup, or RunLoop delay?
+  - Must not regress current Terminal input performance
+
+- [ ] **Idle model unload**
+  - Unload models after N minutes of inactivity to free memory
+  - Lazy reload on next hotkey press (with "加载模型中..." indicator)
+  - Configurable timeout in settings
+  - Important for 8 GB Macs
 
 - [ ] **Custom lightweight polish model (platx-ai/talk-polish)**
   - Train a purpose-built small model (0.5B-1.5B) specifically for text polishing
@@ -68,11 +60,6 @@
   - 8 GB Mac → talk-polish (lightweight)
   - 16 GB+ Mac → Qwen3-4B (full)
   - User can override in settings
-
-- [ ] **Idle model unload**
-  - Unload models after N minutes of inactivity
-  - Lazy reload on next hotkey press
-  - Configurable timeout in settings
 
 ---
 
@@ -104,11 +91,10 @@ my-project/
   - Abbreviations: "k8s" → "Kubernetes", "PR" → "Pull Request"
   - Per-project terminology: code identifiers, product names, team jargon
 
-- [ ] **Custom polish prompts**
+- [ ] **Custom polish prompts per project**
   - Engineering projects: preserve code identifiers, format as technical docs
   - Meeting notes: bullet points, action items, attendee names
   - Creative writing: preserve tone, minimal edits
-  - Email drafts: formal tone, greeting/closing conventions
 
 - [ ] **Profile switching**
   - Quick-switch between project profiles from menu bar
@@ -123,7 +109,6 @@ my-project/
 - [ ] **iCloud vocabulary sync**
   - Global vocabulary synced via iCloud Drive / CloudKit
   - Merge strategy for concurrent edits
-  - Sync history (optional, privacy-aware)
 
 - [ ] **iOS companion app**
   - Offline on-device inference using CoreML / MLX for iOS
@@ -143,7 +128,6 @@ my-project/
 
 - [ ] **Shared terminology libraries**
   - Team-managed vocabulary packages (Git-based or hosted)
-  - `npm`-style install: `talk vocab add @company/engineering-terms`
   - Version-controlled term definitions
 
 - [ ] **Multi-language vocabulary**
@@ -154,10 +138,6 @@ my-project/
   - Custom post-processing pipelines
   - Hooks: `afterASR`, `afterPolish`, `beforeInject`
   - Use cases: auto-translation, summary, formatting rules, Slack/Notion integration
-
-- [ ] **Analytics dashboard**
-  - Usage stats: words per day, accuracy trends, most-corrected terms
-  - Vocabulary learning insights
 
 ---
 
