@@ -27,10 +27,10 @@
   - Setting `showRealtimeRecognition` already exists — needs UI implementation
   - Blocked by: first-hotkey-press latency investigation
 
-- [ ] **ASR error feedback loop**
-  - User corrects a mis-recognized word → system learns the mapping (e.g., "la laam" → "LLM")
-  - Corrections stored in vocabulary, injected as LLM context for future polishing
-  - History view: edit polished text → system auto-learns from correction
+- [x] **ASR error feedback loop**
+  - User edits polished text in history → system learns correction mapping
+  - Word-level LCS diff extracts changed words (e.g., "la laam" → "LLM")
+  - Top-20 corrections injected as LLM context for future polishing
 
 ---
 
@@ -38,16 +38,18 @@
 
 > The bottleneck is LLM load time (10s) and memory (9.6 GB). Inference is fast once loaded.
 
-- [ ] **First-hotkey-press latency investigation**
-  - First CGEventTap capture after app launch is slow
-  - Need to profile: is it Metal shader compilation, model warmup, or RunLoop delay?
-  - Must not regress current Terminal input performance
+- [x] **First-hotkey-press latency fix**
+  - Root cause: captureSelectedText() Cmd+C fallback blocked main thread 17+ seconds
+  - Fix: use only Accessibility API in hot path, no blocking fallback
 
-- [ ] **Idle model unload**
-  - Unload models after N minutes of inactivity to free memory
+- [ ] **Remaining first-press warmup**
+  - Still ~1-2s delay on very first hotkey press (likely Metal/audio engine warmup)
+  - Need to profile further; not a regression, but room for improvement
+
+- [x] **Idle model unload**
+  - Unload models after N minutes of inactivity (default 10 min, configurable)
   - Lazy reload on next hotkey press (with "加载模型中..." indicator)
-  - Configurable timeout in settings
-  - Important for 8 GB Macs
+  - Toggle and timeout in Settings → Advanced → 内存管理
 
 - [ ] **Custom lightweight polish model (platx-ai/talk-polish)**
   - Train a purpose-built small model (0.5B-1.5B) specifically for text polishing

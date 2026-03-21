@@ -19,6 +19,8 @@ macOS 菜单栏语音输入工具 — 按住快捷键说话，自动识别、润
 - **全局热键** — 支持自定义快捷键录制，Push-to-Talk / Toggle 两种模式
 - **音频设备选择** — 支持选择输入设备，默认内置麦克风
 - **自动粘贴** — 通过辅助功能 API 模拟 Cmd+V 注入文本
+- **词库学习** — 在历史记录中编辑润色结果，系统自动学习纠正用于后续润色
+- **空闲内存管理** — 空闲后自动卸载模型释放内存，下次使用时按需加载
 
 ## 性能
 
@@ -71,7 +73,7 @@ make run
 ```bash
 make build          # Debug 构建
 make build-release  # Release 构建
-make test           # 运行单元测试（35 个）
+make test           # 运行单元测试（43 个）
 make benchmark      # 运行性能基准测试
 make run            # 构建并运行
 make clean          # 清理构建产物
@@ -144,7 +146,7 @@ open Talk.xcodeproj
 ### 测试
 
 ```bash
-make test       # 35 个单元测试（HotKeyCombo、AppSettings、AudioDeviceManager、FloatingIndicator）
+make test       # 43 个单元测试（HotKeyCombo、AppSettings、AudioDevice、FloatingIndicator、VocabularyManager）
 make benchmark  # 性能基准测试（ASR/LLM 加载、推理、管线、内存）
 ```
 
@@ -161,7 +163,7 @@ make benchmark  # 性能基准测试（ASR/LLM 加载、推理、管线、内存
 **近期**
 - 自研轻量润色模型 (0.5-1.5B) — 加载 < 1s，内存 < 1 GB
 - 实时转写预览浮窗
-- ASR 错误反馈闭环（用户修正 → 词库学习）
+- 硬件自动选模型（8GB → 轻量，16GB+ → 完整）
 
 **中期**
 - 项目感知的词库与提示词配置（`.talk/` 目录）
