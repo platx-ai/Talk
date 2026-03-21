@@ -19,6 +19,8 @@ A macOS menu bar voice input tool — hold a hotkey, speak, and your words are r
 - **Global hotkey** — Customizable key recorder, Push-to-Talk / Toggle modes
 - **Audio device selection** — Pick your input device, defaults to built-in microphone
 - **Auto-paste** — Injects text via Accessibility API (Cmd+V simulation)
+- **Vocabulary learning** — Edit polished text in history, system learns corrections for future use
+- **Idle memory management** — Auto-unload models after inactivity, reload on demand
 
 ## Performance
 
@@ -71,7 +73,7 @@ make run
 ```bash
 make build          # Debug build
 make build-release  # Release build
-make test           # Run unit tests (35 tests)
+make test           # Run unit tests (43 tests)
 make benchmark      # Run performance benchmarks
 make run            # Build and run
 make clean          # Clean build artifacts
@@ -144,7 +146,7 @@ open Talk.xcodeproj
 ### Testing
 
 ```bash
-make test       # 35 unit tests (HotKeyCombo, AppSettings, AudioDeviceManager, FloatingIndicator)
+make test       # 43 unit tests (HotKeyCombo, AppSettings, AudioDevice, FloatingIndicator, VocabularyManager)
 make benchmark  # Performance benchmarks (ASR/LLM load, inference, pipeline, memory)
 ```
 
@@ -161,7 +163,7 @@ See [ROADMAP.md](ROADMAP.md) for the full product roadmap.
 **Next up**
 - Custom lightweight polish model (0.5-1.5B) — < 1s load, < 1 GB memory
 - Real-time transcription preview overlay
-- ASR error feedback loop (user corrections → vocabulary learning)
+- Model auto-select by hardware (8 GB → lightweight, 16 GB+ → full)
 
 **Mid-term**
 - Project-aware vocabulary & prompt profiles (per-repo `.talk/` config)
