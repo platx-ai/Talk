@@ -2,74 +2,77 @@
 
 **Open Typeless. Local Typeless. Typeless in your box.**
 
-macOS 菜单栏语音输入工具 — 按住快捷键说话，自动识别、润色、粘贴到当前应用。你的声音，直达文字，无需云端，无需打字。
+A macOS menu bar voice input tool — hold a hotkey, speak, and your words are recognized, polished, and pasted into the active app. Your voice, straight to text. No cloud. No typing.
 
-> 本项目的原始算法和代码基于孔老师（[@jiamingkong](https://github.com/jiamingkong)）的慷慨贡献。我们只是想快速验证一下十分钟能不能搞定一个 typeless。
+[中文文档](README_zh.md)
+
+> The original algorithm and code are based on the generous contribution of [@jiamingkong](https://github.com/jiamingkong). We just wanted to see if we could build a typeless in ten minutes.
 
 ## Features
 
-- **本地推理** — 基于 Apple Silicon MLX，无云端依赖，隐私优先
-- **语音识别** — Qwen3-ASR-0.6B-4bit，支持中英文
-- **文本润色** — Qwen3-4B-Instruct，去口语化、加标点、智能排版
-- **全局热键** — 支持自定义快捷键录制，Push-to-Talk / Toggle 两种模式
-- **音频设备选择** — 支持选择输入设备，默认内置麦克风
-- **自动粘贴** — 通过辅助功能 API 模拟 Cmd+V 注入文本
+- **On-device inference** — Powered by Apple Silicon MLX, no cloud dependency, privacy-first
+- **Speech recognition** — Qwen3-ASR-0.6B-4bit, supports Chinese and English
+- **Text polishing** — Qwen3-4B-Instruct, removes filler words, adds punctuation, smart formatting
+- **Global hotkey** — Customizable key recorder, Push-to-Talk / Toggle modes
+- **Audio device selection** — Pick your input device, defaults to built-in microphone
+- **Auto-paste** — Injects text via Accessibility API (Cmd+V simulation)
 
 ## Requirements
 
 - macOS 26.2+
 - Apple Silicon (M1/M2/M3/M4)
 - Xcode 26.3+
-- ~5GB 磁盘空间（模型文件）
+- ~5GB disk space (model files)
 
 ## Quick Start
 
 ```bash
-# 克隆项目
+# Clone the project
 git clone https://github.com/platx-ai/Talk.git
 cd Talk
 
-# 解析依赖 + 构建
+# Resolve dependencies & build
 make build
 
-# 下载模型（首次需要）
+# Download models (first time only)
 make download-models
 
-# 运行
+# Run
 make run
 ```
 
 ## Build
 
 ```bash
-make build          # Debug 构建
-make build-release  # Release 构建
-make test           # 运行测试
-make clean          # 清理构建产物
-make resolve        # 仅解析 SPM 依赖
-make lint           # 代码检查（swiftlint，如已安装）
+make build          # Debug build
+make build-release  # Release build
+make test           # Run unit tests
+make clean          # Clean build artifacts
+make resolve        # Resolve SPM dependencies only
+make setup          # Full setup: resolve deps + download models
+make lint           # Run SwiftLint (if installed)
 ```
 
 ## Architecture
 
 ```
-录音(AVAudioEngine) → ASR(Qwen3-ASR) → LLM润色(Qwen3-4B) → 文本注入(Cmd+V)
-     ↑                                                           ↑
-  CoreAudio                                                 Accessibility
-  设备选择                                                    API 权限
+Record(AVAudioEngine) → ASR(Qwen3-ASR) → LLM Polish(Qwen3-4B) → Text Inject(Cmd+V)
+       ↑                                                               ↑
+    CoreAudio                                                     Accessibility
+  Device Selection                                                 API Permission
 ```
 
-### 模块结构
+### Modules
 
-| 模块 | 职责 |
-|------|------|
-| `Audio/` | 录音引擎、全局热键(Carbon API)、音频设备管理、文本注入 |
-| `ASR/` | 语音识别 (MLXAudioSTT + Qwen3-ASR) |
-| `LLM/` | 文本润色 (MLXLLM + Qwen3-4B-Instruct) |
-| `Models/` | 数据模型 (AppSettings, HotKeyCombo, HistoryItem) |
-| `Data/` | 历史记录和词库的 JSON 持久化 |
-| `UI/` | SwiftUI 菜单栏、设置面板、快捷键录制器、历史浏览 |
-| `Utils/` | 日志系统、Metal 运行时检查 |
+| Module | Responsibility |
+|--------|---------------|
+| `Audio/` | Recording engine, global hotkeys (Carbon API), audio device management, text injection |
+| `ASR/` | Speech recognition (MLXAudioSTT + Qwen3-ASR) |
+| `LLM/` | Text polishing (MLXLLM + Qwen3-4B-Instruct) |
+| `Models/` | Data models (AppSettings, HotKeyCombo, HistoryItem) |
+| `Data/` | History and vocabulary JSON persistence |
+| `UI/` | SwiftUI menu bar, settings panel, key recorder, history browser |
+| `Utils/` | Logging system, Metal runtime validation |
 
 ### Dependencies
 
@@ -80,37 +83,37 @@ make lint           # 代码检查（swiftlint，如已安装）
 | mlx-audio-swift | [platx-ai/mlx-audio-swift](https://github.com/platx-ai/mlx-audio-swift) (fork) | `4ece9e0` |
 | swift-huggingface | [huggingface/swift-huggingface](https://github.com/huggingface/swift-huggingface) | `0.9.0` |
 
-> mlx-audio-swift 使用 platx-ai fork 修复了上游 [MLXAudioCodecs 缺少 MLXFast 依赖](https://github.com/Blaizzy/mlx-audio-swift/issues/) 的问题。
+> mlx-audio-swift uses the platx-ai fork to fix an upstream bug where [MLXAudioCodecs is missing the MLXFast dependency](https://github.com/Blaizzy/mlx-audio-swift/issues/).
 
 ### Models
 
 | Model | Size | Purpose |
 |-------|------|---------|
-| [mlx-community/Qwen3-ASR-0.6B-4bit](https://huggingface.co/mlx-community/Qwen3-ASR-0.6B-4bit) | ~400MB | 语音识别 |
-| [mlx-community/Qwen3-4B-Instruct-2507-4bit](https://huggingface.co/mlx-community/Qwen3-4B-Instruct-2507-4bit) | ~2.5GB | 文本润色 |
+| [mlx-community/Qwen3-ASR-0.6B-4bit](https://huggingface.co/mlx-community/Qwen3-ASR-0.6B-4bit) | ~400MB | Speech recognition |
+| [mlx-community/Qwen3-4B-Instruct-2507-4bit](https://huggingface.co/mlx-community/Qwen3-4B-Instruct-2507-4bit) | ~2.5GB | Text polishing |
 
-模型首次运行时自动从 HuggingFace 下载到 `~/.cache/huggingface/`，也可通过 `make download-models` 预下载。
+Models are automatically downloaded from HuggingFace on first run to `~/.cache/huggingface/`. You can also pre-download them with `make download-models`.
 
 ## Permissions
 
-首次运行需要授权：
+On first launch, you need to grant:
 
-1. **麦克风** — 系统自动弹出授权请求
-2. **辅助功能** — 需手动在「系统设置 → 隐私与安全性 → 辅助功能」中添加 Talk.app
+1. **Microphone** — macOS will prompt automatically
+2. **Accessibility** — Manually add Talk.app in System Settings → Privacy & Security → Accessibility
 
 ## Development
 
 ```bash
-# 在 Xcode 中打开
+# Open in Xcode
 open Talk.xcodeproj
 
-# 设置签名团队：Xcode → Signing & Capabilities → Team
-# 构建并运行：⌘R
+# Set your signing team: Xcode → Signing & Capabilities → Team
+# Build & Run: ⌘R
 ```
 
 ### Code Signing
 
-项目中 `DEVELOPMENT_TEAM` 为空，每个开发者需在 Xcode 中设置自己的签名团队。命令行构建使用 ad-hoc 签名。
+`DEVELOPMENT_TEAM` is left empty in the project. Each developer sets their own signing team in Xcode. CLI builds use ad-hoc signing.
 
 ## License
 
