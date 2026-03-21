@@ -8,38 +8,33 @@
 import SwiftUI
 
 struct SettingsView: View {
-    @State private var settings = AppSettings.load()
-    @State private var showHotKeyPicker = false
+    @Bindable private var settings = AppSettings.shared
 
     var body: some View {
         TabView {
-            RecordingSettingsTab(settings: $settings)
+            RecordingSettingsTab(settings: settings)
                 .tabItem { Label("录音", systemImage: "mic.circle") }
 
-            ASRSettingsTab(settings: $settings)
+            ASRSettingsTab(settings: settings)
                 .tabItem { Label("语音识别", systemImage: "waveform") }
 
-            LLMSettingsTab(settings: $settings)
+            LLMSettingsTab(settings: settings)
                 .tabItem { Label("文本润色", systemImage: "sparkles") }
 
-            OutputSettingsTab(settings: $settings)
+            OutputSettingsTab(settings: settings)
                 .tabItem { Label("输出", systemImage: "text.bubble") }
 
-            AdvancedSettingsTab(settings: $settings)
+            AdvancedSettingsTab(settings: settings)
                 .tabItem { Label("高级", systemImage: "gearshape.2") }
         }
         .frame(width: 600, height: 500)
-        .onDisappear {
-            settings.save()
-            AppDelegate.shared?.reloadHotKeyFromSettings()
-        }
     }
 }
 
 // MARK: - 录音设置标签页
 
 private struct RecordingSettingsTab: View {
-    @Binding var settings: AppSettings
+    @Bindable var settings: AppSettings
     @State private var deviceManager = AudioDeviceManager.shared
 
     var body: some View {
@@ -115,7 +110,7 @@ private struct RecordingSettingsTab: View {
 // MARK: - ASR 设置标签页
 
 private struct ASRSettingsTab: View {
-    @Binding var settings: AppSettings
+    @Bindable var settings: AppSettings
 
     var body: some View {
         Form {
@@ -142,7 +137,7 @@ private struct ASRSettingsTab: View {
 // MARK: - LLM 设置标签页
 
 private struct LLMSettingsTab: View {
-    @Binding var settings: AppSettings
+    @Bindable var settings: AppSettings
 
     var body: some View {
         Form {
@@ -185,19 +180,15 @@ private struct LLMSettingsTab: View {
                     Menu("预设模板") {
                         Button("严格纠错 — 只纠错，不改写") {
                             settings.customSystemPrompt = "你是一个严格的文本纠错助手。只修正明显的语音识别错误和错别字，不改变原文的表达方式、语气和结构。保持原文风格，仅做最小修正。直接输出修正后的文本，不要添加任何解释。"
-                            settings.save()
                         }
                         Button("轻度润色 — 去填充词、加标点") {
                             settings.customSystemPrompt = "你是一个文本清理助手。去除口语填充词（嗯、啊、呃），添加标点符号，修正明显错误。保留原文的表达风格和语气，不做改写。直接输出清理后的文本，不要添加任何解释。"
-                            settings.save()
                         }
                         Button("会议纪要 — 提取要点、待办") {
                             settings.customSystemPrompt = "你是一个会议纪要整理助手。将语音识别的会议内容整理为结构化的纪要格式：提取要点、决议和待办事项，使用项目符号列表，标注发言人（如能识别）。直接输出纪要，不要添加任何解释。"
-                            settings.save()
                         }
                         Button("技术文档 — Markdown 格式") {
                             settings.customSystemPrompt = "你是一个技术文档整理助手。将语音输入整理为技术文档风格：保留代码标识符和技术术语的原文，使用 Markdown 格式，自动识别代码片段并用反引号包裹。直接输出文档，不要添加任何解释。"
-                            settings.save()
                         }
                     }
                 }
@@ -209,9 +200,6 @@ private struct LLMSettingsTab: View {
                         RoundedRectangle(cornerRadius: 4)
                             .stroke(Color.secondary.opacity(0.3), lineWidth: 1)
                     )
-                    .onChange(of: settings.customSystemPrompt) {
-                        settings.save()
-                    }
 
                 HStack {
                     if settings.customSystemPrompt.isEmpty {
@@ -222,7 +210,6 @@ private struct LLMSettingsTab: View {
                     Spacer()
                     Button("恢复默认") {
                         settings.customSystemPrompt = ""
-                        settings.save()
                     }
                     .disabled(settings.customSystemPrompt.isEmpty)
                 }
@@ -237,7 +224,7 @@ private struct LLMSettingsTab: View {
 // MARK: - 输出设置标签页
 
 private struct OutputSettingsTab: View {
-    @Binding var settings: AppSettings
+    @Bindable var settings: AppSettings
 
     var body: some View {
         Form {
@@ -275,7 +262,7 @@ private struct OutputSettingsTab: View {
 // MARK: - 高级设置标签页
 
 private struct AdvancedSettingsTab: View {
-    @Binding var settings: AppSettings
+    @Bindable var settings: AppSettings
 
     var body: some View {
         Form {

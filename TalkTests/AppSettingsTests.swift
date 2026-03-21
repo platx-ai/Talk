@@ -37,33 +37,33 @@ struct AppSettingsTests {
     // MARK: - Save / Load round-trip
 
     @Test func saveAndLoadRoundTrip() {
-        // Use a unique suite to avoid polluting standard UserDefaults
-        let settings = AppSettings()
-        settings.recordingTriggerMode = .toggle
-        settings.polishIntensity = .strong
-        settings.sampleRate = 44100
-        settings.conversationHistoryRounds = 10
-        settings.outputMethod = .clipboardOnly
-        settings.save()
+        let shared = AppSettings.shared
 
-        let loaded = AppSettings.load()
-        #expect(loaded.recordingTriggerMode == .toggle)
-        #expect(loaded.polishIntensity == .strong)
-        #expect(loaded.sampleRate == 44100)
-        #expect(loaded.conversationHistoryRounds == 10)
-        #expect(loaded.outputMethod == .clipboardOnly)
+        // Save original values
+        let origTrigger = shared.recordingTriggerMode
+        let origIntensity = shared.polishIntensity
+        let origSampleRate = shared.sampleRate
 
-        // Restore defaults to not affect other tests
-        _ = AppSettings.resetToDefaults()
+        // Modify and save (autoSave via didSet)
+        shared.recordingTriggerMode = .toggle
+        shared.polishIntensity = .strong
+        shared.sampleRate = 44100
+
+        // Reload from UserDefaults to verify persistence
+        shared.loadFromDefaults()
+        #expect(shared.recordingTriggerMode == .toggle)
+        #expect(shared.polishIntensity == .strong)
+        #expect(shared.sampleRate == 44100)
+
+        // Restore
+        shared.recordingTriggerMode = origTrigger
+        shared.polishIntensity = origIntensity
+        shared.sampleRate = origSampleRate
     }
 
     // MARK: - Reset
 
     @Test func resetReturnsDefaultSettings() {
-        let settings = AppSettings()
-        settings.recordingTriggerMode = .toggle
-        settings.save()
-
         let reset = AppSettings.resetToDefaults()
         #expect(reset.recordingTriggerMode == .pushToTalk)
         #expect(reset.recordingHotkey == .defaultCombo)
@@ -91,18 +91,36 @@ struct AppSettingsTests {
     // MARK: - Legacy hotkey migration
 
     @Test func legacyHotkeyStringMigrationOnLoad() {
+        let shared = AppSettings.shared
+        let origHotkey = shared.recordingHotkey
+
         let defaults = UserDefaults.standard
         // Remove any existing JSON data, set legacy string
         defaults.removeObject(forKey: "recordingHotkey")
         defaults.set("Command + Space", forKey: "recordingHotkey")
 
-        let loaded = AppSettings.load()
-        #expect(loaded.recordingHotkey.carbonKeyCode == 49)
-        #expect(loaded.recordingHotkey.carbonModifiers == 0x0100)
-        #expect(loaded.recordingHotkey.isModifierOnly == false)
+        shared.loadFromDefaults()
+        #expect(shared.recordingHotkey.carbonKeyCode == 49)
+        #expect(shared.recordingHotkey.carbonModifiers == 0x0100)
+        #expect(shared.recordingHotkey.isModifierOnly == false)
 
-        // Cleanup
-        defaults.removeObject(forKey: "recordingHotkey")
-        _ = AppSettings.resetToDefaults()
+        // Restore
+        shared.recordingHotkey = origHotkey
+    }
+
+    // MARK: - Custom prompt persistence
+
+    @Test func customPromptAutoSaves() {
+        let shared = AppSettings.shared
+        let origPrompt = shared.customSystemPrompt
+
+        shared.customSystemPrompt = "测试自动保存提示词"
+
+        // Reload and verify
+        shared.loadFromDefaults()
+        #expect(shared.customSystemPrompt == "测试自动保存提示词")
+
+        // Restore
+        shared.customSystemPrompt = origPrompt
     }
 }

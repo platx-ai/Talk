@@ -154,9 +154,26 @@ struct HotKeyCombo: Codable, Equatable {
     }
 }
 
-/// 应用设置
+/// 应用设置（全局单例，修改后自动持久化）
 @Observable
 final class AppSettings {
+    // MARK: - 单例
+
+    static let shared: AppSettings = {
+        let settings = AppSettings()
+        settings.loadFromDefaults()
+        return settings
+    }()
+
+    /// 标记是否正在从 UserDefaults 加载（加载期间不触发 save）
+    private var isLoading = false
+
+    /// 每次属性变化后自动保存到 UserDefaults
+    private func autoSave() {
+        guard !isLoading else { return }
+        save()
+    }
+
     // MARK: - 录音设置
 
     enum RecordingTriggerMode: String, Codable, CaseIterable {
@@ -164,11 +181,11 @@ final class AppSettings {
         case toggle = "toggle"
     }
 
-    var recordingTriggerMode: RecordingTriggerMode = .pushToTalk
-    var recordingHotkey: HotKeyCombo = .defaultCombo
-    var recordingMaxDuration: Int = 0
-    var silenceTimeout: Int = 0
-    var sampleRate: Int = 16000
+    var recordingTriggerMode: RecordingTriggerMode = .pushToTalk { didSet { autoSave() } }
+    var recordingHotkey: HotKeyCombo = .defaultCombo { didSet { autoSave() } }
+    var recordingMaxDuration: Int = 0 { didSet { autoSave() } }
+    var silenceTimeout: Int = 0 { didSet { autoSave() } }
+    var sampleRate: Int = 16000 { didSet { autoSave() } }
 
     // MARK: - ASR 设置
 
@@ -181,8 +198,8 @@ final class AppSettings {
         case mixed = "mixed"
     }
 
-    var asrLanguage: ASRLanguage = .auto
-    var showRealtimeRecognition: Bool = true
+    var asrLanguage: ASRLanguage = .auto { didSet { autoSave() } }
+    var showRealtimeRecognition: Bool = true { didSet { autoSave() } }
 
     // MARK: - LLM 设置
 
@@ -194,10 +211,10 @@ final class AppSettings {
         case strong = "strong"
     }
 
-    var polishIntensity: PolishIntensity = .medium
-    var conversationHistoryRounds: Int = 5
-    var enableConversationHistory: Bool = true
-    var customSystemPrompt: String = ""  // empty means use default
+    var polishIntensity: PolishIntensity = .medium { didSet { autoSave() } }
+    var conversationHistoryRounds: Int = 5 { didSet { autoSave() } }
+    var enableConversationHistory: Bool = true { didSet { autoSave() } }
+    var customSystemPrompt: String = "" { didSet { autoSave() } }  // empty means use default
 
     // MARK: - 选中修正
 
@@ -206,7 +223,7 @@ final class AppSettings {
         case clipboard = "clipboard"          // Cmd+C, broader compatibility
     }
 
-    var selectionCaptureMethod: SelectionCaptureMethod = .accessibility
+    var selectionCaptureMethod: SelectionCaptureMethod = .accessibility { didSet { autoSave() } }
 
     // MARK: - 输出设置
 
@@ -216,7 +233,7 @@ final class AppSettings {
         case previewWindow = "preview_window"
     }
 
-    var outputMethod: OutputMethod = .autoPaste
+    var outputMethod: OutputMethod = .autoPaste { didSet { autoSave() } }
 
     enum OutputDelay: String, Codable, CaseIterable {
         case immediate = "immediate"
@@ -224,14 +241,14 @@ final class AppSettings {
         case custom = "custom"
     }
 
-    var outputDelay: OutputDelay = .afterPolish
-    var customOutputDelay: Int = 1
-    var showPreviewBeforeOutput: Bool = false
+    var outputDelay: OutputDelay = .afterPolish { didSet { autoSave() } }
+    var customOutputDelay: Int = 1 { didSet { autoSave() } }
+    var showPreviewBeforeOutput: Bool = false { didSet { autoSave() } }
 
     // MARK: - 高级功能
 
-    var enableVoiceCommands: Bool = true
-    var enablePersonalVocabulary: Bool = true
+    var enableVoiceCommands: Bool = true { didSet { autoSave() } }
+    var enablePersonalVocabulary: Bool = true { didSet { autoSave() } }
 
     enum AppLanguage: String, Codable, CaseIterable {
         case system = "system"
@@ -239,7 +256,7 @@ final class AppSettings {
         case english = "en-US"
     }
 
-    var appLanguage: AppLanguage = .system
+    var appLanguage: AppLanguage = .system { didSet { autoSave() } }
 
     enum PerformanceMode: String, Codable, CaseIterable {
         case speed = "speed"
@@ -247,7 +264,7 @@ final class AppSettings {
         case balanced = "balanced"
     }
 
-    var performanceMode: PerformanceMode = .speed
+    var performanceMode: PerformanceMode = .speed { didSet { autoSave() } }
 
     enum MemoryMode: String, Codable, CaseIterable {
         case low = "low"
@@ -255,20 +272,20 @@ final class AppSettings {
         case auto = "auto"
     }
 
-    var memoryMode: MemoryMode = .normal
+    var memoryMode: MemoryMode = .normal { didSet { autoSave() } }
 
     // MARK: - 启动与退出
 
-    var launchAtLogin: Bool = false
-    var quitBehavior: Bool = true
+    var launchAtLogin: Bool = false { didSet { autoSave() } }
+    var quitBehavior: Bool = true { didSet { autoSave() } }
 
     // MARK: - 日志
 
-    var enableDetailedLogging: Bool = true
+    var enableDetailedLogging: Bool = true { didSet { autoSave() } }
 
     // MARK: - 音频设备
 
-    var selectedAudioDeviceUID: String? = nil
+    var selectedAudioDeviceUID: String? = nil { didSet { autoSave() } }
 
     enum LogLevel: String, Codable, CaseIterable {
         case debug = "debug"
@@ -277,7 +294,7 @@ final class AppSettings {
         case error = "error"
     }
 
-    var logLevel: LogLevel = .debug
+    var logLevel: LogLevel = .debug { didSet { autoSave() } }
 
     init() {}
 }
@@ -287,8 +304,16 @@ final class AppSettings {
 extension AppSettings {
     private static let userDefaultsKey = "AppSettings"
 
+    /// 返回全局单例（已从 UserDefaults 加载）
     static func load() -> AppSettings {
-        let settings = AppSettings()
+        return shared
+    }
+
+    /// 从 UserDefaults 加载所有字段（仅在初始化时调用）
+    func loadFromDefaults() {
+        isLoading = true
+        defer { isLoading = false }
+
         let defaults = UserDefaults.standard
 
         func boolValue(_ key: String, default defaultValue: Bool) -> Bool {
@@ -298,77 +323,75 @@ extension AppSettings {
 
         if let mode = defaults.string(forKey: "recordingTriggerMode"),
            let triggerMode = RecordingTriggerMode(rawValue: mode) {
-            settings.recordingTriggerMode = triggerMode
+            recordingTriggerMode = triggerMode
         }
         // Load recordingHotkey: try new JSON format first, then fall back to legacy string
         if let hotkeyData = defaults.data(forKey: "recordingHotkey"),
            let combo = try? JSONDecoder().decode(HotKeyCombo.self, from: hotkeyData) {
-            settings.recordingHotkey = combo
+            self.recordingHotkey = combo
         } else if let legacyString = defaults.string(forKey: "recordingHotkey") {
-            settings.recordingHotkey = HotKeyCombo.fromLegacyString(legacyString)
+            self.recordingHotkey = HotKeyCombo.fromLegacyString(legacyString)
         }
-        settings.recordingMaxDuration = defaults.integer(forKey: "recordingMaxDuration")
-        settings.silenceTimeout = defaults.integer(forKey: "silenceTimeout")
-        settings.sampleRate = defaults.integer(forKey: "sampleRate") != 0 ? defaults.integer(forKey: "sampleRate") : 16000
-        settings.selectedAudioDeviceUID = defaults.string(forKey: "selectedAudioDeviceUID")
+        self.recordingMaxDuration = defaults.integer(forKey: "recordingMaxDuration")
+        self.silenceTimeout = defaults.integer(forKey: "silenceTimeout")
+        self.sampleRate = defaults.integer(forKey: "sampleRate") != 0 ? defaults.integer(forKey: "sampleRate") : 16000
+        self.selectedAudioDeviceUID = defaults.string(forKey: "selectedAudioDeviceUID")
 
-        settings.asrModelId = defaults.string(forKey: "asrModelId") ?? "mlx-community/Qwen3-ASR-0.6B-4bit"
+        self.asrModelId = defaults.string(forKey: "asrModelId") ?? "mlx-community/Qwen3-ASR-0.6B-4bit"
         if let lang = defaults.string(forKey: "asrLanguage"),
            let language = ASRLanguage(rawValue: lang) {
-            settings.asrLanguage = language
+            self.asrLanguage = language
         }
-        settings.showRealtimeRecognition = boolValue("showRealtimeRecognition", default: true)
+        self.showRealtimeRecognition = boolValue("showRealtimeRecognition", default: true)
 
-        settings.llmModelId = defaults.string(forKey: "llmModelId") ?? "mlx-community/Qwen3-4B-Instruct-2507-4bit"
+        self.llmModelId = defaults.string(forKey: "llmModelId") ?? "mlx-community/Qwen3-4B-Instruct-2507-4bit"
         if let intensity = defaults.string(forKey: "polishIntensity"),
            let polishIntensity = PolishIntensity(rawValue: intensity) {
-            settings.polishIntensity = polishIntensity
+            self.polishIntensity = polishIntensity
         }
-        settings.conversationHistoryRounds = defaults.integer(forKey: "conversationHistoryRounds") != 0 ? defaults.integer(forKey: "conversationHistoryRounds") : 5
-        settings.enableConversationHistory = boolValue("enableConversationHistory", default: true)
-        settings.customSystemPrompt = defaults.string(forKey: "customSystemPrompt") ?? ""
+        self.conversationHistoryRounds = defaults.integer(forKey: "conversationHistoryRounds") != 0 ? defaults.integer(forKey: "conversationHistoryRounds") : 5
+        self.enableConversationHistory = boolValue("enableConversationHistory", default: true)
+        self.customSystemPrompt = defaults.string(forKey: "customSystemPrompt") ?? ""
         if let method = defaults.string(forKey: "selectionCaptureMethod"),
            let captureMethod = SelectionCaptureMethod(rawValue: method) {
-            settings.selectionCaptureMethod = captureMethod
+            self.selectionCaptureMethod = captureMethod
         }
 
         if let method = defaults.string(forKey: "outputMethod"),
            let outputMethod = OutputMethod(rawValue: method) {
-            settings.outputMethod = outputMethod
+            self.outputMethod = outputMethod
         }
         if let delay = defaults.string(forKey: "outputDelay"),
            let outputDelay = OutputDelay(rawValue: delay) {
-            settings.outputDelay = outputDelay
+            self.outputDelay = outputDelay
         }
-        settings.customOutputDelay = defaults.integer(forKey: "customOutputDelay")
-        settings.showPreviewBeforeOutput = boolValue("showPreviewBeforeOutput", default: false)
+        self.customOutputDelay = defaults.integer(forKey: "customOutputDelay")
+        self.showPreviewBeforeOutput = boolValue("showPreviewBeforeOutput", default: false)
 
-        settings.enableVoiceCommands = boolValue("enableVoiceCommands", default: true)
-        settings.enablePersonalVocabulary = boolValue("enablePersonalVocabulary", default: true)
+        self.enableVoiceCommands = boolValue("enableVoiceCommands", default: true)
+        self.enablePersonalVocabulary = boolValue("enablePersonalVocabulary", default: true)
 
         if let lang = defaults.string(forKey: "appLanguage"),
            let language = AppLanguage(rawValue: lang) {
-            settings.appLanguage = language
+            self.appLanguage = language
         }
 
         if let mode = defaults.string(forKey: "performanceMode"),
            let perfMode = PerformanceMode(rawValue: mode) {
-            settings.performanceMode = perfMode
+            self.performanceMode = perfMode
         }
         if let mode = defaults.string(forKey: "memoryMode"),
            let memMode = MemoryMode(rawValue: mode) {
-            settings.memoryMode = memMode
+            self.memoryMode = memMode
         }
 
-        settings.launchAtLogin = boolValue("launchAtLogin", default: false)
-        settings.quitBehavior = boolValue("quitBehavior", default: true)
-        settings.enableDetailedLogging = boolValue("enableDetailedLogging", default: true)
+        self.launchAtLogin = boolValue("launchAtLogin", default: false)
+        self.quitBehavior = boolValue("quitBehavior", default: true)
+        self.enableDetailedLogging = boolValue("enableDetailedLogging", default: true)
         if let level = defaults.string(forKey: "logLevel"),
            let logLevel = LogLevel(rawValue: level) {
-            settings.logLevel = logLevel
+            self.logLevel = logLevel
         }
-
-        return settings
     }
 
     func save() {
