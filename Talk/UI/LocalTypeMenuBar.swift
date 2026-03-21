@@ -18,6 +18,7 @@ final class LocalTypeMenuBar {
     private var historyWindow: NSWindow?
     private var popover: NSPopover?
     private let viewModel = MenuViewModel()
+    private let floatingIndicator = FloatingIndicatorWindow()
 
     private init() {
         setupMenuBar()
@@ -52,6 +53,32 @@ final class LocalTypeMenuBar {
     func updateProcessingStatus(_ status: MenuViewModel.ProcessingStatus) {
         viewModel.processingStatus = status
         viewModel.isRecording = status == .recording
+
+        switch status {
+        case .idle:
+            floatingIndicator.dismiss()
+        case .recording:
+            floatingIndicator.updatePhase(.recording(startDate: Date()))
+            floatingIndicator.show()
+        case .asr:
+            floatingIndicator.updatePhase(.recognizing)
+            floatingIndicator.show()
+        case .polishing:
+            floatingIndicator.updatePhase(.polishing)
+        case .outputting:
+            floatingIndicator.updatePhase(.outputting)
+        }
+    }
+
+    func updateFloatingAudioLevel(_ level: Float) {
+        floatingIndicator.updateAudioLevel(level)
+    }
+
+    /// Show "done" on the floating indicator, then auto-dismiss after 1.5s
+    func showDoneAndDismiss() {
+        viewModel.processingStatus = .idle
+        viewModel.isRecording = false
+        floatingIndicator.updatePhase(.done)
     }
 
     @objc private func statusBarButtonClicked() {
