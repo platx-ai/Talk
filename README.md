@@ -2,6 +2,8 @@
 
 macOS 菜单栏语音输入工具 — 按住快捷键说话，自动识别、润色、粘贴到当前应用。
 
+> 本项目的原始算法和代码基于孔老师（[@jiamingkong](https://github.com/jiamingkong)）的慷慨贡献。我们只是想快速验证一下十分钟能不能搞定一个 typeless。
+
 ## Features
 
 - **本地推理** — 基于 Apple Silicon MLX，无云端依赖，隐私优先
