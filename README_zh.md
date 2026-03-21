@@ -8,7 +8,7 @@ macOS 菜单栏语音输入工具 — 按住快捷键说话，自动识别、润
 
 > 本项目的原始算法和代码基于孔老师（[@jiamingkong](https://github.com/jiamingkong)）的慷慨贡献。我们只是想快速验证一下十分钟能不能搞定一个 typeless。
 
-## Features
+## 功能
 
 - **本地推理** — 基于 Apple Silicon MLX，无云端依赖，隐私优先
 - **语音识别** — Qwen3-ASR-0.6B-4bit，支持中英文
@@ -20,51 +20,77 @@ macOS 菜单栏语音输入工具 — 按住快捷键说话，自动识别、润
 - **音频设备选择** — 支持选择输入设备，默认内置麦克风
 - **自动粘贴** — 通过辅助功能 API 模拟 Cmd+V 注入文本
 
-## Requirements
+## 性能
+
+所有推理在 Apple Silicon GPU 上本地运行，模型下载后无需网络。
+
+| 阶段 | 延迟 | 说明 |
+|------|------|------|
+| ASR 识别（3-5s 音频） | **0.07 - 0.18s** | 实时倍率 17-51x |
+| LLM 润色（短文本） | **0.35 - 0.50s** | ~30 字输入 |
+| LLM 润色（长文本） | **1.1 - 1.2s** | ~120 字输入 |
+| **完整流程** | **~1s** | ASR + LLM（模型已加载） |
+| ASR 模型加载 | 2s | 冷启动，一次性 |
+| LLM 模型加载 | 10s | 冷启动，一次性 — **瓶颈** |
+
+内存占用：
+
+| 状态 | RSS |
+|------|-----|
+| ASR 模型加载后 | ~1.6 GB |
+| 双模型加载后 | ~5.4 GB |
+
+> 完整 benchmark 数据和复现步骤见 [docs/BENCHMARK.md](docs/BENCHMARK.md)
+>
+> 运行 `make benchmark` 在你的机器上复现。
+
+## 系统要求
 
 - macOS 26.2+
 - Apple Silicon (M1/M2/M3/M4)
 - Xcode 26.3+
-- ~5GB 磁盘空间（模型文件）
+- 推荐 16 GB 内存（8 GB 可用轻量模型 — 即将推出）
+- ~3 GB 磁盘空间（模型文件）
 
-## Quick Start
+## 快速开始
 
 ```bash
 # 克隆项目
 git clone https://github.com/platx-ai/Talk.git
 cd Talk
 
-# 解析依赖 + 构建
-make build
-
-# 下载模型（首次需要）
-make download-models
+# 完整初始化：解析依赖 + 下载模型
+make setup
 
 # 运行
 make run
 ```
 
-## Build
+## 构建
 
 ```bash
 make build          # Debug 构建
 make build-release  # Release 构建
-make test           # 运行测试
+make test           # 运行单元测试（35 个）
+make benchmark      # 运行性能基准测试
+make run            # 构建并运行
 make clean          # 清理构建产物
 make resolve        # 仅解析 SPM 依赖
+make download-models # 下载 HuggingFace 模型
+make setup          # 完整初始化：解析 + 下载模型
 make lint           # 代码检查（swiftlint，如已安装）
 ```
 
-## Architecture
+## 架构
 
 ```
-录音(AVAudioEngine) → ASR(Qwen3-ASR) → LLM润色(Qwen3-4B) → 文本注入(Cmd+V)
-     ↑                                                           ↑
-  CoreAudio                                                 Accessibility
-  设备选择                                                    API 权限
+录音(AVAudioEngine) → ASR(Qwen3-ASR) → LLM 润色(Qwen3-4B) → 文本注入(Cmd+V)
+       ↑                  0.1s              0.5s                    ↑
+    CoreAudio                                                  Accessibility
+    设备选择                                                     API 权限
 ```
 
-### 模块结构
+### 模块
 
 | 模块 | 职责 |
 |------|------|
@@ -73,37 +99,39 @@ make lint           # 代码检查（swiftlint，如已安装）
 | `LLM/` | 文本润色 (MLXLLM + Qwen3-4B-Instruct) |
 | `Models/` | 数据模型 (AppSettings, HotKeyCombo, HistoryItem) |
 | `Data/` | 历史记录和词库的 JSON 持久化 |
-| `UI/` | SwiftUI 菜单栏、设置面板、快捷键录制器、历史浏览 |
+| `UI/` | SwiftUI 菜单栏、设置面板、快捷键录制器、悬浮指示器、历史浏览 |
 | `Utils/` | 日志系统、Metal 运行时检查 |
 
-### Dependencies
+### 依赖
 
-| Package | Source | Version |
-|---------|--------|---------|
-| mlx-swift | [ml-explore/mlx-swift](https://github.com/ml-explore/mlx-swift) | `b6e128c` |
-| mlx-swift-lm | [ml-explore/mlx-swift-lm](https://github.com/ml-explore/mlx-swift-lm) | `edd42fc` |
-| mlx-audio-swift | [platx-ai/mlx-audio-swift](https://github.com/platx-ai/mlx-audio-swift) (fork) | `4ece9e0` |
-| swift-huggingface | [huggingface/swift-huggingface](https://github.com/huggingface/swift-huggingface) | `0.9.0` |
+通过 Swift Package Manager 管理，锁定到具体 commit：
 
-> mlx-audio-swift 使用 platx-ai fork 修复了上游 [MLXAudioCodecs 缺少 MLXFast 依赖](https://github.com/Blaizzy/mlx-audio-swift/issues/) 的问题。
+| 包 | 来源 | 用途 |
+|---|------|------|
+| mlx-swift | [ml-explore/mlx-swift](https://github.com/ml-explore/mlx-swift) | MLX 核心运算 |
+| mlx-swift-lm | [ml-explore/mlx-swift-lm](https://github.com/ml-explore/mlx-swift-lm) | LLM 推理框架 |
+| mlx-audio-swift | [platx-ai/mlx-audio-swift](https://github.com/platx-ai/mlx-audio-swift) (fork) | 语音识别框架 |
+| swift-huggingface | [huggingface/swift-huggingface](https://github.com/huggingface/swift-huggingface) | 模型下载 |
 
-### Models
+> mlx-audio-swift 使用 platx-ai fork，修复了上游 MLXAudioCodecs 缺少 MLXFast 依赖的问题。
 
-| Model | Size | Purpose |
-|-------|------|---------|
-| [mlx-community/Qwen3-ASR-0.6B-4bit](https://huggingface.co/mlx-community/Qwen3-ASR-0.6B-4bit) | ~400MB | 语音识别 |
-| [mlx-community/Qwen3-4B-Instruct-2507-4bit](https://huggingface.co/mlx-community/Qwen3-4B-Instruct-2507-4bit) | ~2.5GB | 文本润色 |
+### 模型
 
-模型首次运行时自动从 HuggingFace 下载到 `~/.cache/huggingface/`，也可通过 `make download-models` 预下载。
+| 模型 | 大小 | 加载时间 | 内存 | 用途 |
+|------|------|---------|------|------|
+| [Qwen3-ASR-0.6B-4bit](https://huggingface.co/mlx-community/Qwen3-ASR-0.6B-4bit) | ~400 MB | 2s | ~1.6 GB | 语音识别 |
+| [Qwen3-4B-Instruct-2507-4bit](https://huggingface.co/mlx-community/Qwen3-4B-Instruct-2507-4bit) | ~2.5 GB | 10s | ~4 GB | 文本润色 |
 
-## Permissions
+模型首次运行时自动从 HuggingFace 下载到 `~/.cache/huggingface/`，可通过 `make download-models` 预下载。
+
+## 权限
 
 首次运行需要授权：
 
 1. **麦克风** — 系统自动弹出授权请求
 2. **辅助功能** — 需手动在「系统设置 → 隐私与安全性 → 辅助功能」中添加 Talk.app
 
-## Development
+## 开发
 
 ```bash
 # 在 Xcode 中打开
@@ -113,27 +141,34 @@ open Talk.xcodeproj
 # 构建并运行：⌘R
 ```
 
-### Code Signing
+### 测试
 
-项目中 `DEVELOPMENT_TEAM` 为空，每个开发者需在 Xcode 中设置自己的签名团队。命令行构建使用 ad-hoc 签名。
+```bash
+make test       # 35 个单元测试（HotKeyCombo、AppSettings、AudioDeviceManager、FloatingIndicator）
+make benchmark  # 性能基准测试（ASR/LLM 加载、推理、管线、内存）
+```
 
-## Roadmap
+所有变更必须有对应测试。Bug 修复前必须写回归测试。详见 [CLAUDE.md](CLAUDE.md) 的测试规范。
+
+### 代码签名
+
+`DEVELOPMENT_TEAM` 为空，每个开发者在 Xcode 中设置自己的签名团队。命令行构建使用 ad-hoc 签名。
+
+## 路线图
 
 完整路线图见 [ROADMAP.md](ROADMAP.md)。
 
 **近期**
-- 悬浮状态指示器（录音中 → 识别中 → 润色中 → 完成）
+- 自研轻量润色模型 (0.5-1.5B) — 加载 < 1s，内存 < 1 GB
 - 实时转写预览浮窗
-- 音频电平可视化
-- 模型加载进度提示
+- ASR 错误反馈闭环（用户修正 → 词库学习）
 
 **中期**
-- 项目感知的词库与提示词配置（每个项目目录下 `.talk/` 配置文件）
+- 项目感知的词库与提示词配置（`.talk/` 目录）
 - iCloud 词库同步
 - iOS 离线伴侣应用
 
 **长期**
-- 多语言词库管理
 - 团队共享术语库
 - 自定义后处理管线插件系统
 
