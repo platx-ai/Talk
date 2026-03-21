@@ -117,4 +117,4 @@ open Talk.xcodeproj
 
 ## License
 
-TBD
+[MIT](LICENSE)
