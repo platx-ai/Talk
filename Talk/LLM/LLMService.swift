@@ -128,8 +128,16 @@ final class LLMService {
 
         AppLogger.debug("开始文本润色: \(text)", category: .llm)
 
-        let instructions: String
+        var instructions: String
         let userMessage: String
+
+        // Get learned corrections for LLM context
+        let corrections = VocabularyManager.shared.getHighFrequencyItems(limit: 20)
+        var correctionContext = ""
+        if !corrections.isEmpty {
+            let correctionLines = corrections.map { "\($0.word) → \($0.correctedForm ?? $0.word)" }.joined(separator: "\n")
+            correctionContext = "\n\n【已学习的纠正】\n" + correctionLines
+        }
 
         if let selectedText, !selectedText.isEmpty {
             // 选中修正模式：语音输入是指令，选中文本是操作对象
@@ -162,6 +170,11 @@ final class LLMService {
             }
             msg += "\n\n请清理以下文本：\(text)"
             userMessage = msg
+        }
+
+        // Append learned corrections to instructions
+        if !correctionContext.isEmpty {
+            instructions += correctionContext
         }
 
         do {

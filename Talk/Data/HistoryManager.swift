@@ -73,6 +73,14 @@ final class HistoryManager {
         AppLogger.info("清理后保留 \(items.count) 条历史记录")
     }
 
+    func update(_ item: HistoryItem) {
+        if let index = items.firstIndex(where: { $0.id == item.id }) {
+            items[index] = item
+            saveHistory()
+            AppLogger.info("更新历史记录: \(item.id)")
+        }
+    }
+
     func delete(_ item: HistoryItem) {
         items.removeAll { $0.id == item.id }
         saveHistory()

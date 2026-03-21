@@ -91,6 +91,120 @@ final class VocabularyManager {
         return String(text[contextIndex..<safeEndIndex])
     }
 
+    /// Learn from user correction: original (ASR/LLM output) -> corrected (user edit)
+    func learnCorrection(original: String, corrected: String) {
+        guard original != corrected else { return }
+
+        let originalWords = tokenize(original)
+        let correctedWords = tokenize(corrected)
+
+        // Simple word-level diff: compare aligned words
+        let maxLen = max(originalWords.count, correctedWords.count)
+        guard maxLen > 0 else { return }
+
+        // Use a simple LCS-based approach to find changed segments
+        let pairs = diffWords(old: originalWords, new: correctedWords)
+
+        for (oldWord, newWord) in pairs {
+            guard oldWord != newWord else { continue }
+            guard !oldWord.isEmpty, !newWord.isEmpty else { continue }
+
+            if let index = items.firstIndex(where: { $0.word == oldWord && $0.correctedForm == newWord }) {
+                // Already have this correction, boost frequency
+                items[index].frequency += 3
+                items[index].lastUsed = Date()
+            } else if let index = items.firstIndex(where: { $0.word == oldWord && $0.correctedForm != nil }) {
+                // Same original word but different correction — update
+                items[index].correctedForm = newWord
+                items[index].frequency += 3
+                items[index].lastUsed = Date()
+            } else {
+                // New correction entry with high initial frequency
+                let item = VocabularyItem(
+                    word: oldWord,
+                    frequency: minFrequencyThreshold + 1,
+                    correctedForm: newWord
+                )
+                items.append(item)
+            }
+        }
+
+        saveVocabulary()
+        AppLogger.info("从修正中学习了 \(pairs.filter { $0.0 != $0.1 }.count) 个纠正", category: .storage)
+    }
+
+    /// Get high-frequency correction items for LLM context
+    func getHighFrequencyItems(limit: Int = 20) -> [VocabularyItem] {
+        items
+            .filter { $0.isCorrection && $0.frequency >= minFrequencyThreshold }
+            .sorted { $0.frequency > $1.frequency }
+            .prefix(limit)
+            .map { $0 }
+    }
+
+    private func tokenize(_ text: String) -> [String] {
+        text.components(separatedBy: CharacterSet(charactersIn: " \n\r\t.,;:!?，。；：！？、"))
+            .map { $0.trimmingCharacters(in: .whitespaces) }
+            .filter { !$0.isEmpty }
+    }
+
+    /// Simple word-level diff that pairs up changed words between old and new
+    private func diffWords(old: [String], new: [String]) -> [(String, String)] {
+        // Build LCS table
+        let m = old.count, n = new.count
+        var dp = Array(repeating: Array(repeating: 0, count: n + 1), count: m + 1)
+        for i in 1...m {
+            for j in 1...n {
+                if old[i - 1] == new[j - 1] {
+                    dp[i][j] = dp[i - 1][j - 1] + 1
+                } else {
+                    dp[i][j] = max(dp[i - 1][j], dp[i][j - 1])
+                }
+            }
+        }
+
+        // Backtrack to find matched (same) and changed pairs
+        var pairs: [(String, String)] = []
+        var i = m, j = n
+        // Collect deletions and insertions between LCS matches
+        var deletions: [String] = []
+        var insertions: [String] = []
+
+        while i > 0 || j > 0 {
+            if i > 0 && j > 0 && old[i - 1] == new[j - 1] {
+                // Flush accumulated changes as paired corrections
+                flushChanges(deletions: &deletions, insertions: &insertions, into: &pairs)
+                i -= 1; j -= 1
+            } else if j > 0 && (i == 0 || dp[i][j - 1] >= dp[i - 1][j]) {
+                insertions.append(new[j - 1])
+                j -= 1
+            } else {
+                deletions.append(old[i - 1])
+                i -= 1
+            }
+        }
+        flushChanges(deletions: &deletions, insertions: &insertions, into: &pairs)
+
+        return pairs
+    }
+
+    private func flushChanges(deletions: inout [String], insertions: inout [String], into pairs: inout [(String, String)]) {
+        // Reverse because we collected them backwards
+        deletions.reverse()
+        insertions.reverse()
+
+        if !deletions.isEmpty && !insertions.isEmpty {
+            // Pair them up: join as phrase if counts differ
+            let oldPhrase = deletions.joined(separator: " ")
+            let newPhrase = insertions.joined(separator: " ")
+            pairs.append((oldPhrase, newPhrase))
+        }
+        // If only deletions or only insertions, skip (not a correction, just added/removed text)
+
+        deletions.removeAll()
+        insertions.removeAll()
+    }
+
     func getHighFrequencyWords(limit: Int = 100) -> [VocabularyItem] {
         items
             .filter { $0.frequency >= minFrequencyThreshold }
