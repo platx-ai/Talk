@@ -61,11 +61,39 @@ Talk/
 ```bash
 make build          # 构建 Debug 版本
 make build-release  # 构建 Release 版本
-make test           # 运行测试
+make test           # 运行单元测试（不含 benchmark）
+make benchmark      # 运行性能基准测试（需要模型）
 make run            # 构建并运行
 make clean          # 清理构建产物
 make resolve        # 解析 SPM 依赖
 ```
+
+## Testing Rules
+
+### 必须写测试的场景
+- 所有新增功能必须有对应的单元测试
+- 发现的 bug 必须先写**回归测试复现问题**，再修复
+- 性能问题用 benchmark 测试量化（`TalkTests/BenchmarkTests.swift`）
+
+### 测试文件组织
+- `TalkTests/` 目录下，按模块命名：`HotKeyComboTests.swift`, `AppSettingsTests.swift` 等
+- Benchmark 测试放在 `BenchmarkTests.swift`，用 `@Suite("ASR Benchmarks")` 等分组
+- `make test` 跳过 benchmark，`make benchmark` 只跑 benchmark
+
+### 测试编写规范
+- 使用 Swift Testing 框架（`@Test`, `#expect`, `Issue.record`），不用 XCTest
+- `@MainActor` 标记需要主线程的测试（UI 组件、Singleton 访问）
+- Singleton 测试要注意状态隔离 — 保存/恢复之前的状态
+- 不要在测试中修改全局 UserDefaults 不清理
+
+### 如何发现和验证问题
+1. **用户反馈 → 回归测试**：用户报告"卡在润色中" → 写测试验证推理不阻塞主线程
+2. **Benchmark 发现瓶颈**：`make benchmark` 量化每个阶段耗时，写入 `docs/BENCHMARK.md`
+3. **性能回归检测**：benchmark 结果对比历史数据，发现回归
+
+### 性能关键约束
+- 模型加载和推理必须在后台线程（`Task.detached`），禁止在 `@MainActor` 上做重活
+- UI 更新回到主线程（`@MainActor` 的 property 赋值自动保证）
 
 ## Key Conventions
 
