@@ -165,8 +165,11 @@ final class LLMService {
         }
 
         do {
-            let session = ChatSession(modelContainer, instructions: instructions)
-            let response = try await session.respond(to: userMessage)
+            // 在后台线程推理，避免阻塞主线程/UI
+            let response: String = try await Task.detached(priority: .userInitiated) {
+                let session = ChatSession(modelContainer, instructions: instructions)
+                return try await session.respond(to: userMessage)
+            }.value
 
             let polishedText = response.trimmingCharacters(in: CharacterSet.whitespacesAndNewlines)
 

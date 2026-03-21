@@ -118,9 +118,12 @@ final class ASRService {
         )
 
         do {
-            let audioArray = MLXArray(audio)
-            let output = model.generate(audio: audioArray)
-            let text = output.text.trimmingCharacters(in: CharacterSet.whitespacesAndNewlines)
+            // 在后台线程推理，避免阻塞主线程/UI
+            let text: String = try await Task.detached(priority: .userInitiated) {
+                let audioArray = MLXArray(audio)
+                let output = model.generate(audio: audioArray)
+                return output.text.trimmingCharacters(in: CharacterSet.whitespacesAndNewlines)
+            }.value
 
             AppLogger.debug("语音识别完成: \(text)", category: .asr)
             return text
