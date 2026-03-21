@@ -72,8 +72,8 @@ final class HotKeyManager {
         currentHotKey = hotKey
         isKeyPressed = false
 
-        // 更新 nonisolated 缓存供 CGEventTap 回调使用
-        let modOnly = hotKey.modifiers == 0 && modifierFlag(for: hotKey.keyCode) != nil
+        // 如果 keyCode 本身是修饰键，则使用修饰键模式（无论是否有额外修饰键）
+        let modOnly = modifierFlag(for: hotKey.keyCode) != nil
         _cachedKeyCode = hotKey.keyCode
         _cachedModifiers = hotKey.modifiers
         _cachedIsModifierOnly = modOnly
