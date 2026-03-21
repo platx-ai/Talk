@@ -24,6 +24,8 @@ final class HotKeyManager {
 
     private var eventTap: CFMachPort?
     private var runLoopSource: CFRunLoopSource?
+    private var tapThread: Thread?
+    private var tapRunLoop: CFRunLoop?
     private(set) var isRegistered = false
 
     // MARK: - 热键配置
@@ -131,17 +133,33 @@ final class HotKeyManager {
 
         eventTap = tap
         runLoopSource = CFMachPortCreateRunLoopSource(kCFAllocatorDefault, tap, 0)
-        CFRunLoopAddSource(CFRunLoopGetMain(), runLoopSource, .commonModes)
-        CGEvent.tapEnable(tap: tap, enable: true)
+
+        // CGEventTap 在独立后台线程的 RunLoop 上运行，不阻塞主线程
+        let thread = Thread {
+            let rl = CFRunLoopGetCurrent()!
+            self.tapRunLoop = rl
+            CFRunLoopAddSource(rl, self.runLoopSource, .commonModes)
+            CGEvent.tapEnable(tap: tap, enable: true)
+            CFRunLoopRun()
+        }
+        thread.name = "HotKeyManager.CGEventTap"
+        thread.qualityOfService = .userInteractive
+        thread.start()
+        tapThread = thread
 
         isRegistered = true
-        AppLogger.info("热键注册成功（CGEventTap 模式）", category: .hotkey)
+        AppLogger.info("热键注册成功（CGEventTap 后台线程模式）", category: .hotkey)
     }
 
     private func removeCGEventTap() {
+        if let rl = tapRunLoop {
+            CFRunLoopStop(rl)
+            tapRunLoop = nil
+        }
+        tapThread = nil
         if let source = runLoopSource {
-            CFRunLoopRemoveSource(CFRunLoopGetMain(), source, .commonModes)
             runLoopSource = nil
+            _ = source  // prevent premature release
         }
         if let tap = eventTap {
             CGEvent.tapEnable(tap: tap, enable: false)
