@@ -1,0 +1,21 @@
+# Xcode
+build/
+DerivedData/
+*.xcuserstate
+*.xcuserdatad/
+xcuserdata/
+
+# SPM
+.build/
+.swiftpm/
+
+# macOS
+.DS_Store
+
+# Profiling
+*.profraw
+*.profdata
+
+# Models (large binaries)
+*.mlpackage
+*.mlmodel

@@ -6,8 +6,28 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		AD9ECD012F6C557100468229 /* MLX in Frameworks */ = {isa = PBXBuildFile; productRef = AD9ECCF52F6C557100468229 /* MLX */; };
+		AD9ECD032F6C557100468229 /* MLXLLM in Frameworks */ = {isa = PBXBuildFile; productRef = AD9ECCF72F6C557100468229 /* MLXLLM */; };
+		AD9ECD042F6C557100468229 /* MLXLMCommon in Frameworks */ = {isa = PBXBuildFile; productRef = AD9ECCF82F6C557100468229 /* MLXLMCommon */; };
+		AD9ECD052F6C557100468229 /* MLXAudioSTT in Frameworks */ = {isa = PBXBuildFile; productRef = AD9ECCF92F6C557100468229 /* MLXAudioSTT */; };
+		AD9ECD062F6C557100468229 /* MLXAudioCore in Frameworks */ = {isa = PBXBuildFile; productRef = AD9ECCFA2F6C557100468229 /* MLXAudioCore */; };
+		AD9ECD072F6C557100468229 /* HuggingFace in Frameworks */ = {isa = PBXBuildFile; productRef = AD9ECCFB2F6C557100468229 /* HuggingFace */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		AD9ECD172F6C557100468229 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = AD9ECCBE2F6C557100468229 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = AD9ECCC52F6C557100468229;
+			remoteInfo = Talk;
+		};
+/* End PBXContainerItemProxy section */
+
 /* Begin PBXFileReference section */
 		AD9ECCC62F6C557100468229 /* Talk.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Talk.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		AD9ECD102F6C557100468229 /* TalkTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = TalkTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -16,10 +36,28 @@
 			path = Talk;
 			sourceTree = "<group>";
 		};
+		AD9ECD112F6C557100468229 /* TalkTests */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = TalkTests;
+			sourceTree = "<group>";
+		};
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
 		AD9ECCC32F6C557100468229 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				AD9ECD012F6C557100468229 /* MLX in Frameworks */,
+				AD9ECD032F6C557100468229 /* MLXLLM in Frameworks */,
+				AD9ECD042F6C557100468229 /* MLXLMCommon in Frameworks */,
+				AD9ECD052F6C557100468229 /* MLXAudioSTT in Frameworks */,
+				AD9ECD062F6C557100468229 /* MLXAudioCore in Frameworks */,
+				AD9ECD072F6C557100468229 /* HuggingFace in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		AD9ECD132F6C557100468229 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -33,6 +71,7 @@
 			isa = PBXGroup;
 			children = (
 				AD9ECCC82F6C557100468229 /* Talk */,
+				AD9ECD112F6C557100468229 /* TalkTests */,
 				AD9ECCC72F6C557100468229 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -41,6 +80,7 @@
 			isa = PBXGroup;
 			children = (
 				AD9ECCC62F6C557100468229 /* Talk.app */,
+				AD9ECD102F6C557100468229 /* TalkTests.xctest */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -55,6 +95,7 @@
 				AD9ECCC22F6C557100468229 /* Sources */,
 				AD9ECCC32F6C557100468229 /* Frameworks */,
 				AD9ECCC42F6C557100468229 /* Resources */,
+				ADA1B0012F6C700100468229 /* Bundle Offline Models */,
 			);
 			buildRules = (
 			);
@@ -65,10 +106,37 @@
 			);
 			name = Talk;
 			packageProductDependencies = (
+				AD9ECCF52F6C557100468229 /* MLX */,
+				AD9ECCF72F6C557100468229 /* MLXLLM */,
+				AD9ECCF82F6C557100468229 /* MLXLMCommon */,
+				AD9ECCF92F6C557100468229 /* MLXAudioSTT */,
+				AD9ECCFA2F6C557100468229 /* MLXAudioCore */,
+				AD9ECCFB2F6C557100468229 /* HuggingFace */,
 			);
 			productName = Talk;
 			productReference = AD9ECCC62F6C557100468229 /* Talk.app */;
 			productType = "com.apple.product-type.application";
+		};
+		AD9ECD152F6C557100468229 /* TalkTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = AD9ECD1A2F6C557100468229 /* Build configuration list for PBXNativeTarget "TalkTests" */;
+			buildPhases = (
+				AD9ECD122F6C557100468229 /* Sources */,
+				AD9ECD132F6C557100468229 /* Frameworks */,
+				AD9ECD142F6C557100468229 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				AD9ECD162F6C557100468229 /* PBXTargetDependency */,
+			);
+			fileSystemSynchronizedGroups = (
+				AD9ECD112F6C557100468229 /* TalkTests */,
+			);
+			name = TalkTests;
+			productName = TalkTests;
+			productReference = AD9ECD102F6C557100468229 /* TalkTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
 		};
 /* End PBXNativeTarget section */
 
@@ -83,6 +151,10 @@
 					AD9ECCC52F6C557100468229 = {
 						CreatedOnToolsVersion = 26.3;
 					};
+					AD9ECD152F6C557100468229 = {
+						CreatedOnToolsVersion = 26.3;
+						TestTargetID = AD9ECCC52F6C557100468229;
+					};
 				};
 			};
 			buildConfigurationList = AD9ECCC12F6C557100468229 /* Build configuration list for PBXProject "Talk" */;
@@ -94,12 +166,19 @@
 			);
 			mainGroup = AD9ECCBD2F6C557000468229;
 			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				AD9ECCF12F6C557100468229 /* XCRemoteSwiftPackageReference "mlx-swift" */,
+				AD9ECCF22F6C557100468229 /* XCRemoteSwiftPackageReference "mlx-swift-lm" */,
+				AD9ECCF32F6C557100468229 /* XCRemoteSwiftPackageReference "mlx-audio-swift" */,
+				AD9ECCF42F6C557100468229 /* XCRemoteSwiftPackageReference "swift-huggingface" */,
+			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = AD9ECCC72F6C557100468229 /* Products */;
 			projectDirPath = "";
 			projectRoot = "";
 			targets = (
 				AD9ECCC52F6C557100468229 /* Talk */,
+				AD9ECD152F6C557100468229 /* TalkTests */,
 			);
 		};
 /* End PBXProject section */
@@ -112,7 +191,41 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		AD9ECD142F6C557100468229 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXResourcesBuildPhase section */
+
+/* Begin PBXShellScriptBuildPhase section */
+		ADA1B0012F6C700100468229 /* Bundle Offline Models */ = {
+			isa = PBXShellScriptBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+			);
+			inputPaths = (
+				"$(SRCROOT)/scripts/copy_models_into_app.sh",
+				"$(TALK_ASR_MODEL_SOURCE_DIR)",
+				"$(TALK_LLM_MODEL_SOURCE_DIR)",
+			);
+			name = "Bundle Offline Models";
+			outputFileListPaths = (
+			);
+			outputPaths = (
+				"$(TARGET_BUILD_DIR)/$(UNLOCALIZED_RESOURCES_FOLDER_PATH)/mlx-audio/mlx-community_Qwen3-ASR-0.6B-4bit/config.json",
+				"$(TARGET_BUILD_DIR)/$(UNLOCALIZED_RESOURCES_FOLDER_PATH)/Models/llm/config.json",
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "/bin/sh \"${SRCROOT}/scripts/copy_models_into_app.sh\"";
+			showEnvVarsInLog = 0;
+		};
+/* End PBXShellScriptBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
 		AD9ECCC22F6C557100468229 /* Sources */ = {
@@ -122,7 +235,22 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		AD9ECD122F6C557100468229 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		AD9ECD162F6C557100468229 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = AD9ECCC52F6C557100468229 /* Talk */;
+			targetProxy = AD9ECD172F6C557100468229 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
 
 /* Begin XCBuildConfiguration section */
 		AD9ECCCF2F6C557100468229 /* Debug */ = {
@@ -160,10 +288,10 @@
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				COPY_PHASE_STRIP = NO;
 				DEBUG_INFORMATION_FORMAT = dwarf;
-				DEVELOPMENT_TEAM = FF6NS9F6UU;
+				DEVELOPMENT_TEAM = "";
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
 				ENABLE_TESTABILITY = YES;
-				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = NO;
 				GCC_C_LANGUAGE_STANDARD = gnu17;
 				GCC_DYNAMIC_NO_PIC = NO;
 				GCC_NO_COMMON_BLOCKS = YES;
@@ -224,10 +352,10 @@
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				COPY_PHASE_STRIP = NO;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
-				DEVELOPMENT_TEAM = FF6NS9F6UU;
+				DEVELOPMENT_TEAM = "";
 				ENABLE_NS_ASSERTIONS = NO;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
-				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = NO;
 				GCC_C_LANGUAGE_STANDARD = gnu17;
 				GCC_NO_COMMON_BLOCKS = YES;
 				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
@@ -250,30 +378,48 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				AUTOMATION_APPLE_EVENTS = NO;
+				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = FF6NS9F6UU;
-				ENABLE_APP_SANDBOX = YES;
+				DEVELOPMENT_TEAM = "";
+				ENABLE_APP_SANDBOX = NO;
 				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_PREVIEWS = YES;
-				ENABLE_USER_SELECTED_FILES = readonly;
+				ENABLE_RESOURCE_ACCESS_AUDIO_INPUT = YES;
+				ENABLE_RESOURCE_ACCESS_CALENDARS = NO;
+				ENABLE_RESOURCE_ACCESS_CAMERA = NO;
+				ENABLE_RESOURCE_ACCESS_CONTACTS = NO;
+				ENABLE_RESOURCE_ACCESS_LOCATION = NO;
+				ENABLE_RESOURCE_ACCESS_PHOTO_LIBRARY = NO;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_LSUIElement = YES;
+				INFOPLIST_KEY_NSAccessibilityUsageDescription = "u9700u8981 Accessibility u6743u9650u4ee5u81eau52a8u7c98u8d34u6587u672c";
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				INFOPLIST_KEY_NSMicrophoneUsageDescription = u9700u8981u8bbfu95eeu9ea6u514bu98ceu4ee5u8fdbu884cu8bedu97f3u8bc6u522b;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = Realm.Talk;
+				PRODUCT_BUNDLE_IDENTIFIER = ai.platx.talk;
 				PRODUCT_NAME = "$(TARGET_NAME)";
-				REGISTER_APP_GROUPS = YES;
+				RUNTIME_EXCEPTION_ALLOW_DYLD_ENVIRONMENT_VARIABLES = NO;
+				RUNTIME_EXCEPTION_ALLOW_JIT = NO;
+				RUNTIME_EXCEPTION_ALLOW_UNSIGNED_EXECUTABLE_MEMORY = NO;
+				RUNTIME_EXCEPTION_DEBUGGING_TOOL = NO;
+				RUNTIME_EXCEPTION_DISABLE_EXECUTABLE_PAGE_PROTECTION = NO;
+				RUNTIME_EXCEPTION_DISABLE_LIBRARY_VALIDATION = NO;
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
 				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
 				SWIFT_VERSION = 5.0;
+				TALK_ASR_MODEL_SOURCE_DIR = "";
+				TALK_LLM_MODEL_SOURCE_DIR = "";
+				TALK_REQUIRE_BUNDLED_MODELS = NO;
 			};
 			name = Debug;
 		};
@@ -282,30 +428,90 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				AUTOMATION_APPLE_EVENTS = NO;
+				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = FF6NS9F6UU;
-				ENABLE_APP_SANDBOX = YES;
+				DEVELOPMENT_TEAM = "";
+				ENABLE_APP_SANDBOX = NO;
 				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_PREVIEWS = YES;
-				ENABLE_USER_SELECTED_FILES = readonly;
+				ENABLE_RESOURCE_ACCESS_AUDIO_INPUT = YES;
+				ENABLE_RESOURCE_ACCESS_CALENDARS = NO;
+				ENABLE_RESOURCE_ACCESS_CAMERA = NO;
+				ENABLE_RESOURCE_ACCESS_CONTACTS = NO;
+				ENABLE_RESOURCE_ACCESS_LOCATION = NO;
+				ENABLE_RESOURCE_ACCESS_PHOTO_LIBRARY = NO;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_LSUIElement = YES;
+				INFOPLIST_KEY_NSAccessibilityUsageDescription = "u9700u8981 Accessibility u6743u9650u4ee5u81eau52a8u7c98u8d34u6587u672c";
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				INFOPLIST_KEY_NSMicrophoneUsageDescription = u9700u8981u8bbfu95eeu9ea6u514bu98ceu4ee5u8fdbu884cu8bedu97f3u8bc6u522b;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = Realm.Talk;
+				PRODUCT_BUNDLE_IDENTIFIER = ai.platx.talk;
 				PRODUCT_NAME = "$(TARGET_NAME)";
-				REGISTER_APP_GROUPS = YES;
+				RUNTIME_EXCEPTION_ALLOW_DYLD_ENVIRONMENT_VARIABLES = NO;
+				RUNTIME_EXCEPTION_ALLOW_JIT = NO;
+				RUNTIME_EXCEPTION_ALLOW_UNSIGNED_EXECUTABLE_MEMORY = NO;
+				RUNTIME_EXCEPTION_DEBUGGING_TOOL = NO;
+				RUNTIME_EXCEPTION_DISABLE_EXECUTABLE_PAGE_PROTECTION = NO;
+				RUNTIME_EXCEPTION_DISABLE_LIBRARY_VALIDATION = NO;
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
 				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
 				SWIFT_VERSION = 5.0;
+				TALK_ASR_MODEL_SOURCE_DIR = "";
+				TALK_LLM_MODEL_SOURCE_DIR = "";
+				TALK_REQUIRE_BUNDLED_MODELS = NO;
+			};
+			name = Release;
+		};
+		AD9ECD182F6C557100468229 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = "";
+				GENERATE_INFOPLIST_FILE = YES;
+				MACOSX_DEPLOYMENT_TARGET = 26.2;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = ai.platx.talk.tests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Talk.app/Contents/MacOS/Talk";
+			};
+			name = Debug;
+		};
+		AD9ECD192F6C557100468229 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = "";
+				GENERATE_INFOPLIST_FILE = YES;
+				MACOSX_DEPLOYMENT_TARGET = 26.2;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = ai.platx.talk.tests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Talk.app/Contents/MacOS/Talk";
 			};
 			name = Release;
 		};
@@ -330,7 +536,84 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
+		AD9ECD1A2F6C557100468229 /* Build configuration list for PBXNativeTarget "TalkTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				AD9ECD182F6C557100468229 /* Debug */,
+				AD9ECD192F6C557100468229 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
 /* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		AD9ECCF12F6C557100468229 /* XCRemoteSwiftPackageReference "mlx-swift" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/ml-explore/mlx-swift.git";
+			requirement = {
+				kind = revision;
+				revision = b6e128c41569be1ecc041b9dfc64c3ac602a462c;
+			};
+		};
+		AD9ECCF22F6C557100468229 /* XCRemoteSwiftPackageReference "mlx-swift-lm" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/ml-explore/mlx-swift-lm.git";
+			requirement = {
+				kind = revision;
+				revision = edd42fcd947eea0b19665248acf2975a28ddf58b;
+			};
+		};
+		AD9ECCF32F6C557100468229 /* XCRemoteSwiftPackageReference "mlx-audio-swift" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/platx-ai/mlx-audio-swift.git";
+			requirement = {
+				kind = revision;
+				revision = 4ece9e085252f9b872620c7e7d672b96e764556b;
+			};
+		};
+		AD9ECCF42F6C557100468229 /* XCRemoteSwiftPackageReference "swift-huggingface" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/huggingface/swift-huggingface.git";
+			requirement = {
+				kind = exactVersion;
+				version = 0.9.0;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		AD9ECCF52F6C557100468229 /* MLX */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = AD9ECCF12F6C557100468229 /* XCRemoteSwiftPackageReference "mlx-swift" */;
+			productName = MLX;
+		};
+		AD9ECCF72F6C557100468229 /* MLXLLM */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = AD9ECCF22F6C557100468229 /* XCRemoteSwiftPackageReference "mlx-swift-lm" */;
+			productName = MLXLLM;
+		};
+		AD9ECCF82F6C557100468229 /* MLXLMCommon */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = AD9ECCF22F6C557100468229 /* XCRemoteSwiftPackageReference "mlx-swift-lm" */;
+			productName = MLXLMCommon;
+		};
+		AD9ECCF92F6C557100468229 /* MLXAudioSTT */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = AD9ECCF32F6C557100468229 /* XCRemoteSwiftPackageReference "mlx-audio-swift" */;
+			productName = MLXAudioSTT;
+		};
+		AD9ECCFA2F6C557100468229 /* MLXAudioCore */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = AD9ECCF32F6C557100468229 /* XCRemoteSwiftPackageReference "mlx-audio-swift" */;
+			productName = MLXAudioCore;
+		};
+		AD9ECCFB2F6C557100468229 /* HuggingFace */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = AD9ECCF42F6C557100468229 /* XCRemoteSwiftPackageReference "swift-huggingface" */;
+			productName = HuggingFace;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = AD9ECCBE2F6C557100468229 /* Project object */;
 }

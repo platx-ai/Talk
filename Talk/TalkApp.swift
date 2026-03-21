@@ -2,16 +2,281 @@
 //  TalkApp.swift
 //  Talk
 //
-//  Created by 孔嘉明 on 2026/3/20.
+//  应用主入口
 //
 
 import SwiftUI
+import AppKit
+import AVFoundation
+import Carbon
 
 @main
 struct TalkApp: App {
+    @NSApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
+
     var body: some Scene {
-        WindowGroup {
-            ContentView()
+        Settings {
+            EmptyView()
         }
+    }
+}
+
+// MARK: - 应用委托
+
+@MainActor
+final class AppDelegate: NSObject, NSApplicationDelegate {
+    static weak var shared: AppDelegate?
+
+    private var statusBar: LocalTypeMenuBar?
+    private var targetApp: NSRunningApplication?
+
+    func applicationDidFinishLaunching(_ notification: Notification) {
+        Self.shared = self
+        AppLogger.info("========================================", category: .general)
+        AppLogger.info("Talk 应用启动", category: .general)
+        AppLogger.info("macOS 版本: \(ProcessInfo.processInfo.operatingSystemVersionString)", category: .general)
+
+        let settings = AppSettings.load()
+        AppLogger.cleanOldLogs()
+
+        initializeServices(settings: settings)
+        setupMenuBar()
+        setupHotKey(settings: settings)
+        setupMicrophonePermission()
+        TextInjector.requestAccessibilityPermissionIfNeeded()
+
+        AppLogger.info("应用初始化完成", category: .general)
+        AppLogger.info("========================================", category: .general)
+    }
+
+    func applicationWillTerminate(_ notification: Notification) {
+        AppLogger.info("应用即将退出", category: .general)
+        HotKeyManager.shared.unregisterHotKey()
+        ASRService.shared.unloadModel()
+        LLMService.shared.unloadModel()
+        AudioRecorder.shared.cancelRecording()
+    }
+
+    // MARK: - 初始化服务
+
+    private func initializeServices(settings: AppSettings) {
+        if let reason = MLXRuntimeValidator.missingMetalLibraryReason() {
+            AppLogger.error("启动预加载已跳过: \(reason)", category: .model)
+            return
+        }
+
+        let bundled = resolveBundledModelSources()
+        let llmModelId = bundled.llmModelPath ?? settings.llmModelId
+
+        Task {
+            AppLogger.info("开始加载 ASR 模型...", category: .general)
+            do {
+                try await ASRService.shared.loadModel(modelId: settings.asrModelId, bundleResourcesURL: bundled.asrBundleResourcesURL)
+                AppLogger.info("ASR 模型加载完成", category: .general)
+            } catch {
+                AppLogger.error("ASR 模型加载失败: \(error.localizedDescription)", category: .general)
+            }
+
+            AppLogger.info("开始加载 LLM 模型...", category: .general)
+            do {
+                try await LLMService.shared.loadModel(modelId: llmModelId)
+                AppLogger.info("LLM 模型加载完成", category: .general)
+            } catch {
+                AppLogger.error("LLM 模型加载失败: \(error.localizedDescription)", category: .general)
+            }
+        }
+    }
+
+    // MARK: - 菜单栏
+
+    private func setupMenuBar() {
+        statusBar = LocalTypeMenuBar.shared
+    }
+
+    // MARK: - 热键
+
+    private func setupHotKey(settings: AppSettings) {
+        let triggerMode: HotKeyManager.TriggerMode = settings.recordingTriggerMode == .pushToTalk ? .pushToTalk : .toggle
+        HotKeyManager.shared.setTriggerMode(triggerMode)
+
+        let combo = settings.recordingHotkey
+        let hotKey = HotKeyManager.HotKeyConfiguration(modifiers: combo.carbonModifiers, keyCode: combo.carbonKeyCode)
+        HotKeyManager.shared.registerHotKey(hotKey)
+
+        Task { @MainActor in
+            HotKeyManager.shared.onHotKeyPressed = { [weak self] in self?.handleHotKeyPressed() }
+            HotKeyManager.shared.onHotKeyReleased = { [weak self] in self?.handleHotKeyReleased() }
+        }
+
+        AppLogger.info("热键设置完成: \(combo.displayString)", category: .general)
+    }
+
+    func reloadHotKeyFromSettings() {
+        setupHotKey(settings: AppSettings.load())
+    }
+
+    // MARK: - 热键处理
+
+    @MainActor
+    private func handleHotKeyPressed() {
+        Task {
+            if await HotKeyManager.shared.triggerMode == .pushToTalk {
+                _ = await startRecording(trigger: "热键")
+            } else {
+                if AudioRecorder.shared.isRecording {
+                    _ = await stopRecordingAndProcess(trigger: "热键")
+                } else {
+                    _ = await startRecording(trigger: "热键")
+                }
+            }
+        }
+    }
+
+    @MainActor
+    private func handleHotKeyReleased() {
+        Task { _ = await stopRecordingAndProcess(trigger: "热键") }
+    }
+
+    func startRecordingFromMenuBar() async -> Bool { await startRecording(trigger: "菜单栏") }
+    func stopRecordingFromMenuBar() async -> Bool { await stopRecordingAndProcess(trigger: "菜单栏") }
+
+    private func startRecording(trigger: String) async -> Bool {
+        guard let statusBar = statusBar else { return false }
+        if AudioRecorder.shared.isRecording {
+            statusBar.updateProcessingStatus(.recording)
+            return false
+        }
+        do {
+            targetApp = NSWorkspace.shared.frontmostApplication
+            let settings = AppSettings.load()
+            AudioRecorder.shared.selectedDeviceUID = settings.selectedAudioDeviceUID
+            try AudioRecorder.shared.startRecording(sampleRate: 16000)
+            statusBar.updateProcessingStatus(.recording)
+            AppLogger.info("\(trigger)触发：开始录音，目标应用: \(targetApp?.localizedName ?? "unknown")", category: .ui)
+            return true
+        } catch {
+            AppLogger.error("\(trigger)开始录音失败: \(error.localizedDescription)", category: .ui)
+            statusBar.showNotification(title: "录音失败", message: error.localizedDescription)
+            statusBar.updateProcessingStatus(.idle)
+            return false
+        }
+    }
+
+    private func stopRecordingAndProcess(trigger: String) async -> Bool {
+        guard let statusBar = statusBar else { return false }
+        guard AudioRecorder.shared.isRecording else {
+            statusBar.updateProcessingStatus(.idle)
+            return false
+        }
+
+        AudioRecorder.shared.stopRecording()
+        statusBar.updateProcessingStatus(.asr)
+
+        let audioData = AudioRecorder.shared.getCurrentAudioData()
+        let duration = AudioRecorder.shared.getCurrentDuration()
+        let sampleRate = AudioRecorder.shared.getCurrentSampleRate()
+
+        guard !audioData.isEmpty else {
+            statusBar.updateProcessingStatus(.idle)
+            statusBar.showNotification(title: "录音为空", message: "没有采集到有效音频，请重试")
+            return false
+        }
+
+        await processAudio(audio: audioData, duration: duration, sampleRate: sampleRate)
+        return true
+    }
+
+    // MARK: - 音频处理
+
+    @MainActor
+    private func processAudio(audio: [Float], duration: TimeInterval, sampleRate: Int) {
+        Task {
+            guard let statusBar = statusBar else { return }
+            let settings = AppSettings.load()
+            let bundled = resolveBundledModelSources()
+            let llmModelId = bundled.llmModelPath ?? settings.llmModelId
+
+            do {
+                if !ASRService.shared.isModelLoaded {
+                    try await ASRService.shared.loadModel(
+                        modelId: settings.asrModelId,
+                        bundleResourcesURL: bundled.asrBundleResourcesURL
+                    )
+                }
+                if !LLMService.shared.isModelLoaded {
+                    try await LLMService.shared.loadModel(modelId: llmModelId)
+                }
+
+                statusBar.updateProcessingStatus(.asr)
+                let rawText = try await ASRService.shared.transcribe(audio: audio, sampleRate: sampleRate)
+                AppLogger.info("ASR 识别完成: \(rawText)", category: .general)
+
+                statusBar.updateProcessingStatus(.polishing)
+                let polishedText = try await LLMService.shared.polish(text: rawText, intensity: settings.polishIntensity)
+                AppLogger.info("LLM 润色完成: \(polishedText)", category: .general)
+
+                statusBar.updateProcessingStatus(.outputting)
+                if let target = self.targetApp {
+                    target.activate(options: .activateIgnoringOtherApps)
+                    try await Task.sleep(for: .milliseconds(400))
+                }
+
+                try await TextInjector.shared.inject(polishedText)
+
+                let historyItem = HistoryItem(
+                    duration: duration, rawText: rawText, polishedText: polishedText,
+                    asrModel: settings.asrModelId, llmModel: llmModelId
+                )
+                HistoryManager.shared.add(historyItem)
+
+                statusBar.updateProcessingStatus(.idle)
+                statusBar.showNotification(title: "完成", message: "文本已输出")
+            } catch {
+                AppLogger.error("音频处理失败: \(error.localizedDescription)", category: .general)
+                statusBar.updateProcessingStatus(.idle)
+                statusBar.showNotification(title: "处理失败", message: error.localizedDescription)
+            }
+        }
+    }
+
+    private func setupMicrophonePermission() {
+        AppLogger.info("麦克风权限由 macOS 系统自动管理", category: .general)
+    }
+
+    private func resolveBundledModelSources() -> (asrBundleResourcesURL: URL?, llmModelPath: String?) {
+        guard let resourcesURL = Bundle.main.resourceURL else {
+            return (nil, nil)
+        }
+
+        let asrConfigPath = resourcesURL
+            .appendingPathComponent("mlx-audio/mlx-community_Qwen3-ASR-0.6B-4bit/config.json")
+            .path
+        let hasBundledASR = FileManager.default.fileExists(atPath: asrConfigPath)
+
+        let llmDirURL = resourcesURL.appendingPathComponent("Models/llm", isDirectory: true)
+        let llmConfigPath = llmDirURL.appendingPathComponent("config.json").path
+        let hasBundledLLM = FileManager.default.fileExists(atPath: llmConfigPath)
+
+        if hasBundledASR {
+            AppLogger.info("检测到 bundle 内 ASR 模型", category: .general)
+        }
+
+        if hasBundledLLM {
+            AppLogger.info("检测到 bundle 内 LLM 模型: \(llmDirURL.path)", category: .general)
+        }
+
+        return (
+            hasBundledASR ? resourcesURL : nil,
+            hasBundledLLM ? llmDirURL.path : nil
+        )
+    }
+}
+
+// MARK: - ProcessInfo 扩展
+
+extension ProcessInfo {
+    var operatingSystemVersionString: String {
+        let v = ProcessInfo.processInfo.operatingSystemVersion
+        return "\(v.majorVersion).\(v.minorVersion).\(v.patchVersion)"
     }
 }
