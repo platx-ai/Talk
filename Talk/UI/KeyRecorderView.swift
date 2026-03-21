@@ -13,6 +13,7 @@ import Carbon
 
 struct KeyRecorderView: View {
     @Binding var hotkey: HotKeyCombo
+    var onSave: ((HotKeyCombo) -> Void)?
 
     enum RecordingState {
         case display
@@ -57,6 +58,7 @@ struct KeyRecorderView: View {
                 Button("保存") {
                     hotkey = combo
                     state = .display
+                    onSave?(combo)
                 }
                 Button("取消") {
                     state = .display
