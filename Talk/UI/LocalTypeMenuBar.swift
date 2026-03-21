@@ -57,6 +57,9 @@ final class LocalTypeMenuBar {
         switch status {
         case .idle:
             floatingIndicator.dismiss()
+        case .loadingModel:
+            floatingIndicator.updatePhase(.loadingModel)
+            floatingIndicator.show()
         case .recording:
             floatingIndicator.updatePhase(.recording(startDate: Date()))
             floatingIndicator.show()
