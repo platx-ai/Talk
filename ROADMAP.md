@@ -53,6 +53,29 @@
 
 ---
 
+## v0.2.1 — Performance & Custom Model
+
+> The bottleneck is LLM load time (10s) and memory (9.6 GB). Inference is fast. Fix the load, shrink the model.
+
+- [ ] **Custom lightweight polish model (platx-ai/talk-polish)**
+  - Train a purpose-built small model (0.5B-1.5B) specifically for text polishing
+  - Single-task model: no general chat capability, only ASR output cleanup
+  - Target: < 1s load, < 0.5s inference, < 1 GB memory
+  - Training data: ASR output → clean text pairs from real Talk usage
+  - MLX-native quantization (4-bit) for Apple Silicon
+
+- [ ] **Model auto-select by hardware**
+  - 8 GB Mac → talk-polish (lightweight)
+  - 16 GB+ Mac → Qwen3-4B (full)
+  - User can override in settings
+
+- [ ] **Idle model unload**
+  - Unload models after N minutes of inactivity
+  - Lazy reload on next hotkey press
+  - Configurable timeout in settings
+
+---
+
 ## v0.3 — Project-Aware Profiles
 
 > Different projects need different vocabularies and prompts. Talk should adapt to the project you're working in.
