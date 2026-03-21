@@ -45,7 +45,7 @@ final class TextInjector {
     static func showAccessibilityAlert() {
         let alert = NSAlert()
         alert.messageText = "需要辅助功能权限"
-        alert.informativeText = "自动粘贴功能需要系统辅助功能权限。\n\n请带着本应用目前正在运行的可执行文件路径，手动到：\n系统设置 → 隐私与安全性 → 辅助功能，点击 + 添加，然后重启本应用。\n\n当前可执行文件：\n\(Bundle.main.executablePath ?? ProcessInfo.processInfo.arguments[0])"
+        alert.informativeText = "自动粘贴功能需要系统辅助功能权限。\n\n请手动到：\n系统设置 → 隐私与安全性 → 辅助功能，点击 + 添加 Talk.app，然后重启本应用。"
         alert.alertStyle = .warning
         alert.addButton(withTitle: "打开辅助功能设置")
         alert.addButton(withTitle: "稍后")
