@@ -83,12 +83,17 @@ final class LLMService {
         AppLogger.info("开始加载 LLM 模型: \(modelId)", category: .llm)
 
         do {
-            if modelId.hasPrefix("/") {
-                let config = ModelConfiguration(directory: URL(fileURLWithPath: modelId))
-                modelContainer = try await LLMModelFactory.shared.loadContainer(configuration: config)
-            } else {
-                modelContainer = try await loadModelContainer(id: modelId)
-            }
+            // 在后台线程加载模型，避免阻塞主线程/UI
+            let container: ModelContainer = try await Task.detached(priority: .userInitiated) {
+                if modelId.hasPrefix("/") {
+                    let config = ModelConfiguration(directory: URL(fileURLWithPath: modelId))
+                    return try await LLMModelFactory.shared.loadContainer(configuration: config)
+                } else {
+                    return try await loadModelContainer(id: modelId)
+                }
+            }.value
+
+            modelContainer = container
             isModelLoaded = true
             loadingProgress = 1.0
             isLoading = false

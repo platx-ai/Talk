@@ -63,14 +63,19 @@ final class ASRService {
         AppLogger.info("开始加载 ASR 模型: \(modelId)", category: .asr)
 
         do {
-            let cache: HubCache
-            if let resourcesURL = bundleResourcesURL {
-                cache = HubCache(cacheDirectory: resourcesURL)
-                AppLogger.info("ASR 使用 bundle 内缓存: \(resourcesURL.path)", category: .asr)
-            } else {
-                cache = .default
-            }
-            model = try await Qwen3ASRModel.fromPretrained(modelId, cache: cache)
+            // 在后台线程加载模型，避免阻塞主线程/UI
+            let loadedModel: Qwen3ASRModel = try await Task.detached(priority: .userInitiated) {
+                let cache: HubCache
+                if let resourcesURL = bundleResourcesURL {
+                    cache = HubCache(cacheDirectory: resourcesURL)
+                    AppLogger.info("ASR 使用 bundle 内缓存: \(resourcesURL.path)", category: .asr)
+                } else {
+                    cache = .default
+                }
+                return try await Qwen3ASRModel.fromPretrained(modelId, cache: cache)
+            }.value
+
+            model = loadedModel
             isModelLoaded = true
             loadingProgress = 1.0
             isLoading = false
