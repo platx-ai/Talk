@@ -30,6 +30,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var statusBar: LocalTypeMenuBar?
     private var targetApp: NSRunningApplication?
     private var selectedTextBeforeRecording: String?
+    private var idleUnloadTimer: Timer?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         Self.shared = self
@@ -48,6 +49,29 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
         AppLogger.info("应用初始化完成", category: .general)
         AppLogger.info("========================================", category: .general)
+    }
+
+    // MARK: - 空闲卸载
+
+    /// Reset the idle timer — called after each successful recording/processing
+    private func resetIdleTimer() {
+        idleUnloadTimer?.invalidate()
+        let minutes = AppSettings.shared.idleUnloadMinutes
+        guard minutes > 0 else { return }  // disabled
+
+        idleUnloadTimer = Timer.scheduledTimer(withTimeInterval: TimeInterval(minutes * 60), repeats: false) { [weak self] _ in
+            Task { @MainActor in
+                self?.unloadIdleModels()
+            }
+        }
+    }
+
+    private func unloadIdleModels() {
+        guard ASRService.shared.isModelLoaded || LLMService.shared.isModelLoaded else { return }
+        AppLogger.info("空闲超时，卸载模型以释放内存", category: .general)
+        ASRService.shared.unloadModel()
+        LLMService.shared.unloadModel()
+        isModelsReady = false
     }
 
     func applicationWillTerminate(_ notification: Notification) {
@@ -95,6 +119,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
             if isModelsReady {
                 AppLogger.info("所有模型已就绪", category: .general)
+                self.resetIdleTimer()
             } else {
                 AppLogger.warning("部分模型加载失败，功能可能受限", category: .general)
             }
@@ -288,6 +313,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
                 statusBar.showDoneAndDismiss()
                 statusBar.showNotification(title: "完成", message: "文本已输出")
+                self.resetIdleTimer()
             } catch {
                 AppLogger.error("音频处理失败: \(error.localizedDescription)", category: .general)
                 statusBar.updateProcessingStatus(.idle)

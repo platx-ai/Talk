@@ -296,6 +296,25 @@ private struct AdvancedSettingsTab: View {
             }
 
             Section {
+                Toggle("启用空闲卸载", isOn: Binding(
+                    get: { settings.idleUnloadMinutes > 0 },
+                    set: { settings.idleUnloadMinutes = $0 ? 10 : 0 }
+                ))
+                if settings.idleUnloadMinutes > 0 {
+                    HStack {
+                        Text("空闲卸载模型")
+                        Spacer()
+                        Stepper("\(settings.idleUnloadMinutes) 分钟", value: $settings.idleUnloadMinutes, in: 1...60)
+                    }
+                }
+                Text("空闲一段时间后自动卸载模型以释放内存，下次使用时自动重新加载。")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+            } header: {
+                Text("内存管理")
+            }
+
+            Section {
                 Picker("性能模式", selection: $settings.performanceMode) {
                     ForEach(AppSettings.PerformanceMode.allCases, id: \.self) { mode in
                         Text(mode.displayName).tag(mode)
