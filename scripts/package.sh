@@ -157,6 +157,30 @@ create_dmg() {
     log "Created: ${dmg_path} (${size})"
 }
 
+# Notarize DMG
+notarize_dmg() {
+    local dmg_path="$1"
+    local profile="${TALK_NOTARIZE_PROFILE:-talk-notarize}"
+
+    if ! xcrun notarytool --help >/dev/null 2>&1; then
+        warn "notarytool not available, skipping notarization"
+        return
+    fi
+
+    log "Submitting for Apple notarization..."
+    if xcrun notarytool submit "$dmg_path" \
+        --keychain-profile "$profile" \
+        --wait 2>&1; then
+
+        log "Notarization accepted. Stapling ticket..."
+        xcrun stapler staple "$dmg_path"
+        log "Stapled successfully"
+    else
+        warn "Notarization failed. DMG is signed but not notarized."
+        warn "Users will see Gatekeeper warnings on first open."
+    fi
+}
+
 # Main
 MODE="${1:-lite}"
 
@@ -168,11 +192,13 @@ case "$MODE" in
     lite)
         sign_app
         create_dmg "lite"
+        [ "$SIGN_IDENTITY" != "-" ] && notarize_dmg "${BUILD_DIR}/Talk-lite.dmg"
         ;;
     full)
         bundle_models
         sign_app
         create_dmg "full"
+        [ "$SIGN_IDENTITY" != "-" ] && notarize_dmg "${BUILD_DIR}/Talk-full.dmg"
         ;;
     *)
         fail "Unknown mode: ${MODE}. Use 'lite' or 'full'."
