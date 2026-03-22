@@ -216,6 +216,9 @@ final class AppSettings {
     var enableConversationHistory: Bool = true { didSet { autoSave() } }
     var customSystemPrompt: String = "" { didSet { autoSave() } }  // empty means use default
 
+    /// Per-app prompt profiles: [Bundle ID → custom prompt]
+    var appPrompts: [String: String] = [:] { didSet { autoSave() } }
+
     // MARK: - 选中修正
 
     enum SelectionCaptureMethod: String, Codable, CaseIterable {
@@ -356,6 +359,10 @@ extension AppSettings {
         self.conversationHistoryRounds = defaults.integer(forKey: "conversationHistoryRounds") != 0 ? defaults.integer(forKey: "conversationHistoryRounds") : 5
         self.enableConversationHistory = boolValue("enableConversationHistory", default: true)
         self.customSystemPrompt = defaults.string(forKey: "customSystemPrompt") ?? ""
+        if let data = defaults.data(forKey: "appPrompts"),
+           let decoded = try? JSONDecoder().decode([String: String].self, from: data) {
+            self.appPrompts = decoded
+        }
         if let method = defaults.string(forKey: "selectionCaptureMethod"),
            let captureMethod = SelectionCaptureMethod(rawValue: method) {
             self.selectionCaptureMethod = captureMethod
@@ -422,6 +429,9 @@ extension AppSettings {
         defaults.set(conversationHistoryRounds, forKey: "conversationHistoryRounds")
         defaults.set(enableConversationHistory, forKey: "enableConversationHistory")
         defaults.set(customSystemPrompt, forKey: "customSystemPrompt")
+        if let data = try? JSONEncoder().encode(appPrompts) {
+            defaults.set(data, forKey: "appPrompts")
+        }
         defaults.set(selectionCaptureMethod.rawValue, forKey: "selectionCaptureMethod")
 
         defaults.set(outputMethod.rawValue, forKey: "outputMethod")

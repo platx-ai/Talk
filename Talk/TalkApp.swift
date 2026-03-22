@@ -290,10 +290,19 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 AppLogger.info("ASR 识别完成: \(rawText)", category: .general)
 
                 statusBar.updateProcessingStatus(.polishing)
+                // Per-app prompt takes priority over global custom prompt
+                let effectivePrompt: String?
+                if let targetBundleId = self.targetApp?.bundleIdentifier,
+                   let appPrompt = settings.appPrompts[targetBundleId],
+                   !appPrompt.isEmpty {
+                    effectivePrompt = appPrompt
+                } else {
+                    effectivePrompt = settings.customSystemPrompt.isEmpty ? nil : settings.customSystemPrompt
+                }
                 let polishedText = try await LLMService.shared.polish(
                     text: rawText,
                     intensity: settings.polishIntensity,
-                    customPrompt: settings.customSystemPrompt,
+                    customPrompt: effectivePrompt,
                     selectedText: self.selectedTextBeforeRecording
                 )
                 AppLogger.info("LLM 润色完成: \(polishedText)", category: .general)
