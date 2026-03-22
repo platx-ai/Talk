@@ -73,3 +73,9 @@ lint: ## Run SwiftLint (if installed)
 
 setup: resolve download-models ## Full setup: resolve deps + download models
 	@echo "Setup complete. Run 'make build' to build."
+
+package-lite: ## Package Talk-lite.dmg (app only, ~50 MB)
+	./scripts/package.sh lite
+
+package-full: ## Package Talk-full.dmg (app + models, ~3 GB)
+	./scripts/package.sh full

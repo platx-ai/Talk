@@ -19,3 +19,4 @@ xcuserdata/
 # Models (large binaries)
 *.mlpackage
 *.mlmodel
+dist/
