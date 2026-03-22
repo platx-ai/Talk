@@ -130,4 +130,22 @@ struct AppSettingsTests {
         // Restore
         shared.customSystemPrompt = origPrompt
     }
+
+    // MARK: - App prompts
+
+    @Test func appPromptsDefaultEmpty() {
+        let settings = AppSettings()
+        #expect(settings.appPrompts.isEmpty)
+    }
+
+    @Test func appPromptsPersistence() {
+        let shared = AppSettings.shared
+        let orig = shared.appPrompts
+
+        shared.appPrompts["com.apple.Terminal"] = "test prompt"
+        shared.loadFromDefaults()
+        #expect(shared.appPrompts["com.apple.Terminal"] == "test prompt")
+
+        shared.appPrompts = orig
+    }
 }
