@@ -30,7 +30,8 @@ Talk/
 │   ├── KeyRecorderView.swift    # 快捷键录制组件
 │   ├── MenuBarView.swift        # 菜单栏弹出视图
 │   ├── LocalTypeMenuBar.swift   # 菜单栏控制器
-│   └── HistoryView.swift        # 历史浏览
+│   ├── HistoryView.swift        # 历史浏览
+│   └── VocabularyView.swift     # 词库管理（导入/导出/手动编辑）
 └── Utils/                 # 工具
     ├── Logger.swift             # 日志系统
     └── MLXRuntimeValidator.swift # Metal 运行时检查
