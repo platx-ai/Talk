@@ -178,7 +178,12 @@ final class LLMService {
         }
 
         do {
-            let session = ChatSession(modelContainer, instructions: instructions)
+            // 限制最大生成 token 数，防止短输入触发无限生成
+            // 润色输出不应超过输入的 3 倍长度，最少 200 tokens，最多 1024 tokens
+            let inputLength = text.count + (selectedText?.count ?? 0)
+            let maxTokens = min(1024, max(200, inputLength * 3))
+            let params = GenerateParameters(maxTokens: maxTokens)
+            let session = ChatSession(modelContainer, instructions: instructions, generateParameters: params)
             let response = try await session.respond(to: userMessage)
 
             let polishedText = response.trimmingCharacters(in: CharacterSet.whitespacesAndNewlines)
