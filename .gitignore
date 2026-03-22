@@ -20,3 +20,12 @@ xcuserdata/
 *.mlpackage
 *.mlmodel
 dist/
+
+# Signing (NEVER commit)
+*.cer
+*.p12
+*.key
+*.csr
+*.pem
+*.mobileprovision
+*.provisionprofile

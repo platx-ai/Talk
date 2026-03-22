@@ -82,12 +82,23 @@ sign_app() {
         return
     fi
 
-    log "Signing app..."
-    codesign --deep --force --verify --verbose \
+    log "Signing app with: ${SIGN_IDENTITY}"
+
+    # Try with timestamp first, fall back to no timestamp if service unavailable
+    if ! codesign --deep --force --verify --verbose \
         --sign "$SIGN_IDENTITY" \
         --options runtime \
         --entitlements "${PROJECT_DIR}/Talk/Talk.entitlements" \
-        "$APP_PATH"
+        "$APP_PATH" 2>&1; then
+
+        warn "Timestamp service unavailable, signing without timestamp..."
+        codesign --deep --force --verify --verbose \
+            --sign "$SIGN_IDENTITY" \
+            --options runtime \
+            --timestamp=none \
+            --entitlements "${PROJECT_DIR}/Talk/Talk.entitlements" \
+            "$APP_PATH"
+    fi
 
     log "Verifying signature..."
     codesign --verify --deep --strict "$APP_PATH"
