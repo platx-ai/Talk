@@ -126,6 +126,19 @@ All dependencies managed via Swift Package Manager, pinned to specific commits:
 
 Models are automatically downloaded from HuggingFace on first run to `~/.cache/huggingface/`. Pre-download with `make download-models`.
 
+## Vocabulary
+
+Talk learns from your corrections to improve future polishing.
+
+**How it works**: When you edit polished text in the history view, the system records the mapping (original -> corrected). The top 20 learned corrections are injected into the LLM system prompt as learned corrections, so the model applies them automatically in future polishing.
+
+**Usage**:
+- **Automatic learning** -- Edit any polished text in the history view. The system learns the correction automatically.
+- **Manual entry** -- Settings -> Advanced -> Personal Vocabulary -> Manage Vocabulary. Add original words and their corrected forms.
+- **Import/Export** -- JSON format. Use Manage Vocabulary to export for backup or import to share across machines.
+
+**Example**: If ASR repeatedly outputs "la laam" but you correct it to "LLM", the system learns this mapping. Future polishing will automatically correct "la laam" to "LLM" without manual editing.
+
 ## Permissions
 
 On first launch, you need to grant:
