@@ -65,6 +65,34 @@
 
 ---
 
+## v0.2.2 — App-Aware Prompts
+
+> The simplest context-awareness: different apps get different prompts. Zero config, immediate value.
+
+When the user records in different apps, Talk automatically uses app-specific polish prompts. This is simpler and more practical than project-directory-based profiles.
+
+- [ ] **Per-app prompt profiles**
+  - Detect frontmost app (Bundle ID) when recording starts (already captured as `targetApp`)
+  - Settings UI: list of app → custom prompt mappings
+  - Example presets:
+    - Terminal/iTerm2: "保留命令行语法和技术术语，代码标识符不要修改"
+    - Slack/WeChat: "口语化，简洁，适合即时通讯"
+    - Mail/Outlook: "正式语气，添加问候和结尾"
+    - Xcode/VSCode: "保留代码变量名和函数名，技术文档风格"
+    - Notes/Bear: "结构化笔记格式，使用标题和列表"
+  - Fallback to global prompt when no app-specific prompt is set
+
+- [ ] **App prompt auto-suggestion**
+  - First time recording in a new app, suggest creating an app-specific prompt
+  - Learn from usage patterns which apps benefit most from custom prompts
+
+- [ ] **Vocabulary management UI**
+  - View, add, edit, delete vocabulary entries
+  - Import/export vocabulary as JSON
+  - Shows learned corrections and their frequencies
+
+---
+
 ## v0.3 — Project-Aware Profiles
 
 > Different projects need different vocabularies and prompts. Talk should adapt to the project you're working in.
