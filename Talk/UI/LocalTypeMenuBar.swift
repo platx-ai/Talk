@@ -147,6 +147,11 @@ final class LocalTypeMenuBar {
         AppLogger.info("打开历史记录窗口", category: .ui)
     }
 
+    /// Open settings window (called from onboarding "open settings" link)
+    func openSettingsFromOnboarding() {
+        openSettings()
+    }
+
     func showNotification(title: String, message: String) {
         let notification = NSUserNotification()
         notification.title = title
