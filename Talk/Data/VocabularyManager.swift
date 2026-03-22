@@ -226,6 +226,19 @@ final class VocabularyManager {
         items.contains { $0.word == word }
     }
 
+    /// Manually add a correction entry (original -> corrected)
+    func addCorrection(original: String, corrected: String) {
+        guard !original.isEmpty, !corrected.isEmpty, original != corrected else { return }
+        if let index = items.firstIndex(where: { $0.word == original && $0.correctedForm == corrected }) {
+            items[index].frequency += 1
+            items[index].lastUsed = Date()
+        } else {
+            let item = VocabularyItem(word: original, frequency: minFrequencyThreshold + 1, correctedForm: corrected)
+            items.append(item)
+        }
+        saveVocabulary()
+    }
+
     func add(word: String, context: String? = nil) {
         if !contains(word) {
             let item = VocabularyItem(word: word, frequency: 1, context: context)

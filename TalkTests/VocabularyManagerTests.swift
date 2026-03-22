@@ -115,6 +115,69 @@ struct VocabularyManagerTests {
         }
     }
 
+    // MARK: - addCorrection
+
+    @Test @MainActor func addCorrectionCreatesNewEntry() {
+        let manager = VocabularyManager.shared
+        let initialCount = manager.items.count
+
+        manager.addCorrection(original: "手动原词X", corrected: "手动修正X")
+
+        let found = manager.items.first { $0.word == "手动原词X" && $0.correctedForm == "手动修正X" }
+        #expect(found != nil, "addCorrection should create a new correction entry")
+        #expect(found?.isCorrection == true, "Entry should be marked as correction")
+        #expect((found?.frequency ?? 0) > 0, "Entry should have positive frequency")
+
+        // Clean up
+        let newItems = manager.items.dropFirst(initialCount)
+        for item in newItems {
+            manager.delete(item)
+        }
+    }
+
+    @Test @MainActor func addCorrectionBoostsExistingEntry() {
+        let manager = VocabularyManager.shared
+        let initialCount = manager.items.count
+
+        manager.addCorrection(original: "手动原词Y", corrected: "手动修正Y")
+
+        let firstItem = manager.items.first { $0.word == "手动原词Y" && $0.correctedForm == "手动修正Y" }
+        let firstFrequency = firstItem?.frequency ?? 0
+
+        // Add same correction again — should boost frequency, not create duplicate
+        manager.addCorrection(original: "手动原词Y", corrected: "手动修正Y")
+
+        let updatedItem = manager.items.first { $0.word == "手动原词Y" && $0.correctedForm == "手动修正Y" }
+        #expect((updatedItem?.frequency ?? 0) == firstFrequency + 1, "Frequency should increase by 1 on repeat")
+
+        // Should not have duplicates
+        let matchCount = manager.items.filter { $0.word == "手动原词Y" && $0.correctedForm == "手动修正Y" }.count
+        #expect(matchCount == 1, "Should not create duplicate entries")
+
+        // Clean up
+        let newItems = manager.items.dropFirst(initialCount)
+        for item in newItems {
+            manager.delete(item)
+        }
+    }
+
+    @Test @MainActor func addCorrectionRejectsInvalidInput() {
+        let manager = VocabularyManager.shared
+        let initialCount = manager.items.count
+
+        // Empty original
+        manager.addCorrection(original: "", corrected: "something")
+        #expect(manager.items.count == initialCount, "Should reject empty original")
+
+        // Empty corrected
+        manager.addCorrection(original: "something", corrected: "")
+        #expect(manager.items.count == initialCount, "Should reject empty corrected")
+
+        // Same word
+        manager.addCorrection(original: "same", corrected: "same")
+        #expect(manager.items.count == initialCount, "Should reject identical original and corrected")
+    }
+
     // MARK: - VocabularyItem.isCorrection
 
     @Test func vocabularyItemIsCorrectionFlag() {
