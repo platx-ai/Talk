@@ -187,6 +187,15 @@ final class AppSettings {
     var silenceTimeout: Int = 0 { didSet { autoSave() } }
     var sampleRate: Int = 16000 { didSet { autoSave() } }
 
+    // MARK: - 模型下载源
+
+    enum ModelSource: String, Codable, CaseIterable {
+        case huggingface = "huggingface"
+        case modelscope = "modelscope"
+    }
+
+    var modelSource: ModelSource = .huggingface { didSet { autoSave() } }
+
     // MARK: - ASR 设置
 
     var asrModelId: String = "mlx-community/Qwen3-ASR-0.6B-4bit"
@@ -294,6 +303,10 @@ final class AppSettings {
 
     var selectedAudioDeviceUID: String? = nil { didSet { autoSave() } }
 
+    // MARK: - 引导流程
+
+    var hasCompletedOnboarding: Bool = false { didSet { autoSave() } }
+
     enum LogLevel: String, Codable, CaseIterable {
         case debug = "debug"
         case info = "info"
@@ -343,6 +356,11 @@ extension AppSettings {
         self.silenceTimeout = defaults.integer(forKey: "silenceTimeout")
         self.sampleRate = defaults.integer(forKey: "sampleRate") != 0 ? defaults.integer(forKey: "sampleRate") : 16000
         self.selectedAudioDeviceUID = defaults.string(forKey: "selectedAudioDeviceUID")
+
+        if let source = defaults.string(forKey: "modelSource"),
+           let modelSource = ModelSource(rawValue: source) {
+            self.modelSource = modelSource
+        }
 
         self.asrModelId = defaults.string(forKey: "asrModelId") ?? "mlx-community/Qwen3-ASR-0.6B-4bit"
         if let lang = defaults.string(forKey: "asrLanguage"),
@@ -406,6 +424,8 @@ extension AppSettings {
            let logLevel = LogLevel(rawValue: level) {
             self.logLevel = logLevel
         }
+
+        self.hasCompletedOnboarding = boolValue("hasCompletedOnboarding", default: false)
     }
 
     func save() {
@@ -419,6 +439,8 @@ extension AppSettings {
         defaults.set(silenceTimeout, forKey: "silenceTimeout")
         defaults.set(sampleRate, forKey: "sampleRate")
         defaults.set(selectedAudioDeviceUID, forKey: "selectedAudioDeviceUID")
+
+        defaults.set(modelSource.rawValue, forKey: "modelSource")
 
         defaults.set(asrModelId, forKey: "asrModelId")
         defaults.set(asrLanguage.rawValue, forKey: "asrLanguage")
@@ -453,6 +475,8 @@ extension AppSettings {
         defaults.set(quitBehavior, forKey: "quitBehavior")
         defaults.set(enableDetailedLogging, forKey: "enableDetailedLogging")
         defaults.set(logLevel.rawValue, forKey: "logLevel")
+
+        defaults.set(hasCompletedOnboarding, forKey: "hasCompletedOnboarding")
     }
 
     static func resetToDefaults() -> AppSettings {
