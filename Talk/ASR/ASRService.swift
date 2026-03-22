@@ -46,6 +46,13 @@ final class ASRService {
     ///   - modelId: HuggingFace 仓库 ID（如 "mlx-community/Qwen3-ASR-0.6B-4bit"）
     ///   - bundleResourcesURL: 可选 — 将其作为 HubCache 根目录，用于从 app bundle 加载已打包的模型。
     ///     bundle 内模型须位于 `<resourcesURL>/mlx-audio/mlx-community_Qwen3-ASR-0.6B-4bit/`
+    ///
+    /// TODO: ModelScope 下载源支持
+    /// 当前 `Qwen3ASRModel.fromPretrained` 使用 HuggingFace Hub 下载。MLXAudioSTT 框架暂不支持自定义 endpoint。
+    /// ModelScope 上的模型文件格式与 HuggingFace 完全相同（ID 也相同），用户可：
+    /// 1. 从 ModelScope 手动下载模型文件到 `~/.cache/huggingface/` 缓存目录
+    /// 2. 使用 `make download-models` 脚本并配置 ModelScope 源
+    /// 待 swift-huggingface 库支持自定义 endpoint 后，可通过 `AppSettings.shared.modelSource` 切换下载源。
     func loadModel(modelId: String, bundleResourcesURL: URL? = nil) async throws {
         guard !isModelLoaded else {
             AppLogger.info("ASR 模型已加载", category: .asr)
