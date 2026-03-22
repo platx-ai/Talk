@@ -138,6 +138,7 @@ private struct ASRSettingsTab: View {
 
 private struct LLMSettingsTab: View {
     @Bindable var settings: AppSettings
+    @State private var newAppBundleId = ""
 
     var body: some View {
         Form {
@@ -163,6 +164,90 @@ private struct LLMSettingsTab: View {
                 Toggle("启用对话历史", isOn: $settings.enableConversationHistory)
             } header: {
                 Text("文本润色设置")
+            }
+
+            Section {
+                // List existing app prompts
+                ForEach(Array(settings.appPrompts.keys.sorted()), id: \.self) { bundleId in
+                    VStack(alignment: .leading, spacing: 4) {
+                        HStack {
+                            Text(appDisplayName(for: bundleId))
+                                .font(.headline)
+                            Spacer()
+                            Button(role: .destructive) {
+                                settings.appPrompts.removeValue(forKey: bundleId)
+                            } label: {
+                                Image(systemName: "trash")
+                            }
+                            .buttonStyle(.borderless)
+                        }
+                        TextEditor(text: Binding(
+                            get: { settings.appPrompts[bundleId] ?? "" },
+                            set: { settings.appPrompts[bundleId] = $0 }
+                        ))
+                        .font(.system(.caption, design: .monospaced))
+                        .frame(height: 60)
+                        .overlay(RoundedRectangle(cornerRadius: 4).stroke(Color.secondary.opacity(0.3)))
+                    }
+                }
+
+                // Add new app prompt — running apps + well-known presets, deduplicated
+                HStack {
+                    Picker("添加应用", selection: $newAppBundleId) {
+                        Text("选择应用...").tag("")
+
+                        let existingIds = Set(settings.appPrompts.keys)
+                        let runningApps = NSWorkspace.shared.runningApplications
+                            .filter { $0.activationPolicy == .regular && $0.bundleIdentifier != nil }
+                            .compactMap { app -> (String, String)? in
+                                guard let bid = app.bundleIdentifier, !existingIds.contains(bid) else { return nil }
+                                return (bid, app.localizedName ?? bid)
+                            }
+                            .sorted { $0.1 < $1.1 }
+
+                        if !runningApps.isEmpty {
+                            Section("正在运行") {
+                                ForEach(runningApps, id: \.0) { bid, name in
+                                    Text(name).tag(bid)
+                                }
+                            }
+                        }
+
+                        let wellKnownIds: [(String, String)] = [
+                            ("com.apple.Terminal", "终端"),
+                            ("com.googlecode.iterm2", "iTerm2"),
+                            ("com.microsoft.VSCode", "VS Code"),
+                            ("com.apple.dt.Xcode", "Xcode"),
+                            ("com.tencent.xinWeChat", "微信"),
+                            ("com.tinyspeck.slackmacgap", "Slack"),
+                            ("com.apple.mail", "邮件"),
+                            ("com.apple.Notes", "备忘录"),
+                            ("com.bytedance.lark.mac", "飞书"),
+                        ].filter { item in !existingIds.contains(item.0) && !runningApps.contains { r in r.0 == item.0 } }
+
+                        if !wellKnownIds.isEmpty {
+                            Section("常用应用") {
+                                ForEach(wellKnownIds, id: \.0) { bid, name in
+                                    Text(name).tag(bid)
+                                }
+                            }
+                        }
+                    }
+                    Button("添加") {
+                        guard !newAppBundleId.isEmpty else { return }
+                        if settings.appPrompts[newAppBundleId] == nil {
+                            settings.appPrompts[newAppBundleId] = defaultPromptForApp(newAppBundleId)
+                        }
+                        newAppBundleId = ""
+                    }
+                    .disabled(newAppBundleId.isEmpty)
+                }
+
+                Text("为不同应用设置专属提示词。录音时自动检测前台应用并使用对应提示词。未配置的应用使用全局提示词。")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+            } header: {
+                Text("应用专属提示词")
             }
 
             Section {
@@ -219,6 +304,47 @@ private struct LLMSettingsTab: View {
         }
         .formStyle(.grouped)
     }
+
+    private func appDisplayName(for bundleId: String) -> String {
+        let wellKnown: [String: String] = [
+            "com.apple.Terminal": "终端",
+            "com.googlecode.iterm2": "iTerm2",
+            "com.microsoft.VSCode": "VS Code",
+            "com.apple.dt.Xcode": "Xcode",
+            "com.tencent.xinWeChat": "微信",
+            "com.tinyspeck.slackmacgap": "Slack",
+            "com.apple.mail": "邮件",
+            "com.apple.Notes": "备忘录",
+            "com.bytedance.lark.mac": "飞书",
+        ]
+        if let name = wellKnown[bundleId] { return name }
+        // Try to get name from running apps or installed apps
+        if let app = NSWorkspace.shared.runningApplications.first(where: { $0.bundleIdentifier == bundleId }) {
+            return app.localizedName ?? bundleId
+        }
+        // Try to get from bundle URL
+        if let url = NSWorkspace.shared.urlForApplication(withBundleIdentifier: bundleId) {
+            return FileManager.default.displayName(atPath: url.path)
+        }
+        return bundleId
+    }
+
+    private func defaultPromptForApp(_ bundleId: String) -> String {
+        switch bundleId {
+        case "com.apple.Terminal", "com.googlecode.iterm2":
+            return "保留命令行语法和技术术语。代码标识符、文件路径、命令名不要修改。直接输出清理后的文本。"
+        case "com.microsoft.VSCode", "com.apple.dt.Xcode":
+            return "保留代码变量名、函数名和技术术语。使用技术文档风格，Markdown 格式。直接输出清理后的文本。"
+        case "com.tencent.xinWeChat", "com.tinyspeck.slackmacgap", "com.bytedance.lark.mac":
+            return "口语化，简洁，适合即时通讯。不要过度正式化。直接输出清理后的文本。"
+        case "com.apple.mail":
+            return "正式语气，添加适当的问候和结尾。直接输出清理后的文本。"
+        case "com.apple.Notes":
+            return "结构化笔记格式，使用标题和项目符号列表。直接输出清理后的文本。"
+        default:
+            return "直接输出清理后的文本，不要添加任何解释。"
+        }
+    }
 }
 
 // MARK: - 输出设置标签页
@@ -263,6 +389,7 @@ private struct OutputSettingsTab: View {
 
 private struct AdvancedSettingsTab: View {
     @Bindable var settings: AppSettings
+    @State private var showVocabularyView = false
 
     var body: some View {
         Form {
@@ -280,9 +407,28 @@ private struct AdvancedSettingsTab: View {
 
             Section {
                 Toggle("启用命令词识别", isOn: $settings.enableVoiceCommands)
-                Toggle("启用个人词库", isOn: $settings.enablePersonalVocabulary)
             } header: {
                 Text("高级功能")
+            }
+
+            Section {
+                Toggle("启用个人词库", isOn: $settings.enablePersonalVocabulary)
+
+                if settings.enablePersonalVocabulary {
+                    HStack {
+                        Text("已学习 \(VocabularyManager.shared.items.count) 个词汇")
+                            .foregroundColor(.secondary)
+                        Spacer()
+                        Button("管理词库") {
+                            showVocabularyView = true
+                        }
+                    }
+                    Text("词库通过编辑历史记录自动学习，也可手动添加。纠正词库会在润色时自动应用。")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
+            } header: {
+                Text("个人词库")
             }
 
             Section {
@@ -359,6 +505,9 @@ private struct AdvancedSettingsTab: View {
             }
         }
         .formStyle(.grouped)
+        .sheet(isPresented: $showVocabularyView) {
+            VocabularyView()
+        }
     }
 }
 
