@@ -13,9 +13,16 @@ APP_NAME="Talk"
 SCHEME="Talk"
 PROJECT="${PROJECT_DIR}/Talk.xcodeproj"
 
-# Read signing identity from environment or try to auto-detect
+# Signing config — set via environment variables, NOT committed to repo
+# TALK_TEAM_ID: Apple Developer Team ID (e.g., "7A8HPDPNNX")
+# TALK_SIGN_IDENTITY: (optional) specific signing identity
 SIGN_IDENTITY="${TALK_SIGN_IDENTITY:-}"
 TEAM_ID="${TALK_TEAM_ID:-}"
+
+if [ -z "$TEAM_ID" ]; then
+    # Try to read from pbxproj (set by Xcode UI)
+    TEAM_ID=$(grep 'DEVELOPMENT_TEAM = [A-Z0-9]' "${PROJECT_DIR}/Talk.xcodeproj/project.pbxproj" | head -1 | sed 's/.*= \([A-Z0-9]*\).*/\1/' || true)
+fi
 
 log() { echo "[package] $*"; }
 warn() { echo "[package] WARNING: $*" >&2; }
@@ -45,21 +52,21 @@ build_app() {
     log "Building Release..."
     mkdir -p "$BUILD_DIR"
 
-    local sign_flags=""
-    if [ "$SIGN_IDENTITY" = "-" ]; then
-        sign_flags="CODE_SIGN_IDENTITY=- CODE_SIGNING_REQUIRED=NO CODE_SIGNING_ALLOWED=NO"
+    if [ -n "$TEAM_ID" ]; then
+        # Signed build with automatic signing
+        xcodebuild -project "$PROJECT" -scheme "$SCHEME" \
+            -configuration Release \
+            -derivedDataPath "${BUILD_DIR}/DerivedData" \
+            DEVELOPMENT_TEAM="${TEAM_ID}" \
+            build 2>&1 | tail -5
     else
-        sign_flags="CODE_SIGN_IDENTITY=${SIGN_IDENTITY}"
-        if [ -n "$TEAM_ID" ]; then
-            sign_flags="${sign_flags} DEVELOPMENT_TEAM=${TEAM_ID}"
-        fi
+        # Ad-hoc unsigned build
+        xcodebuild -project "$PROJECT" -scheme "$SCHEME" \
+            -configuration Release \
+            -derivedDataPath "${BUILD_DIR}/DerivedData" \
+            CODE_SIGN_IDENTITY="-" CODE_SIGNING_REQUIRED=NO CODE_SIGNING_ALLOWED=NO \
+            build 2>&1 | tail -5
     fi
-
-    xcodebuild -project "$PROJECT" -scheme "$SCHEME" \
-        -configuration Release \
-        -derivedDataPath "${BUILD_DIR}/DerivedData" \
-        ${sign_flags} \
-        build 2>&1 | tail -5
 
     APP_PATH="${BUILD_DIR}/DerivedData/Build/Products/Release/${APP_NAME}.app"
     if [ ! -d "$APP_PATH" ]; then
