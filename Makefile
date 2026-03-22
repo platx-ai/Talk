@@ -73,3 +73,9 @@ lint: ## Run SwiftLint (if installed)
 
 setup: resolve download-models ## Full setup: resolve deps + download models
 	@echo "Setup complete. Run 'make build' to build."
+
+package-lite: ## Package + sign + notarize Talk-lite.dmg (app only, ~20 MB)
+	./scripts/package.sh lite
+
+package-full: ## Package + sign + notarize Talk-full.dmg (app + models, ~2.5 GB)
+	./scripts/package.sh full

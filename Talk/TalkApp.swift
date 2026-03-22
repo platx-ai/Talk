@@ -24,13 +24,14 @@ struct TalkApp: App {
 // MARK: - 应用委托
 
 @MainActor
-final class AppDelegate: NSObject, NSApplicationDelegate {
+final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     static weak var shared: AppDelegate?
 
     private var statusBar: LocalTypeMenuBar?
     private var targetApp: NSRunningApplication?
     private var selectedTextBeforeRecording: String?
     private var idleUnloadTimer: Timer?
+    private var onboardingWindow: NSWindow?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         Self.shared = self
@@ -42,6 +43,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         AppLogger.cleanOldLogs()
 
         setupMenuBar()
+
+        if !settings.hasCompletedOnboarding {
+            showOnboarding()
+        }
+
         setupHotKey(settings: settings)
         initializeServices(settings: settings)
         setupMicrophonePermission()
@@ -130,6 +136,48 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     private func setupMenuBar() {
         statusBar = LocalTypeMenuBar.shared
+    }
+
+    // MARK: - 引导流程
+
+    private func showOnboarding() {
+        let onboardingView = OnboardingView(onComplete: { [weak self] in
+            self?.dismissOnboarding()
+        })
+
+        let window = NSWindow(
+            contentRect: NSRect(x: 0, y: 0, width: 520, height: 440),
+            styleMask: [.titled, .closable],
+            backing: .buffered,
+            defer: false
+        )
+        window.title = "Talk"
+        window.contentViewController = NSHostingController(rootView: onboardingView)
+        window.center()
+        window.isReleasedWhenClosed = false
+        window.delegate = self
+        window.makeKeyAndOrderFront(nil)
+        NSApp.activate(ignoringOtherApps: true)
+
+        onboardingWindow = window
+        AppLogger.info("显示引导流程窗口", category: .ui)
+    }
+
+    private func dismissOnboarding() {
+        onboardingWindow?.close()
+        onboardingWindow = nil
+        AppLogger.info("引导流程完成", category: .ui)
+    }
+
+    nonisolated func windowWillClose(_ notification: Notification) {
+        MainActor.assumeIsolated {
+            guard let window = notification.object as? NSWindow,
+                  window === onboardingWindow else { return }
+            // User closed the onboarding window directly; mark as completed
+            AppSettings.shared.hasCompletedOnboarding = true
+            onboardingWindow = nil
+            AppLogger.info("用户关闭引导窗口，标记为已完成", category: .ui)
+        }
     }
 
     // MARK: - 热键

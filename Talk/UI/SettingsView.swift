@@ -115,6 +115,18 @@ private struct ASRSettingsTab: View {
     var body: some View {
         Form {
             Section {
+                Picker("下载源", selection: $settings.modelSource) {
+                    Text("HuggingFace（国际）").tag(AppSettings.ModelSource.huggingface)
+                    Text("ModelScope（中国大陆）").tag(AppSettings.ModelSource.modelscope)
+                }
+                Text("中国大陆用户建议选择 ModelScope，可避免网络问题。")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+            } header: {
+                Text("模型下载源")
+            }
+
+            Section {
                 Picker("模型选择", selection: $settings.asrModelId) {
                     Text("Qwen3-ASR-0.6B-4bit").tag("mlx-community/Qwen3-ASR-0.6B-4bit")
                 }
@@ -600,6 +612,15 @@ extension AppSettings.LogLevel {
         case .info: return "信息"
         case .warning: return "警告"
         case .error: return "错误"
+        }
+    }
+}
+
+extension AppSettings.ModelSource {
+    var displayName: String {
+        switch self {
+        case .huggingface: return "HuggingFace（国际）"
+        case .modelscope: return "ModelScope（中国大陆）"
         }
     }
 }
