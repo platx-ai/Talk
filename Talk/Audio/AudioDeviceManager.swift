@@ -200,4 +200,52 @@ final class AudioDeviceManager {
 
         return nil
     }
+
+    /// Set the default system input device (works better than setting per AudioUnit)
+    static func setDefaultInputDevice(deviceID: AudioDeviceID?) {
+        var address = AudioObjectPropertyAddress(
+            mSelector: kAudioHardwarePropertyDefaultInputDevice,
+            mScope: kAudioObjectPropertyScopeGlobal,
+            mElement: kAudioObjectPropertyElementMain
+        )
+
+        var deviceIDToSet = deviceID ?? 0
+        let status = AudioObjectSetPropertyData(
+            AudioObjectID(kAudioObjectSystemObject),
+            &address,
+            0, nil,
+            UInt32(MemoryLayout<AudioDeviceID>.size),
+            &deviceIDToSet
+        )
+
+        if status == noErr {
+            AppLogger.info("设置系统默认输入设备成功: \(deviceIDToSet)", category: .audio)
+        } else {
+            AppLogger.error("设置系统默认输入设备失败: \(status)", category: .audio)
+        }
+    }
+
+    /// Get the current default input device
+    static func getDefaultInputDeviceID() -> AudioDeviceID? {
+        var address = AudioObjectPropertyAddress(
+            mSelector: kAudioHardwarePropertyDefaultInputDevice,
+            mScope: kAudioObjectPropertyScopeGlobal,
+            mElement: kAudioObjectPropertyElementMain
+        )
+
+        var defaultDeviceID: AudioDeviceID = 0
+        var dataSize = UInt32(MemoryLayout<AudioDeviceID>.size)
+        let status = AudioObjectGetPropertyData(
+            AudioObjectID(kAudioObjectSystemObject),
+            &address,
+            0, nil,
+            &dataSize,
+            &defaultDeviceID
+        )
+
+        if status == noErr, defaultDeviceID != 0 {
+            return defaultDeviceID
+        }
+        return nil
+    }
 }
