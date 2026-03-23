@@ -269,7 +269,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         // 模型未就绪时，提示用户并拒绝录音
         if !isModelsReady && (ASRService.shared.isLoading || LLMService.shared.isLoading) {
             statusBar.updateProcessingStatus(.loadingModel)
-            statusBar.showNotification(title: "模型加载中", message: "请等待模型加载完成后再试")
             AppLogger.info("\(trigger)触发：模型尚未就绪，拒绝录音", category: .ui)
             return false
         }
@@ -319,7 +318,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
 
         guard !audioData.isEmpty else {
             statusBar.updateProcessingStatus(.idle)
-            statusBar.showNotification(title: "录音为空", message: "没有采集到有效音频，请重试")
+            AppLogger.warning("录音为空，没有采集到有效音频", category: .audio)
             return false
         }
 
@@ -388,7 +387,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
                 HistoryManager.shared.add(historyItem)
 
                 statusBar.showDoneAndDismiss()
-                statusBar.showNotification(title: "完成", message: "文本已输出")
                 self.resetIdleTimer()
             } catch {
                 AppLogger.error("音频处理失败: \(error.localizedDescription)", category: .general)

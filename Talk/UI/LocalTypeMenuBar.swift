@@ -156,8 +156,7 @@ final class LocalTypeMenuBar {
         let notification = NSUserNotification()
         notification.title = title
         notification.informativeText = message
-        notification.soundName = NSUserNotificationDefaultSoundName
-
+        // 不播放声音，避免打扰用户
         NSUserNotificationCenter.default.deliver(notification)
     }
 }
