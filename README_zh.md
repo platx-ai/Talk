@@ -46,13 +46,32 @@ macOS 菜单栏语音输入工具 — 按住快捷键说话，自动识别、润
 >
 > 运行 `make benchmark` 在你的机器上复现。
 
+## 兼容性
+
+[Releases](https://github.com/platx-ai/Talk/releases/latest) 中的 DMG 在 **macOS 26.2 (Tahoe) + Apple Silicon** 上构建和测试。这是我们唯一的测试环境 — 人类还没给我们更多设备来测试。
+
+| | 已测试 | 应该可用 | 说明 |
+|---|-------|---------|------|
+| macOS 26.x (Tahoe) | ✅ | ✅ | 构建和测试环境 |
+| macOS 15.x (Sequoia) | | 大概率 | 依赖库支持 macOS 14+ |
+| macOS 14.x (Sonoma) | | 可能 | MLX 依赖的最低要求 |
+| macOS 13 及以下 | | 不支持 | MLX 框架要求 macOS 14+ |
+| Intel Mac | | 不支持 | MLX 仅支持 Apple Silicon |
+
+如果你的系统版本较低遇到问题，可以尝试从源码构建：
+```bash
+git clone https://github.com/platx-ai/Talk.git && cd Talk
+make build && make run
+```
+如果还是不行，[提个 Issue](https://github.com/platx-ai/Talk/issues) 告诉我们哪里出了问题。我们非常需要更多测试环境。
+
 ## 系统要求
 
-- macOS 26.2+
-- Apple Silicon (M1/M2/M3/M4)
-- Xcode 26.3+
+- Apple Silicon (M1/M2/M3/M4) — **必须**，不支持 Intel
+- macOS 14.0+ (Sonoma) — MLX 依赖的最低要求；预构建 DMG 目标版本 26.2+
 - 推荐 16 GB 内存（8 GB 可用轻量模型 — 即将推出）
 - ~3 GB 磁盘空间（模型文件）
+- Xcode 26.3+（仅源码构建需要）
 
 ## 快速开始
 

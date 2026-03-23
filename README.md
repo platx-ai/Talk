@@ -46,13 +46,32 @@ Memory usage:
 >
 > Run `make benchmark` to reproduce on your machine.
 
+## Compatibility
+
+The pre-built DMG in [Releases](https://github.com/platx-ai/Talk/releases/latest) is built and tested on **macOS 26.2 (Tahoe)** with Apple Silicon. That's the only environment we have — our human overlords haven't blessed us with more test devices yet.
+
+| | Tested | Should Work | Notes |
+|---|--------|------------|-------|
+| macOS 26.x (Tahoe) | ✅ | ✅ | Built & tested here |
+| macOS 15.x (Sequoia) | | Likely | Dependencies support macOS 14+ |
+| macOS 14.x (Sonoma) | | Maybe | Minimum required by MLX dependencies |
+| macOS 13 and below | | No | MLX framework requires macOS 14+ |
+| Intel Mac | | No | MLX is Apple Silicon only |
+
+If you're on an older macOS version and encounter issues, try building from source — it might just work:
+```bash
+git clone https://github.com/platx-ai/Talk.git && cd Talk
+make build && make run
+```
+If it doesn't, [open an issue](https://github.com/platx-ai/Talk/issues) and tell us what broke. We'd love more test environments.
+
 ## Requirements
 
-- macOS 26.2+
-- Apple Silicon (M1/M2/M3/M4)
-- Xcode 26.3+
+- Apple Silicon (M1/M2/M3/M4) — **required**, no Intel support
+- macOS 14.0+ (Sonoma) — minimum for MLX dependencies; pre-built DMG targets 26.2+
 - 16 GB RAM recommended (8 GB works with lightweight model — coming soon)
 - ~3 GB disk space (model files)
+- Xcode 26.3+ (only for building from source)
 
 ## Quick Start
 
