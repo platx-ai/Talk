@@ -55,6 +55,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
 
         AppLogger.info("应用初始化完成", category: .general)
         AppLogger.info("========================================", category: .general)
+
+        UpdateChecker.shared.checkForUpdates()
     }
 
     // MARK: - 空闲卸载
