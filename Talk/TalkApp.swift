@@ -465,14 +465,32 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     }
 
     private func setupMicrophonePermission() {
-        AppLogger.info("麦克风权限由 macOS 系统自动管理", category: .general)
+        // 主动请求麦克风权限，确保 Talk 出现在系统设置的麦克风列表中
+        let status = AVCaptureDevice.authorizationStatus(for: .audio)
+        if status == .notDetermined {
+            AVCaptureDevice.requestAccess(for: .audio) { granted in
+                if granted {
+                    AppLogger.info("麦克风权限已授予", category: .general)
+                } else {
+                    AppLogger.warning("麦克风权限被拒绝", category: .general)
+                }
+            }
+        } else if status == .authorized {
+            AppLogger.info("麦克风权限已授予", category: .general)
+        } else {
+            AppLogger.warning("麦克风权限未授予 (status: \(status.rawValue))", category: .general)
+        }
     }
 
     private func showMicrophonePermissionAlert() {
         AppLogger.warning("麦克风权限未授予", category: .ui)
+
+        // 先触发一次系统权限请求，确保 Talk 出现在系统设置的麦克风列表中
+        AVCaptureDevice.requestAccess(for: .audio) { _ in }
+
         let alert = NSAlert()
         alert.messageText = "需要麦克风权限"
-        alert.informativeText = "Talk 需要麦克风权限才能录音。\n\n请前往：系统设置 → 隐私与安全性 → 麦克风，为 Talk 开启权限。"
+        alert.informativeText = "Talk 需要麦克风权限才能录音。\n\n如果没有弹出系统授权窗口，请手动前往：\n系统设置 → 隐私与安全性 → 麦克风，为 Talk 开启权限。"
         alert.alertStyle = .warning
         alert.addButton(withTitle: "打开系统设置")
         alert.addButton(withTitle: "稍后")
