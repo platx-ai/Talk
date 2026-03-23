@@ -1,6 +1,10 @@
-# Talk
+<p align="center">
+  <img src="docs/assets/icon_original.png" width="128" height="128" alt="Talk icon">
+</p>
 
-**Open Typeless. Local Typeless. Typeless in your box.**
+<h1 align="center">Talk</h1>
+
+<p align="center"><strong>Open Typeless. Local Typeless. Typeless in your box.</strong></p>
 
 macOS 菜单栏语音输入工具 — 按住快捷键说话，自动识别、润色、粘贴到当前应用。你的声音，直达文字，无需云端，无需打字。
 

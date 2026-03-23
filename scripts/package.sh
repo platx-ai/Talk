@@ -144,14 +144,21 @@ create_dmg() {
 
     log "Creating ${dmg_name}..."
 
-    # Remove old DMG
     rm -f "$dmg_path"
 
-    # Create DMG with app
+    # Stage DMG contents: app + Applications symlink
+    local staging="${BUILD_DIR}/dmg-staging"
+    rm -rf "$staging"
+    mkdir -p "$staging"
+    cp -R "$APP_PATH" "$staging/"
+    ln -s /Applications "$staging/Applications"
+
     hdiutil create -volname "$APP_NAME" \
-        -srcfolder "$APP_PATH" \
+        -srcfolder "$staging" \
         -ov -format UDZO \
         "$dmg_path"
+
+    rm -rf "$staging"
 
     local size=$(du -sh "$dmg_path" | cut -f1)
     log "Created: ${dmg_path} (${size})"

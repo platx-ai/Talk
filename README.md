@@ -1,6 +1,10 @@
-# Talk
+<p align="center">
+  <img src="docs/assets/icon_original.png" width="128" height="128" alt="Talk icon">
+</p>
 
-**Open Typeless. Local Typeless. Typeless in your box.**
+<h1 align="center">Talk</h1>
+
+<p align="center"><strong>Open Typeless. Local Typeless. Typeless in your box.</strong></p>
 
 A macOS menu bar voice input tool — hold a hotkey, speak, and your words are recognized, polished, and pasted into the active app. Your voice, straight to text. No cloud. No typing.
 
