@@ -248,6 +248,24 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     private func startRecording(trigger: String) async -> Bool {
         guard let statusBar = statusBar else { return false }
 
+        // 麦克风权限检查
+        let micStatus = AVCaptureDevice.authorizationStatus(for: .audio)
+        switch micStatus {
+        case .notDetermined:
+            let granted = await AVCaptureDevice.requestAccess(for: .audio)
+            if !granted {
+                showMicrophonePermissionAlert()
+                return false
+            }
+        case .denied, .restricted:
+            showMicrophonePermissionAlert()
+            return false
+        case .authorized:
+            break
+        @unknown default:
+            break
+        }
+
         // 模型未就绪时，提示用户并拒绝录音
         if !isModelsReady && (ASRService.shared.isLoading || LLMService.shared.isLoading) {
             statusBar.updateProcessingStatus(.loadingModel)
@@ -448,6 +466,20 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
 
     private func setupMicrophonePermission() {
         AppLogger.info("麦克风权限由 macOS 系统自动管理", category: .general)
+    }
+
+    private func showMicrophonePermissionAlert() {
+        AppLogger.warning("麦克风权限未授予", category: .ui)
+        let alert = NSAlert()
+        alert.messageText = "需要麦克风权限"
+        alert.informativeText = "Talk 需要麦克风权限才能录音。\n\n请前往：系统设置 → 隐私与安全性 → 麦克风，为 Talk 开启权限。"
+        alert.alertStyle = .warning
+        alert.addButton(withTitle: "打开系统设置")
+        alert.addButton(withTitle: "稍后")
+        let response = alert.runModal()
+        if response == .alertFirstButtonReturn {
+            NSWorkspace.shared.open(URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Microphone")!)
+        }
     }
 
     private func resolveBundledModelSources() -> (asrBundleResourcesURL: URL?, llmModelPath: String?) {
