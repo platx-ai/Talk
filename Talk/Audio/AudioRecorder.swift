@@ -69,27 +69,16 @@ final class AudioRecorder: NSObject, @unchecked Sendable {
         inputNode = input
 
         // Apply selected audio device if specified
+        // Set system default input device first (before creating AudioUnit)
         if let uid = selectedDeviceUID,
            let deviceID = AudioDeviceManager.deviceID(forUID: uid) {
-            var id = deviceID
-            let err = AudioUnitSetProperty(
-                input.audioUnit!,
-                kAudioOutputUnitProperty_CurrentDevice,
-                kAudioUnitScope_Global,
-                0,
-                &id,
-                UInt32(MemoryLayout<AudioDeviceID>.size)
-            )
-            if err == noErr {
-                AppLogger.info("已切换到音频输入设备: \(uid)", category: .audio)
-            } else {
-                AppLogger.warning("切换音频设备失败 (\(err))，使用默认设备", category: .audio)
-            }
-        } else if selectedDeviceUID != nil {
-            AppLogger.warning("指定的音频设备不可用，回退到内置麦克风", category: .audio)
-            selectedDeviceUID = nil
+            AudioDeviceManager.setDefaultInputDevice(deviceID: deviceID)
         }
 
+        // Prepare the engine after setting device
+        engine.prepare()
+
+        // Get format AFTER setting device to ensure we use the correct device's format
         let inputFormat = input.outputFormat(forBus: 0)
         withStateLock {
             recordingSampleRate = inputFormat.sampleRate
@@ -145,7 +134,6 @@ final class AudioRecorder: NSObject, @unchecked Sendable {
             }
         }
 
-        engine.prepare()
         try engine.start()
     }
 
@@ -193,7 +181,22 @@ final class AudioRecorder: NSObject, @unchecked Sendable {
         }
         guard shouldProceed else { return }
 
-        AppLogger.warning("音频硬件配置变更（蓝牙设备切换），重启录音引擎", category: .audio)
+        // Check if current system default device is the one we want
+        // This prevents unnecessary restarts during Bluetooth device negotiation
+        if let selectedUID = selectedDeviceUID,
+           let currentDefaultID = AudioDeviceManager.getDefaultInputDeviceID(),
+           let selectedID = AudioDeviceManager.deviceID(forUID: selectedUID) {
+            // If current default is what we want, this is likely just a sample rate negotiation
+            // We can skip the restart
+            if currentDefaultID == selectedID {
+                AppLogger.info("音频硬件配置变更，但设备未变（可能是采样率协商），跳过重启", category: .audio)
+                withStateLock { isRestartingEngine = false }
+                startAudioWatchdog(sampleRate: Int(targetSampleRate))
+                return
+            }
+        }
+
+        AppLogger.warning("音频硬件配置变更（设备切换），重启录音引擎", category: .audio)
 
         // Check if selected device is still available
         if let uid = selectedDeviceUID,
