@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="docs/assets/icon_original.png" width="128" height="128" alt="Talk icon">
+  <img src="docs/assets/icon_512.png" width="128" height="128" alt="Talk icon">
 </p>
 
 <h1 align="center">Talk</h1>
