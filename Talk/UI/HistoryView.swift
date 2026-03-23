@@ -39,15 +39,9 @@ struct HistoryView: View {
                         Label("导出", systemImage: "square.and.arrow.up")
                     }
                 }
-
-                ToolbarItem(placement: .cancellationAction) {
-                    Button(action: {}) {
-                        Text("关闭")
-                    }
-                }
             }
             .sheet(item: $selectedItem) { item in
-                HistoryDetailView(item: item)
+                HistoryEditSheet(item: item)
             }
         }
         .frame(width: 700, height: 500)
@@ -75,6 +69,7 @@ struct HistoryView: View {
                 Section(header: Text(dateFormatter.string(from: date))) {
                     ForEach(groupedItems[date] ?? []) { item in
                         HistoryRow(item: item)
+                            .contentShape(Rectangle())
                             .onTapGesture {
                                 selectedItem = item
                             }
@@ -106,7 +101,6 @@ struct HistoryView: View {
         if panel.runModal() == .OK, let url = panel.url {
             do {
                 try historyManager.export(to: url)
-                AppLogger.info("导出历史记录成功", category: .ui)
             } catch {
                 AppLogger.error("导出历史记录失败: \(error.localizedDescription)", category: .ui)
             }
@@ -141,7 +135,7 @@ private struct SearchBar: View {
     }
 }
 
-// MARK: - 历史记录行
+// MARK: - 历史记录行（和之前一样的列表样式）
 
 private struct HistoryRow: View {
     let item: HistoryItem
@@ -171,13 +165,7 @@ private struct HistoryRow: View {
                         .foregroundStyle(.secondary)
                 }
             }
-
             Spacer()
-
-            Button(action: {}) {
-                Image(systemName: "doc.on.doc")
-            }
-            .buttonStyle(.plain)
         }
         .padding(.vertical, 8)
     }
@@ -190,199 +178,180 @@ private struct HistoryRow: View {
     }
 }
 
-// MARK: - 历史记录详情
+// MARK: - 编辑 Sheet（用 NSTextView 包装解决 sheet 内 TextEditor 不可编辑的问题）
 
-private struct HistoryDetailView: View {
+struct HistoryEditSheet: View {
     let item: HistoryItem
 
     @Environment(\.dismiss) private var dismiss
+    @State private var editedText: String = ""
+    @State private var displayText: String = ""  // 当前显示的文本（保存后立即更新）
     @State private var isEditing = false
-    @State private var editedPolishedText = ""
     @State private var showLearnConfirmation = false
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 20) {
+        VStack(alignment: .leading, spacing: 16) {
+            // Header
             HStack {
                 Text("历史详情").font(.headline)
                 Spacer()
                 if showLearnConfirmation {
-                    Text("已学习修正")
+                    Label("已学习修正", systemImage: "checkmark.circle.fill")
                         .font(.caption)
                         .foregroundStyle(.green)
-                        .transition(.opacity)
                 }
-                Button(action: { dismiss() }) {
-                    Image(systemName: "xmark.circle.fill").font(.title2)
-                }
-                .buttonStyle(.plain)
+                Button("关闭") { dismiss() }
             }
 
-            infoSection("基本信息") {
-                infoRow("录音时间", item.formattedTimestamp)
-                infoRow("录音时长", item.formattedDuration)
-                infoRow("ASR 模型", modelShortName(item.asrModel))
-                infoRow("LLM 模型", modelShortName(item.llmModel))
+            // 基本信息
+            GroupBox("基本信息") {
+                Grid(alignment: .leading, horizontalSpacing: 16, verticalSpacing: 6) {
+                    GridRow {
+                        Text("录音时间").foregroundStyle(.secondary)
+                        Text(item.formattedTimestamp)
+                    }
+                    GridRow {
+                        Text("录音时长").foregroundStyle(.secondary)
+                        Text(item.formattedDuration)
+                    }
+                }
+                .font(.body)
+                .padding(.vertical, 4)
             }
 
-            textSection("原始识别文本", text: item.rawText, isEditable: false)
-            polishedTextSection
+            // 原始识别
+            GroupBox("原始识别文本") {
+                Text(item.rawText)
+                    .font(.body)
+                    .textSelection(.enabled)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(4)
+            }
 
+            // 润色后文本（可编辑）
+            GroupBox(isEditing ? "编辑润色文本" : "润色后文本") {
+                if isEditing {
+                    EditableTextView(text: $editedText)
+                        .frame(minHeight: 80)
+                } else {
+                    Text(displayText)
+                        .font(.body)
+                        .textSelection(.enabled)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(4)
+                }
+            }
+
+            // 操作按钮
             HStack(spacing: 12) {
                 Button(action: copyText) {
                     Label("复制", systemImage: "doc.on.doc")
                 }
-                .controlSize(.large)
 
                 if isEditing {
                     Button(action: saveEdit) {
-                        Label("保存", systemImage: "checkmark")
+                        Label("保存修正", systemImage: "checkmark")
                     }
-                    .controlSize(.large)
                     .buttonStyle(.borderedProminent)
 
-                    Button(action: cancelEdit) {
-                        Label("取消", systemImage: "xmark")
+                    Button("取消") {
+                        isEditing = false
+                        editedText = displayText
                     }
-                    .controlSize(.large)
                 } else {
-                    Button(action: startEditing) {
+                    Button(action: {
+                        editedText = displayText
+                        isEditing = true
+                    }) {
                         Label("编辑", systemImage: "pencil")
                     }
-                    .controlSize(.large)
                 }
 
                 Spacer()
 
-                Button(action: deleteItem) {
+                Button(role: .destructive, action: deleteItem) {
                     Label("删除", systemImage: "trash")
                 }
-                .controlSize(.large)
-                .buttonStyle(.borderedProminent)
             }
-            .padding(.top)
         }
-        .padding(20)
-        .frame(width: 600, height: 500)
+        .padding(24)
+        .frame(width: 560, height: 480)
         .onAppear {
-            editedPolishedText = item.polishedText
+            displayText = item.polishedText
+            editedText = item.polishedText
         }
-    }
-
-    private var polishedTextSection: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text("润色后文本").font(.caption).foregroundStyle(.secondary)
-            if isEditing {
-                TextEditor(text: $editedPolishedText)
-                    .font(.body)
-                    .scrollContentBackground(.hidden)
-                    .frame(minHeight: 80)
-                    .background(Color(nsColor: .textBackgroundColor))
-                    .cornerRadius(8)
-            } else {
-                Text(item.polishedText)
-                    .font(.body)
-                    .padding(12)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .background(Color(nsColor: .textBackgroundColor))
-                    .cornerRadius(8)
-            }
-        }
-    }
-
-    private func infoSection(_ title: String, @ViewBuilder content: () -> some View) -> some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text(title).font(.caption).foregroundStyle(.secondary)
-            VStack(alignment: .leading, spacing: 4) {
-                content()
-            }
-            .padding(.leading, 12)
-            .padding(.vertical, 8)
-            .background(Color(nsColor: .controlBackgroundColor))
-            .cornerRadius(8)
-        }
-    }
-
-    private func infoRow(_ label: String, _ value: String) -> some View {
-        HStack {
-            Text(label)
-                .font(.caption)
-                .foregroundStyle(.secondary)
-                .frame(width: 80, alignment: .leading)
-            Text(value).font(.body)
-            Spacer()
-        }
-    }
-
-    private func textSection(_ title: String, text: String, isEditable: Bool) -> some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text(title).font(.caption).foregroundStyle(.secondary)
-            Text(text)
-                .font(.body)
-                .padding(12)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .background(Color(nsColor: .textBackgroundColor))
-                .cornerRadius(8)
-        }
-    }
-
-    private func startEditing() {
-        editedPolishedText = item.polishedText
-        isEditing = true
-    }
-
-    private func cancelEdit() {
-        editedPolishedText = item.polishedText
-        isEditing = false
     }
 
     private func saveEdit() {
-        let originalText = item.polishedText
-        let correctedText = editedPolishedText.trimmingCharacters(in: .whitespacesAndNewlines)
-
+        let originalText = displayText
+        let correctedText = editedText.trimmingCharacters(in: .whitespacesAndNewlines)
         guard correctedText != originalText, !correctedText.isEmpty else {
             isEditing = false
             return
         }
 
-        // Update the history item
         var updatedItem = item
         updatedItem.polishedText = correctedText
         HistoryManager.shared.update(updatedItem)
-
-        // Learn from correction
         VocabularyManager.shared.learnCorrection(original: originalText, corrected: correctedText)
 
+        // 立即更新显示
+        displayText = correctedText
         isEditing = false
 
-        // Show confirmation
-        withAnimation {
-            showLearnConfirmation = true
-        }
+        withAnimation { showLearnConfirmation = true }
         DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
-            withAnimation {
-                showLearnConfirmation = false
-            }
+            withAnimation { showLearnConfirmation = false }
         }
-
-        AppLogger.info("用户修正了润色文本并已学习", category: .ui)
     }
 
     private func copyText() {
         NSPasteboard.general.clearContents()
-        NSPasteboard.general.setString(item.polishedText, forType: .string)
-        AppLogger.info("复制历史记录到剪贴板", category: .ui)
+        NSPasteboard.general.setString(displayText, forType: .string)
     }
 
     private func deleteItem() {
         HistoryManager.shared.delete(item)
         dismiss()
-        AppLogger.info("删除历史记录", category: .ui)
+    }
+}
+
+// MARK: - NSTextView 包装（解决 SwiftUI TextEditor 在 sheet 中不可编辑的问题）
+
+struct EditableTextView: NSViewRepresentable {
+    @Binding var text: String
+
+    func makeNSView(context: Context) -> NSScrollView {
+        let scrollView = NSTextView.scrollableTextView()
+        let textView = scrollView.documentView as! NSTextView
+        textView.isEditable = true
+        textView.isSelectable = true
+        textView.isRichText = false
+        textView.font = .systemFont(ofSize: 13)
+        textView.textContainerInset = NSSize(width: 8, height: 8)
+        textView.delegate = context.coordinator
+        textView.string = text
+        return scrollView
     }
 
-    private func modelShortName(_ modelId: String) -> String {
-        if modelId.contains("Qwen3-4B") { return "Qwen3-4B" }
-        if modelId.contains("Qwen3-2B") { return "Qwen3-2B" }
-        if modelId.contains("ASR-0.6B") { return "Qwen3-ASR" }
-        return modelId
+    func updateNSView(_ nsView: NSScrollView, context: Context) {
+        let textView = nsView.documentView as! NSTextView
+        if textView.string != text {
+            textView.string = text
+        }
+    }
+
+    func makeCoordinator() -> Coordinator {
+        Coordinator(self)
+    }
+
+    class Coordinator: NSObject, NSTextViewDelegate {
+        var parent: EditableTextView
+        init(_ parent: EditableTextView) { self.parent = parent }
+
+        func textDidChange(_ notification: Notification) {
+            guard let textView = notification.object as? NSTextView else { return }
+            parent.text = textView.string
+        }
     }
 }
