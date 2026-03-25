@@ -15,14 +15,25 @@ import AppKit
 final class FloatingIndicatorState {
     enum Phase {
         case loadingModel
-        case recording(startDate: Date)
+        case recording(startDate: Date, isEditMode: Bool)
         case recognizing
         case polishing
         case outputting
         case done
+
+        var animationKey: String {
+            switch self {
+            case .loadingModel: return "loading"
+            case .recording: return "recording"
+            case .recognizing: return "recognizing"
+            case .polishing: return "polishing"
+            case .outputting: return "outputting"
+            case .done: return "done"
+            }
+        }
     }
 
-    var phase: Phase = .recording(startDate: Date())
+    var phase: Phase = .recording(startDate: Date(), isEditMode: false)
     var audioLevel: Float = 0.0
 }
 
@@ -50,15 +61,24 @@ final class FloatingIndicatorWindow {
             return
         }
 
-        let contentView = FloatingIndicatorContentView(state: state)
-        let hostingView = NSHostingView(rootView: contentView)
+        // 用 ZStack + clear 背景确保 SwiftUI 层不绘制任何默认背景
+        let wrappedView = ZStack {
+            Color.clear
+            FloatingIndicatorContentView(state: state)
+        }
+        .ignoresSafeArea()
 
-        let panelWidth: CGFloat = 220
-        let panelHeight: CGFloat = 56
+        let hostingView = NSHostingView(rootView: wrappedView)
 
-        let screenFrame = NSScreen.main?.visibleFrame ?? .zero
+        let panelWidth: CGFloat = 260
+        let panelHeight: CGFloat = 80
+
+        // 屏幕上边沿、左右居中，紧贴刘海下方
+        let screenFrame = NSScreen.main?.frame ?? .zero
+        let visibleFrame = NSScreen.main?.visibleFrame ?? screenFrame
+        let menuBarHeight = screenFrame.maxY - visibleFrame.maxY  // 菜单栏高度（含刘海）
         let x = screenFrame.midX - panelWidth / 2
-        let y = screenFrame.maxY - panelHeight - 12
+        let y = screenFrame.maxY - menuBarHeight - panelHeight - 4
 
         let panel = FloatingPanel(
             contentRect: NSRect(x: x, y: y, width: panelWidth, height: panelHeight),
@@ -71,7 +91,7 @@ final class FloatingIndicatorWindow {
         panel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary, .stationary]
         panel.isOpaque = false
         panel.backgroundColor = .clear
-        panel.hasShadow = true
+        panel.hasShadow = false
         panel.titlebarAppearsTransparent = true
         panel.titleVisibility = .hidden
         panel.isMovableByWindowBackground = false
@@ -115,50 +135,87 @@ final class FloatingIndicatorWindow {
 
 struct FloatingIndicatorContentView: View {
     var state: FloatingIndicatorState
+    @State private var glowRotation: Double = 0
+    @State private var pulse: Bool = false
+    @State private var wavePhase: Double = 0
+
+    /// 每个阶段的主题色（简洁、克制）
+    private var accentColor: Color {
+        switch state.phase {
+        case .recording:    return .white
+        case .recognizing:  return .cyan
+        case .polishing:    return .cyan
+        case .outputting:   return .cyan
+        case .done:         return .green
+        case .loadingModel: return .white.opacity(0.6)
+        }
+    }
+
+    private var isActive: Bool {
+        if case .done = state.phase { return false }
+        return true
+    }
 
     var body: some View {
-        HStack(spacing: 8) {
+        HStack(spacing: 10) {
             iconView
             textView
             if case .recording = state.phase {
-                audioLevelBar
+                waveformView
             }
         }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 8)
-        .frame(minWidth: 140)
+        .padding(.horizontal, 18)
+        .padding(.vertical, 10)
+        .frame(minWidth: 150)
         .frame(height: 44)
-        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+        .background(.ultraThinMaterial, in: Capsule())
+        .clipShape(Capsule())
         .overlay(
-            RoundedRectangle(cornerRadius: 12, style: .continuous)
-                .strokeBorder(Color.white.opacity(0.15), lineWidth: 0.5)
+            Capsule()
+                .strokeBorder(.white.opacity(0.2), lineWidth: 0.5)
         )
-        .padding(6)
+        .onAppear {
+            withAnimation(.easeInOut(duration: 1.5).repeatForever(autoreverses: true)) {
+                pulse = true
+            }
+            withAnimation(.linear(duration: 1.2).repeatForever(autoreverses: false)) {
+                wavePhase = .pi * 2
+            }
+        }
+        .animation(.easeInOut(duration: 0.3), value: state.phase.animationKey)
     }
 
     @ViewBuilder
     private var iconView: some View {
         switch state.phase {
         case .loadingModel:
-            ProgressView()
-                .controlSize(.small)
-        case .recording:
-            Image(systemName: "mic.fill")
-                .foregroundStyle(.red)
-                .symbolEffect(.pulse, isActive: true)
-                .font(.system(size: 14, weight: .medium))
+            ProgressView().controlSize(.small)
+        case .recording(_, let isEditMode):
+            if isEditMode {
+                Image(systemName: "pencil.circle.fill")
+                    .foregroundStyle(.orange)
+                    .font(.system(size: 14, weight: .medium))
+                    .symbolEffect(.pulse, isActive: true)
+            } else {
+                Circle()
+                    .fill(.red)
+                    .frame(width: 8, height: 8)
+                    .opacity(pulse ? 1.0 : 0.5)
+            }
         case .recognizing:
-            ProgressView()
-                .controlSize(.small)
+            Image(systemName: "waveform")
+                .foregroundStyle(.primary)
+                .font(.system(size: 13, weight: .medium))
+                .symbolEffect(.variableColor.iterative, isActive: true)
         case .polishing:
             Image(systemName: "sparkles")
-                .foregroundStyle(.purple)
-                .font(.system(size: 14, weight: .medium))
+                .foregroundStyle(.primary)
+                .font(.system(size: 13, weight: .medium))
                 .symbolEffect(.pulse, isActive: true)
         case .outputting:
             Image(systemName: "paperplane.fill")
-                .foregroundStyle(.blue)
-                .font(.system(size: 14, weight: .medium))
+                .foregroundStyle(.primary)
+                .font(.system(size: 13, weight: .medium))
         case .done:
             Image(systemName: "checkmark.circle.fill")
                 .foregroundStyle(.green)
@@ -171,49 +228,69 @@ struct FloatingIndicatorContentView: View {
         switch state.phase {
         case .loadingModel:
             Text("加载模型中...")
-                .font(.system(size: 13, weight: .medium))
+                .font(.system(size: 12, weight: .medium))
                 .foregroundStyle(.primary)
-        case .recording(let startDate):
+        case .recording(let startDate, let isEditMode):
             TimelineView(.periodic(from: startDate, by: 0.5)) { context in
                 let elapsed = context.date.timeIntervalSince(startDate)
                 let minutes = Int(elapsed) / 60
                 let seconds = Int(elapsed) % 60
-                Text(String(format: "%d:%02d", minutes, seconds))
-                    .font(.system(size: 13, weight: .medium, design: .monospaced))
-                    .foregroundStyle(.primary)
+                HStack(spacing: 4) {
+                    if isEditMode {
+                        Text("编辑")
+                            .font(.system(size: 11, weight: .medium))
+                            .foregroundStyle(.orange)
+                    }
+                    Text(String(format: "%d:%02d", minutes, seconds))
+                        .font(.system(size: 13, weight: .semibold, design: .monospaced))
+                        .foregroundStyle(.primary)
+                }
             }
         case .recognizing:
             Text("识别中...")
-                .font(.system(size: 13, weight: .medium))
+                .font(.system(size: 12, weight: .medium))
                 .foregroundStyle(.primary)
         case .polishing:
             Text("润色中...")
-                .font(.system(size: 13, weight: .medium))
+                .font(.system(size: 12, weight: .medium))
                 .foregroundStyle(.primary)
         case .outputting:
             Text("输出中...")
-                .font(.system(size: 13, weight: .medium))
+                .font(.system(size: 12, weight: .medium))
                 .foregroundStyle(.primary)
         case .done:
             Text("完成")
-                .font(.system(size: 13, weight: .medium))
+                .font(.system(size: 12, weight: .medium))
                 .foregroundStyle(.primary)
         }
     }
 
-    private var audioLevelBar: some View {
-        GeometryReader { geo in
-            let level = CGFloat(state.audioLevel)
-            let barColor: Color = level > 0.7 ? .yellow : .green
-            RoundedRectangle(cornerRadius: 2)
-                .fill(barColor.opacity(0.8))
-                .frame(width: max(2, geo.size.width * level), height: geo.size.height)
-                .animation(.linear(duration: 0.08), value: state.audioLevel)
+    /// 音频波形 — 多条竖线随音频电平跳动
+    private var waveformView: some View {
+        HStack(spacing: 2) {
+            ForEach(0..<5, id: \.self) { i in
+                let offset = Double(i) * 0.6
+                let height = waveBarHeight(index: i)
+                RoundedRectangle(cornerRadius: 1)
+                    .fill(
+                        LinearGradient(
+                            colors: [.primary.opacity(0.6), .primary],
+                            startPoint: .bottom,
+                            endPoint: .top
+                        )
+                    )
+                    .frame(width: 3, height: height)
+                    .animation(.easeInOut(duration: 0.1), value: state.audioLevel)
+            }
         }
-        .frame(width: 50, height: 6)
-        .background(
-            RoundedRectangle(cornerRadius: 2)
-                .fill(Color.primary.opacity(0.1))
-        )
+        .frame(height: 20)
+    }
+
+    private func waveBarHeight(index: Int) -> CGFloat {
+        let level = CGFloat(state.audioLevel)
+        let phase = sin(wavePhase + Double(index) * 1.2)
+        let base: CGFloat = 3
+        let dynamic = level * 17 * (0.5 + 0.5 * CGFloat(phase))
+        return max(base, base + dynamic)
     }
 }
