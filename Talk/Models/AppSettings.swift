@@ -224,6 +224,7 @@ final class AppSettings {
     var conversationHistoryRounds: Int = 5 { didSet { autoSave() } }
     var enableConversationHistory: Bool = true { didSet { autoSave() } }
     var customSystemPrompt: String = "" { didSet { autoSave() } }  // empty means use default
+    var customEditPrompt: String = "" { didSet { autoSave() } }    // empty means use default edit prompt
 
     /// Per-app prompt profiles: [Bundle ID → custom prompt]
     var appPrompts: [String: String] = [:] { didSet { autoSave() } }
@@ -377,6 +378,7 @@ extension AppSettings {
         self.conversationHistoryRounds = defaults.integer(forKey: "conversationHistoryRounds") != 0 ? defaults.integer(forKey: "conversationHistoryRounds") : 5
         self.enableConversationHistory = boolValue("enableConversationHistory", default: true)
         self.customSystemPrompt = defaults.string(forKey: "customSystemPrompt") ?? ""
+        self.customEditPrompt = defaults.string(forKey: "customEditPrompt") ?? ""
         if let data = defaults.data(forKey: "appPrompts"),
            let decoded = try? JSONDecoder().decode([String: String].self, from: data) {
             self.appPrompts = decoded
@@ -414,8 +416,10 @@ extension AppSettings {
             self.memoryMode = memMode
         }
 
-        let idleVal = defaults.integer(forKey: "idleUnloadMinutes")
-        self.idleUnloadMinutes = idleVal > 0 ? idleVal : 10
+        // 0 = disabled, 需要区分"未设置"和"用户设为0"
+        if defaults.object(forKey: "idleUnloadMinutes") != nil {
+            self.idleUnloadMinutes = defaults.integer(forKey: "idleUnloadMinutes")
+        }
 
         self.launchAtLogin = boolValue("launchAtLogin", default: false)
         self.quitBehavior = boolValue("quitBehavior", default: true)
@@ -451,6 +455,7 @@ extension AppSettings {
         defaults.set(conversationHistoryRounds, forKey: "conversationHistoryRounds")
         defaults.set(enableConversationHistory, forKey: "enableConversationHistory")
         defaults.set(customSystemPrompt, forKey: "customSystemPrompt")
+        defaults.set(customEditPrompt, forKey: "customEditPrompt")
         if let data = try? JSONEncoder().encode(appPrompts) {
             defaults.set(data, forKey: "appPrompts")
         }
