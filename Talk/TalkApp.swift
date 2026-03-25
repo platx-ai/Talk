@@ -366,10 +366,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
                 } else {
                     effectivePrompt = settings.customSystemPrompt.isEmpty ? nil : settings.customSystemPrompt
                 }
+                let editPrompt = settings.customEditPrompt.isEmpty ? nil : settings.customEditPrompt
                 let polishedText = try await LLMService.shared.polish(
                     text: rawText,
                     intensity: settings.polishIntensity,
                     customPrompt: effectivePrompt,
+                    customEditPrompt: editPrompt,
                     selectedText: self.selectedTextBeforeRecording
                 )
                 AppLogger.info("LLM 润色完成: \(polishedText)", category: .general)
@@ -400,43 +402,71 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
 
     // MARK: - 捕获选中文本
 
+    /// 已知不支持 Accessibility 选中文本的 app（运行时学习）
+    private var axUnsupportedApps: Set<String> = []
+    /// 终端类 app — Cmd+C 发 SIGINT，绝不能用
+    private func isTerminalApp(_ bundleId: String) -> Bool {
+        let keywords = ["terminal", "iterm", "kitty", "wezterm", "hyper", "warp", "alacritty"]
+        let lower = bundleId.lowercased()
+        return keywords.contains { lower.contains($0) }
+    }
+
     private func captureSelectedText() -> String? {
-        let settings = AppSettings.load()
-        switch settings.selectionCaptureMethod {
-        case .accessibility:
-            // 先尝试 Accessibility API，失败则 fallback 到 Cmd+C
-            if let text = captureSelectedTextViaAccessibility() {
-                return text
-            }
-            AppLogger.debug("Accessibility API 未获取到选中文本，尝试 Cmd+C fallback", category: .ui)
-            return captureSelectedTextViaClipboard()
-        case .clipboard:
+        guard let bundleId = NSWorkspace.shared.frontmostApplication?.bundleIdentifier else { return nil }
+
+        // 已知不支持 AX 的应用，直接走 Cmd+C（除非是终端）
+        if axUnsupportedApps.contains(bundleId) {
+            if isTerminalApp(bundleId) { return nil }
+            AppLogger.debug("选中捕获：\(bundleId) 已知不支持 AX，使用 Cmd+C", category: .ui)
             return captureSelectedTextViaClipboard()
         }
+
+        // 尝试 Accessibility API
+        if let text = captureSelectedTextViaAccessibility() {
+            return text
+        }
+
+        // AX 失败 — 记住这个 app，下次直接用 Cmd+C
+        axUnsupportedApps.insert(bundleId)
+        AppLogger.debug("选中捕获：\(bundleId) 不支持 AX，已记录。尝试 Cmd+C fallback", category: .ui)
+
+        // 终端不用 Cmd+C
+        if isTerminalApp(bundleId) { return nil }
+        return captureSelectedTextViaClipboard()
     }
 
     /// Accessibility API 方式：通过 AXUIElement 读取选中文本，不影响剪贴板
     private func captureSelectedTextViaAccessibility() -> String? {
-        guard let app = NSWorkspace.shared.frontmostApplication else { return nil }
+        guard let app = NSWorkspace.shared.frontmostApplication else {
+            AppLogger.debug("选中捕获：无前台应用", category: .ui)
+            return nil
+        }
+        AppLogger.debug("选中捕获：前台应用 = \(app.localizedName ?? "unknown") (\(app.bundleIdentifier ?? "?"))", category: .ui)
+
         let axApp = AXUIElementCreateApplication(app.processIdentifier)
 
         var focusedElement: AnyObject?
-        guard AXUIElementCopyAttributeValue(axApp, kAXFocusedUIElementAttribute as CFString, &focusedElement) == .success else {
+        let focusResult = AXUIElementCopyAttributeValue(axApp, kAXFocusedUIElementAttribute as CFString, &focusedElement)
+        guard focusResult == .success else {
+            AppLogger.debug("选中捕获：无法获取焦点元素 (error: \(focusResult.rawValue))", category: .ui)
             return nil
         }
 
-        let element = focusedElement as! AXUIElement  // AnyObject from AXUIElementCopyAttributeValue is always AXUIElement
+        let element = focusedElement as! AXUIElement
 
         var selectedText: AnyObject?
-        guard AXUIElementCopyAttributeValue(element, kAXSelectedTextAttribute as CFString, &selectedText) == .success else {
+        let selectResult = AXUIElementCopyAttributeValue(element, kAXSelectedTextAttribute as CFString, &selectedText)
+        guard selectResult == .success else {
+            AppLogger.debug("选中捕获：无法读取选中文本 (error: \(selectResult.rawValue))", category: .ui)
             return nil
         }
 
         guard let text = selectedText as? String, !text.isEmpty else {
+            AppLogger.debug("选中捕获：选中文本为空", category: .ui)
             return nil
         }
 
-        AppLogger.debug("通过 Accessibility API 捕获选中文本: \(text.prefix(50))...", category: .ui)
+        AppLogger.debug("选中捕获成功: \(text.prefix(50))...", category: .ui)
         return text
     }
 
