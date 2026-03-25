@@ -156,6 +156,7 @@ private struct ASRSettingsTab: View {
 private struct LLMSettingsTab: View {
     @Bindable var settings: AppSettings
     @State private var newAppBundleId = ""
+    @State private var promptTab = 0
 
     var body: some View {
         Form {
@@ -268,55 +269,71 @@ private struct LLMSettingsTab: View {
             }
 
             Section {
-                HStack {
-                    if settings.customSystemPrompt.isEmpty {
-                        Label("当前使用默认提示词", systemImage: "checkmark.circle")
-                            .font(.caption)
-                            .foregroundColor(.green)
-                    } else {
-                        Label("当前使用自定义提示词", systemImage: "pencil.circle.fill")
-                            .font(.caption)
-                            .foregroundColor(.orange)
-                    }
-                    Spacer()
-                    Menu("预设模板") {
-                        Button("严格纠错 — 只纠错，不改写") {
-                            settings.customSystemPrompt = "你是一个严格的文本纠错助手。只修正明显的语音识别错误和错别字，不改变原文的表达方式、语气和结构。保持原文风格，仅做最小修正。直接输出修正后的文本，不要添加任何解释。"
-                        }
-                        Button("轻度润色 — 去填充词、加标点") {
-                            settings.customSystemPrompt = "你是一个文本清理助手。去除口语填充词（嗯、啊、呃），添加标点符号，修正明显错误。保留原文的表达风格和语气，不做改写。直接输出清理后的文本，不要添加任何解释。"
-                        }
-                        Button("会议纪要 — 提取要点、待办") {
-                            settings.customSystemPrompt = "你是一个会议纪要整理助手。将语音识别的会议内容整理为结构化的纪要格式：提取要点、决议和待办事项，使用项目符号列表，标注发言人（如能识别）。直接输出纪要，不要添加任何解释。"
-                        }
-                        Button("技术文档 — Markdown 格式") {
-                            settings.customSystemPrompt = "你是一个技术文档整理助手。将语音输入整理为技术文档风格：保留代码标识符和技术术语的原文，使用 Markdown 格式，自动识别代码片段并用反引号包裹。直接输出文档，不要添加任何解释。"
-                        }
-                    }
+                Picker("提示词类型", selection: $promptTab) {
+                    Text("听写润色").tag(0)
+                    Text("编辑指令").tag(1)
                 }
+                .pickerStyle(.segmented)
 
-                TextEditor(text: $settings.customSystemPrompt)
-                    .font(.system(.body, design: .monospaced))
-                    .frame(minHeight: 120, maxHeight: 180)
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 4)
-                            .stroke(Color.secondary.opacity(0.3), lineWidth: 1)
-                    )
+                if promptTab == 0 {
+                    // 听写润色提示词
+                    HStack {
+                        if settings.customSystemPrompt.isEmpty {
+                            Label("使用默认", systemImage: "checkmark.circle")
+                                .font(.caption).foregroundColor(.green)
+                        } else {
+                            Label("自定义", systemImage: "pencil.circle.fill")
+                                .font(.caption).foregroundColor(.orange)
+                        }
+                        Spacer()
+                        Menu("预设模板") {
+                            Button("严格纠错") {
+                                settings.customSystemPrompt = "你是一个严格的文本纠错助手。只修正明显的语音识别错误和错别字，不改变原文的表达方式、语气和结构。直接输出修正后的文本，不要添加任何解释。"
+                            }
+                            Button("轻度润色") {
+                                settings.customSystemPrompt = "你是一个文本清理助手。去除口语填充词（嗯、啊、呃），添加标点符号，修正明显错误。保留原文的表达风格和语气，不做改写。直接输出清理后的文本，不要添加任何解释。"
+                            }
+                            Button("会议纪要") {
+                                settings.customSystemPrompt = "你是一个会议纪要整理助手。将语音识别的会议内容整理为结构化的纪要格式：提取要点、决议和待办事项。直接输出纪要，不要添加任何解释。"
+                            }
+                            Button("技术文档") {
+                                settings.customSystemPrompt = "你是一个技术文档整理助手。将语音输入整理为技术文档风格：保留代码标识符和技术术语的原文，使用 Markdown 格式。直接输出文档，不要添加任何解释。"
+                            }
+                        }
+                        Button("填入默认") { settings.customSystemPrompt = LLMService.defaultSystemPrompt }
+                    }
 
-                HStack {
-                    if settings.customSystemPrompt.isEmpty {
-                        Text("留空使用默认提示词（纠错 + 去填充词 + 标点 + 排版）").font(.caption).foregroundColor(.secondary)
-                    } else {
-                        Text("自定义提示词已启用，润色强度选项将被忽略").font(.caption).foregroundColor(.orange)
+                    TextEditor(text: $settings.customSystemPrompt)
+                        .font(.system(.caption, design: .monospaced))
+                        .frame(minHeight: 100, maxHeight: 160)
+                        .overlay(RoundedRectangle(cornerRadius: 4).stroke(Color.secondary.opacity(0.3), lineWidth: 1))
+
+                    Text("留空使用默认提示词。自定义后润色强度选项被忽略。")
+                        .font(.caption).foregroundColor(.secondary)
+                } else {
+                    // 编辑指令提示词
+                    HStack {
+                        if settings.customEditPrompt.isEmpty {
+                            Label("使用默认", systemImage: "checkmark.circle")
+                                .font(.caption).foregroundColor(.green)
+                        } else {
+                            Label("自定义", systemImage: "pencil.circle.fill")
+                                .font(.caption).foregroundColor(.orange)
+                        }
+                        Spacer()
+                        Button("填入默认") { settings.customEditPrompt = LLMService.defaultEditPrompt }
                     }
-                    Spacer()
-                    Button("恢复默认") {
-                        settings.customSystemPrompt = ""
-                    }
-                    .disabled(settings.customSystemPrompt.isEmpty)
+
+                    TextEditor(text: $settings.customEditPrompt)
+                        .font(.system(.caption, design: .monospaced))
+                        .frame(minHeight: 100, maxHeight: 160)
+                        .overlay(RoundedRectangle(cornerRadius: 4).stroke(Color.secondary.opacity(0.3), lineWidth: 1))
+
+                    Text("选中文字后录音进入编辑模式。语音作为指令，可用于替换词语、风格改写、纠错、格式转换等。")
+                        .font(.caption).foregroundColor(.secondary)
                 }
             } header: {
-                Text("润色提示词")
+                Text("提示词")
             }
         }
         .formStyle(.grouped)

@@ -51,6 +51,34 @@ final class LLMService {
 输入："Crowdcode是怎么拼的呢？就是C-L-A-U-D-E。" → 输出："Claude是怎么拼的呢？"
 """
 
+    static let defaultEditPrompt = """
+你是一个文本编辑器。用户选中了一段文本，然后用语音给出修改指令。
+
+【严格规则】
+- 你的输出会直接替换用户选中的文本
+- 只输出修改后的文本，禁止任何解释、前言、总结
+- 如果不确定如何修改，原样返回选中文本
+
+【指令类型和示例】
+
+1. 替换词语："把X改成Y" / "X替换成Y" / "把SQL改成SKILL"
+   → 只替换指定的词，其他内容不变
+
+2. 风格改写："变成口语" / "改成正式" / "转成Markdown"
+   → 改写整段文本的风格或格式，保留核心含义
+
+3. 纠错："把错别字改了" / "修正语法"
+   → 只修正错误，不改变表达
+
+4. 格式转换："变成列表" / "加上标题" / "转成代码注释"
+   → 改变文本的排版格式
+
+【注意】
+- 语音指令经过 ASR，可能有听错（如 "SKILL" 听成 "思考"）
+- 根据上下文推断用户真实意图
+- 替换指令只改指定的词，不要重写整段文本
+"""
+
     private func getPolishPrompt(intensity: AppSettings.PolishIntensity) -> String {
         switch intensity {
         case .light:
@@ -115,7 +143,7 @@ final class LLMService {
 
     // MARK: - 文本润色
 
-    func polish(text: String, intensity: AppSettings.PolishIntensity, customPrompt: String? = nil, selectedText: String? = nil) async throws -> String {
+    func polish(text: String, intensity: AppSettings.PolishIntensity, customPrompt: String? = nil, customEditPrompt: String? = nil, selectedText: String? = nil) async throws -> String {
         guard isModelLoaded else {
             AppLogger.error("LLM 模型未加载", category: .llm)
             throw LLMError.modelNotLoaded
@@ -140,34 +168,12 @@ final class LLMService {
         }
 
         if let selectedText, !selectedText.isEmpty {
-            // 选中修正模式：语音输入是指令，选中文本是操作对象
-            instructions = """
-            你是一个文本编辑器。用户选中了一段文本，然后用语音给出修改指令。
-
-            【严格规则】
-            - 你的输出会直接替换用户选中的文本
-            - 只输出修改后的文本，禁止任何解释、前言、总结
-            - 如果不确定如何修改，原样返回选中文本
-
-            【指令类型和示例】
-
-            1. 替换词语："把X改成Y" / "X替换成Y" / "把SQL改成SKILL"
-               → 只替换指定的词，其他内容不变
-
-            2. 风格改写："变成口语" / "改成正式" / "转成Markdown"
-               → 改写整段文本的风格或格式，保留核心含义
-
-            3. 纠错："把错别字改了" / "修正语法"
-               → 只修正错误，不改变表达
-
-            4. 格式转换："变成列表" / "加上标题" / "转成代码注释"
-               → 改变文本的排版格式
-
-            【注意】
-            - 语音指令经过 ASR，可能有听错（如 "SKILL" 听成 "思考"）
-            - 根据上下文推断用户真实意图
-            - 替换指令只改指定的词，不要重写整段文本
-            """
+            // 选中编辑模式：用户自定义编辑提示词优先
+            if let customEditPrompt, !customEditPrompt.isEmpty {
+                instructions = customEditPrompt
+            } else {
+                instructions = Self.defaultEditPrompt
+            }
             userMessage = "【选中的文本】\n\(selectedText)\n\n【语音指令】\n\(text)"
         } else {
             // 普通润色模式
