@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import AVFoundation
 
 struct SettingsView: View {
     @Bindable private var settings = AppSettings.shared
@@ -62,6 +63,10 @@ private struct RecordingSettingsTab: View {
                     settings.save()
                     AppDelegate.shared?.applyHotKey(newCombo, triggerMode: settings.recordingTriggerMode)
                 }
+
+                Text("全局快捷键依赖输入监控权限。若快捷键无反应，请在系统设置 → 隐私与安全性 → 输入监控中开启 Talk，并重启应用。")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
 
                 HStack {
                     Text("录音时长限制")
@@ -402,9 +407,24 @@ private struct OutputSettingsTab: View {
 private struct AdvancedSettingsTab: View {
     @Bindable var settings: AppSettings
     @State private var showVocabularyView = false
+    @State private var permissions = PermissionsSnapshot.empty
+    @State private var pollTimer: Timer?
 
     var body: some View {
         Form {
+            Section {
+                ForEach(AppPermission.allCases) { permission in
+                    PermissionRowView(
+                        permission: permission,
+                        isGranted: permissions.isGranted(permission),
+                        actionTitle: actionTitle(for: permission),
+                        action: { handlePermissionAction(permission) }
+                    )
+                }
+            } header: {
+                Text("权限")
+            }
+
             Section {
                 Picker("选中文本捕获方式", selection: $settings.selectionCaptureMethod) {
                     Text("Accessibility API（低侵入）").tag(AppSettings.SelectionCaptureMethod.accessibility)
@@ -517,8 +537,51 @@ private struct AdvancedSettingsTab: View {
             }
         }
         .formStyle(.grouped)
+        .onAppear {
+            refreshPermissions()
+            startPermissionPolling()
+        }
+        .onDisappear {
+            pollTimer?.invalidate()
+            pollTimer = nil
+        }
         .sheet(isPresented: $showVocabularyView) {
             VocabularyView()
+        }
+    }
+
+    private func actionTitle(for permission: AppPermission) -> String {
+        guard permission == .microphone else { return "打开设置" }
+        return AVCaptureDevice.authorizationStatus(for: .audio) == .notDetermined ? "授权麦克风" : "打开设置"
+    }
+
+    private func handlePermissionAction(_ permission: AppPermission) {
+        switch permission {
+        case .microphone:
+            if AVCaptureDevice.authorizationStatus(for: .audio) == .notDetermined {
+                PermissionManager.requestMicrophoneAccess { _ in
+                    refreshPermissions()
+                }
+            } else {
+                PermissionManager.openSettings(for: .microphone)
+            }
+        case .inputMonitoring:
+            _ = PermissionManager.requestInputMonitoringAccessIfNeeded()
+            PermissionManager.openSettings(for: .inputMonitoring)
+        case .accessibility:
+            PermissionManager.openSettings(for: .accessibility)
+        }
+    }
+
+    private func refreshPermissions() {
+        permissions = PermissionManager.snapshot()
+    }
+
+    private func startPermissionPolling() {
+        pollTimer = Timer.scheduledTimer(withTimeInterval: 2.0, repeats: true) { _ in
+            DispatchQueue.main.async {
+                refreshPermissions()
+            }
         }
     }
 }

@@ -96,7 +96,7 @@ make run
 ```bash
 make build          # Debug build
 make build-release  # Release build
-make test           # Run unit tests (43 tests)
+make test           # Run unit tests
 make benchmark      # Run performance benchmarks
 make run            # Build and run
 make clean          # Clean build artifacts
@@ -166,8 +166,11 @@ Talk learns from your corrections to improve future polishing.
 
 On first launch, you need to grant:
 
-1. **Microphone** — macOS will prompt automatically
-2. **Accessibility** — Manually add Talk.app in System Settings → Privacy & Security → Accessibility
+1. **Microphone** — Required for recording. macOS will prompt automatically.
+2. **Input Monitoring** — Required for the global hotkey. Enable Talk in System Settings → Privacy & Security → Input Monitoring.
+3. **Accessibility** — Required for auto-pasting text into other apps. Enable Talk in System Settings → Privacy & Security → Accessibility.
+
+If the global hotkey does not respond, check **Input Monitoring** first. After enabling it, quit and relaunch Talk so the hotkey listener can work reliably.
 
 ## Development
 
@@ -182,7 +185,7 @@ open Talk.xcodeproj
 ### Testing
 
 ```bash
-make test       # 43 unit tests (HotKeyCombo, AppSettings, AudioDevice, FloatingIndicator, VocabularyManager)
+make test       # Unit tests
 make benchmark  # Performance benchmarks (ASR/LLM load, inference, pipeline, memory)
 ```
 
