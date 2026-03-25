@@ -30,7 +30,7 @@ Talk 首次启动时展示引导流程，帮助用户完成权限授予、模型
 
 **界面内容：**
 
-两个权限项，各占一行，左侧图标 + 说明文字，右侧状态标记（未授权 / 已授权 checkmark）。
+三个权限项，各占一行，左侧图标 + 说明文字，右侧状态标记（未授权 / 已授权 checkmark）。
 
 #### 2a. 麦克风权限
 
@@ -41,7 +41,22 @@ Talk 首次启动时展示引导流程，帮助用户完成权限授予、模型
 - 行为：调用 `AVCaptureDevice.requestAccess(for: .audio)`，macOS 弹出系统授权弹窗
 - 授权后：按钮变为绿色 checkmark + "已授权"
 
-#### 2b. 辅助功能权限
+#### 2b. 输入监控权限
+
+- 图标：`keyboard`
+- 标题："输入监控"
+- 说明："Talk 需要输入监控权限来监听全局快捷键。没有这项权限时，菜单栏录音可用，但快捷键可能没有反应。"
+- 操作指引（折叠/展开，默认展开）：
+  1. 点击下方按钮打开系统设置
+  2. 在「隐私与安全性 → 输入监控」列表中找到 Talk
+  3. 打开 Talk 右侧的开关
+  4. **退出并重新打开 Talk**
+  5. 回到 Talk，状态会自动更新
+- 按钮：`打开输入监控设置`
+- 行为：调用 `NSWorkspace.shared.open(URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_ListenEvent")!)`
+- 检测逻辑：用定时器（每 2 秒）轮询 `CGPreflightListenEventAccess()`，授权后显示 checkmark
+
+#### 2c. 辅助功能权限
 
 - 图标：`hand.raised.circle`
 - 标题："辅助功能权限"
@@ -58,12 +73,13 @@ Talk 首次启动时展示引导流程，帮助用户完成权限授予、模型
 
 **底部按钮：**
 
-- `下一步` —— 两项都已授权时高亮
+- `下一步` —— 麦克风已授权时高亮
 - `稍后设置` —— 始终可点，跳到 Step 3（缺少权限不影响模型下载）
 
 **技术说明：**
 
 - 麦克风权限状态通过 `AVCaptureDevice.authorizationStatus(for: .audio)` 检查
+- 输入监控权限状态通过 `CGPreflightListenEventAccess()` 检查
 - 辅助功能权限状态通过 `AXIsProcessTrusted()` 检查
 - 页面出现时立即检查当前状态，已授权的项直接显示 checkmark
 
@@ -131,6 +147,7 @@ Talk 首次启动时展示引导流程，帮助用户完成权限授予、模型
 - 当前快捷键显示区域，带录制功能（复用现有 `KeyRecorderView` 组件）
 - 默认值：`⌃ Control`
 - 点击后进入录制模式，按下新键即完成设置
+- 快捷键区域下方显示说明："全局快捷键依赖输入监控权限。若快捷键无反应，请先打开输入监控并重启 Talk。"
 
 #### 触发方式
 

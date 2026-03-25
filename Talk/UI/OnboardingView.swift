@@ -103,8 +103,7 @@ private struct WelcomeStep: View {
 private struct PermissionsStep: View {
     var onNext: () -> Void
 
-    @State private var micGranted = false
-    @State private var accessibilityGranted = false
+    @State private var permissions = PermissionsSnapshot.empty
     @State private var pollTimer: Timer?
 
     var body: some View {
@@ -115,80 +114,39 @@ private struct PermissionsStep: View {
                 .font(.title2)
                 .fontWeight(.semibold)
 
-            Text("Talk 需要以下权限才能正常工作")
+            Text("Talk 需要以下权限才能完整工作")
                 .font(.body)
                 .foregroundColor(.secondary)
 
-            // Microphone permission
             GroupBox {
-                HStack(spacing: 12) {
-                    Image(systemName: "mic.circle")
-                        .font(.system(size: 32))
-                        .foregroundStyle(.blue)
-
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text("麦克风权限")
-                            .font(.headline)
-                        Text("Talk 需要录制你的语音，音频仅在本地处理，不会上传任何服务器。")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                    }
-
-                    Spacer()
-
-                    if micGranted {
-                        Image(systemName: "checkmark.circle.fill")
-                            .font(.system(size: 24))
-                            .foregroundStyle(.green)
-                    } else {
-                        Button("授权麦克风") {
-                            requestMicrophoneAccess()
-                        }
-                        .controlSize(.small)
-                    }
-                }
-                .padding(4)
+                PermissionRowView(
+                    permission: .microphone,
+                    isGranted: permissions.microphoneGranted,
+                    actionTitle: microphoneActionTitle,
+                    action: handleMicrophoneAction
+                )
             }
             .padding(.horizontal, 24)
 
-            // Accessibility permission
             GroupBox {
-                HStack(spacing: 12) {
-                    Image(systemName: "hand.raised.circle")
-                        .font(.system(size: 32))
-                        .foregroundStyle(.orange)
-
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text("辅助功能权限")
-                            .font(.headline)
-                        Text("Talk 需要辅助功能权限来将文字自动粘贴到当前应用。请在系统设置中手动授予。")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                    }
-
-                    Spacer()
-
-                    if accessibilityGranted {
-                        Image(systemName: "checkmark.circle.fill")
-                            .font(.system(size: 24))
-                            .foregroundStyle(.green)
-                    } else {
-                        Button("打开设置") {
-                            openAccessibilitySettings()
-                        }
-                        .controlSize(.small)
-                    }
-                }
-                .padding(4)
+                PermissionRowView(
+                    permission: .inputMonitoring,
+                    isGranted: permissions.inputMonitoringGranted,
+                    actionTitle: "打开设置",
+                    action: openInputMonitoringSettings
+                )
             }
             .padding(.horizontal, 24)
 
-            if !accessibilityGranted {
-                Text("在「系统设置 → 隐私与安全性 → 辅助功能」中添加 Talk 并打开开关。")
-                    .font(.caption)
-                    .foregroundColor(.secondary)
-                    .padding(.horizontal, 40)
+            GroupBox {
+                PermissionRowView(
+                    permission: .accessibility,
+                    isGranted: permissions.accessibilityGranted,
+                    actionTitle: "打开设置",
+                    action: openAccessibilitySettings
+                )
             }
+            .padding(.horizontal, 24)
 
             Spacer()
 
@@ -204,14 +162,13 @@ private struct PermissionsStep: View {
                 }
                 .controlSize(.large)
                 .buttonStyle(.borderedProminent)
-                .disabled(!micGranted)
+                .disabled(!permissions.microphoneGranted)
             }
             .padding(.bottom, 24)
         }
         .onAppear {
-            checkMicrophoneStatus()
-            checkAccessibilityStatus()
-            startAccessibilityPolling()
+            refreshPermissions()
+            startPermissionPolling()
         }
         .onDisappear {
             pollTimer?.invalidate()
@@ -219,33 +176,37 @@ private struct PermissionsStep: View {
         }
     }
 
-    private func requestMicrophoneAccess() {
-        AVCaptureDevice.requestAccess(for: .audio) { granted in
-            DispatchQueue.main.async {
-                micGranted = granted
+    private var microphoneActionTitle: String {
+        AVCaptureDevice.authorizationStatus(for: .audio) == .notDetermined ? "授权麦克风" : "打开设置"
+    }
+
+    private func handleMicrophoneAction() {
+        if AVCaptureDevice.authorizationStatus(for: .audio) == .notDetermined {
+            PermissionManager.requestMicrophoneAccess { _ in
+                refreshPermissions()
             }
+        } else {
+            PermissionManager.openSettings(for: .microphone)
         }
     }
 
-    private func checkMicrophoneStatus() {
-        let status = AVCaptureDevice.authorizationStatus(for: .audio)
-        micGranted = status == .authorized
-    }
-
-    private func checkAccessibilityStatus() {
-        accessibilityGranted = AXIsProcessTrusted()
+    private func openInputMonitoringSettings() {
+        _ = PermissionManager.requestInputMonitoringAccessIfNeeded()
+        PermissionManager.openSettings(for: .inputMonitoring)
     }
 
     private func openAccessibilitySettings() {
-        if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility") {
-            NSWorkspace.shared.open(url)
-        }
+        PermissionManager.openSettings(for: .accessibility)
     }
 
-    private func startAccessibilityPolling() {
+    private func refreshPermissions() {
+        permissions = PermissionManager.snapshot()
+    }
+
+    private func startPermissionPolling() {
         pollTimer = Timer.scheduledTimer(withTimeInterval: 2.0, repeats: true) { _ in
             DispatchQueue.main.async {
-                accessibilityGranted = AXIsProcessTrusted()
+                refreshPermissions()
             }
         }
     }
@@ -426,6 +387,7 @@ private struct HotkeyStep: View {
 private struct ReadyStep: View {
     @Bindable var settings: AppSettings
     var onComplete: () -> Void
+    @State private var permissions = PermissionsSnapshot.empty
 
     var body: some View {
         VStack(spacing: 20) {
@@ -459,6 +421,14 @@ private struct ReadyStep: View {
                     .foregroundColor(.secondary)
             }
 
+            if !permissions.allRequiredGranted {
+                Text(missingPermissionsSummary)
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal, 32)
+            }
+
             Spacer()
 
             Button(action: onComplete) {
@@ -476,5 +446,24 @@ private struct ReadyStep: View {
             .font(.caption)
             .padding(.bottom, 24)
         }
+        .onAppear {
+            permissions = PermissionManager.snapshot()
+        }
+    }
+
+    private var missingPermissionsSummary: String {
+        var items: [String] = []
+
+        if !permissions.microphoneGranted {
+            items.append("麦克风")
+        }
+        if !permissions.inputMonitoringGranted {
+            items.append("输入监控（全局快捷键）")
+        }
+        if !permissions.accessibilityGranted {
+            items.append("辅助功能（自动粘贴）")
+        }
+
+        return "仍有权限未完成：\(items.joined(separator: "、"))。可稍后在设置 → 高级 → 权限中完成。"
     }
 }
