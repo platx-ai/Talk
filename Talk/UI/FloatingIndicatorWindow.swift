@@ -107,8 +107,18 @@ final class FloatingIndicatorWindow {
     func dismiss() {
         dismissWorkItem?.cancel()
         dismissWorkItem = nil
-        panel?.orderOut(nil)
-        panel = nil
+
+        // 渐隐消失
+        if let panel = panel {
+            NSAnimationContext.runAnimationGroup({ context in
+                context.duration = 0.4
+                panel.animator().alphaValue = 0
+            }, completionHandler: { [weak self] in
+                panel.orderOut(nil)
+                panel.alphaValue = 1  // 重置为下次使用
+                self?.panel = nil
+            })
+        }
     }
 
     func updatePhase(_ phase: FloatingIndicatorState.Phase) {
@@ -135,19 +145,21 @@ final class FloatingIndicatorWindow {
 
 struct FloatingIndicatorContentView: View {
     var state: FloatingIndicatorState
-    @State private var glowRotation: Double = 0
+    @State private var auraRotation: Double = 0
     @State private var pulse: Bool = false
     @State private var wavePhase: Double = 0
 
-    /// 每个阶段的主题色（简洁、克制）
-    private var accentColor: Color {
+    private var auraColors: [Color] {
         switch state.phase {
-        case .recording:    return .white
-        case .recognizing:  return .cyan
-        case .polishing:    return .cyan
-        case .outputting:   return .cyan
-        case .done:         return .green
-        case .loadingModel: return .white.opacity(0.6)
+        case .recording(_, let isEditMode):
+            return isEditMode
+                ? [.orange, .yellow, .orange.opacity(0.3), .yellow, .orange]
+                : [.cyan, .purple, .cyan.opacity(0.3), .purple, .cyan]
+        case .recognizing:  return [.blue, .cyan, .blue.opacity(0.3), .cyan, .blue]
+        case .polishing:    return [.purple, .indigo, .purple.opacity(0.3), .indigo, .purple]
+        case .outputting:   return [.cyan, .mint, .cyan.opacity(0.3), .mint, .cyan]
+        case .done:         return [.green, .mint, .green.opacity(0.3), .mint, .green]
+        case .loadingModel: return [.white.opacity(0.3), .white.opacity(0.1), .white.opacity(0.3), .white.opacity(0.1), .white.opacity(0.3)]
         }
     }
 
@@ -171,10 +183,24 @@ struct FloatingIndicatorContentView: View {
         .background(.ultraThinMaterial, in: Capsule())
         .clipShape(Capsule())
         .overlay(
+            // Aura 光环 — 贴着胶囊边缘，缓慢旋转
             Capsule()
-                .strokeBorder(.white.opacity(0.2), lineWidth: 0.5)
+                .strokeBorder(
+                    AngularGradient(
+                        colors: auraColors,
+                        center: .center,
+                        startAngle: .degrees(auraRotation),
+                        endAngle: .degrees(auraRotation + 360)
+                    ),
+                    lineWidth: 1.5
+                )
+                .opacity(isActive ? 0.9 : 0.3)
         )
+        .shadow(color: auraColors[0].opacity(isActive ? 0.4 : 0), radius: isActive ? 8 : 0)
         .onAppear {
+            withAnimation(.linear(duration: 6).repeatForever(autoreverses: false)) {
+                auraRotation = 360
+            }
             withAnimation(.easeInOut(duration: 1.5).repeatForever(autoreverses: true)) {
                 pulse = true
             }

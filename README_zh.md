@@ -8,7 +8,7 @@
 
 macOS 菜单栏语音输入工具 — 按住快捷键说话，自动识别、润色、粘贴到当前应用。你的声音，直达文字，无需云端，无需打字。
 
-[**下载 Talk v0.2.1**](https://github.com/platx-ai/Talk/releases/latest) · [English](README.md)
+[**下载 Talk v0.2.2**](https://github.com/platx-ai/Talk/releases/latest) · [English](README.md)
 
 > 本项目的原始算法和代码基于孔老师（[@jiamingkong](https://github.com/jiamingkong)）的慷慨贡献。我们只是想快速验证一下十分钟能不能搞定一个 typeless。
 

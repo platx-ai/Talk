@@ -8,7 +8,7 @@
 
 A macOS menu bar voice input tool — hold a hotkey, speak, and your words are recognized, polished, and pasted into the active app. Your voice, straight to text. No cloud. No typing.
 
-[**Download Talk v0.2.1**](https://github.com/platx-ai/Talk/releases/latest) · [中文文档](README_zh.md)
+[**Download Talk v0.2.2**](https://github.com/platx-ai/Talk/releases/latest) · [中文文档](README_zh.md)
 
 > The original algorithm and code are based on the generous contribution of [@jiamingkong](https://github.com/jiamingkong). We just wanted to see if we could build a typeless in ten minutes.
 
