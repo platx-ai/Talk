@@ -93,8 +93,26 @@ make resolve        # 解析 SPM 依赖
 3. **性能回归检测**：benchmark 结果对比历史数据，发现回归
 
 ### 性能关键约束
-- 模型加载和推理必须在后台线程（`Task.detached`），禁止在 `@MainActor` 上做重活
+- 模型加载必须在后台线程（`Task.detached`），禁止在 `@MainActor` 上做重活
+- 模型推理（ChatSession.respond, model.generate）必须在 `@MainActor` 上（MLX 有线程亲和性），但不要用 `Task.detached` 包裹
 - UI 更新回到主线程（`@MainActor` 的 property 赋值自动保证）
+
+### 终端输入卡顿防线（两次回归教训，绝不能再犯）
+
+**根本原则：快捷键触发路径上禁止任何阻塞操作。**
+
+已发生过的回归：
+1. CGEventTap 挂在主线程 RunLoop → 每次按键创建 Task 淹没主线程
+2. captureSelectedText() 的 Cmd+C fallback → Thread.sleep 阻塞 + 终端收到 SIGINT
+
+**硬性规则：**
+- CGEventTap 必须在独立后台线程的 RunLoop 上运行，永远不能放在主线程
+- CGEventTap 回调中只做轻量比较，不匹配时立即 return，匹配时才 dispatch 到主线程
+- `_cachedWasPressed` 去重 — 状态没变化不 dispatch
+- 只监听需要的事件类型（修饰键模式只监听 flagsChanged，普通按键模式只监听 keyDown/keyUp）
+- `startRecording()` 路径上禁止 `Thread.sleep`、禁止模拟 Cmd+C（终端会 SIGINT）
+- 选中文本捕获默认只用 Accessibility API（零阻塞），Cmd+C 方式仅在用户明确选择时使用
+- 任何新增的快捷键回调逻辑，必须在终端中实测打字流畅度
 
 ## Key Conventions
 
@@ -102,7 +120,7 @@ make resolve        # 解析 SPM 依赖
 - `@Observable` + `@MainActor` for state management
 - Singleton pattern for services (ASRService, LLMService, AudioRecorder, etc.)
 - UserDefaults for settings persistence, JSON files for history/vocabulary
-- Carbon API for global hotkeys (no macOS alternative)
+- CGEventTap for global hotkeys (替代了 Carbon API，后台线程运行)
 - CoreAudio for device enumeration, AVAudioEngine for capture
 - Models load from HuggingFace cache or app bundle
 
