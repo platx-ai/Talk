@@ -281,8 +281,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         }
         do {
             targetApp = NSWorkspace.shared.frontmostApplication
-            // 只用 Accessibility API 捕获（不阻塞），不 fallback 到 Cmd+C
-            selectedTextBeforeRecording = captureSelectedTextViaAccessibility()
+            // 先用 Accessibility API（不阻塞），失败则用 Cmd+C fallback
+            selectedTextBeforeRecording = captureSelectedText()
             if let sel = selectedTextBeforeRecording {
                 AppLogger.info("捕获到选中文本: \(sel.prefix(50))...", category: .ui)
             }
@@ -292,7 +292,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
                 statusBar?.updateFloatingAudioLevel(level)
             }
             try AudioRecorder.shared.startRecording(sampleRate: 16000)
-            statusBar.updateProcessingStatus(.recording)
+            statusBar.updateProcessingStatus(.recording, isEditMode: selectedTextBeforeRecording != nil)
             AppLogger.info("\(trigger)触发：开始录音，目标应用: \(targetApp?.localizedName ?? "unknown")", category: .ui)
             return true
         } catch {

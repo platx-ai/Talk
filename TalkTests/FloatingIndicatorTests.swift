@@ -39,7 +39,7 @@ struct FloatingIndicatorStateTests {
     func phaseCanTransitionThroughAllStates() {
         let state = FloatingIndicatorState()
 
-        state.phase = .recording(startDate: Date())
+        state.phase = .recording(startDate: Date(), isEditMode: false)
         if case .recording = state.phase { } else {
             Issue.record("Should be recording")
         }
@@ -87,7 +87,7 @@ struct FloatingIndicatorWindowTests {
     func updatePhaseDoesNotCrash() {
         let window = FloatingIndicatorWindow()
         window.show()
-        window.updatePhase(.recording(startDate: Date()))
+        window.updatePhase(.recording(startDate: Date(), isEditMode: false))
         window.updatePhase(.recognizing)
         window.updatePhase(.polishing)
         window.updatePhase(.outputting)

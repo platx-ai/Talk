@@ -50,7 +50,7 @@ final class LocalTypeMenuBar {
         AppLogger.info("菜单栏设置完成", category: .ui)
     }
 
-    func updateProcessingStatus(_ status: MenuViewModel.ProcessingStatus) {
+    func updateProcessingStatus(_ status: MenuViewModel.ProcessingStatus, isEditMode: Bool = false) {
         viewModel.processingStatus = status
         viewModel.isRecording = status == .recording
 
@@ -61,7 +61,7 @@ final class LocalTypeMenuBar {
             floatingIndicator.updatePhase(.loadingModel)
             floatingIndicator.show()
         case .recording:
-            floatingIndicator.updatePhase(.recording(startDate: Date()))
+            floatingIndicator.updatePhase(.recording(startDate: Date(), isEditMode: isEditMode))
             floatingIndicator.show()
         case .asr:
             floatingIndicator.updatePhase(.recognizing)
