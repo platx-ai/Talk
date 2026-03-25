@@ -96,7 +96,7 @@ make run
 ```bash
 make build          # Debug 构建
 make build-release  # Release 构建
-make test           # 运行单元测试（43 个）
+make test           # 运行单元测试
 make benchmark      # 运行性能基准测试
 make run            # 构建并运行
 make clean          # 清理构建产物
@@ -166,8 +166,11 @@ Talk 会从你的修改中学习，持续改进润色质量。
 
 首次运行需要授权：
 
-1. **麦克风** — 系统自动弹出授权请求
-2. **辅助功能** — 需手动在「系统设置 → 隐私与安全性 → 辅助功能」中添加 Talk.app
+1. **麦克风** — 用于录音，系统会自动弹出授权请求
+2. **输入监控** — 用于监听全局快捷键。请在「系统设置 → 隐私与安全性 → 输入监控」中打开 Talk
+3. **辅助功能** — 用于自动粘贴文本到其他应用。请在「系统设置 → 隐私与安全性 → 辅助功能」中打开 Talk.app
+
+如果全局快捷键没有反应，优先检查 **输入监控**。开启输入监控后，需要退出并重新打开 Talk，热键才会稳定生效。
 
 ## 开发
 
@@ -182,7 +185,7 @@ open Talk.xcodeproj
 ### 测试
 
 ```bash
-make test       # 43 个单元测试（HotKeyCombo、AppSettings、AudioDevice、FloatingIndicator、VocabularyManager）
+make test       # 单元测试
 make benchmark  # 性能基准测试（ASR/LLM 加载、推理、管线、内存）
 ```
 
