@@ -2,6 +2,27 @@
 
 All notable changes to Talk are documented here.
 
+## [0.2.4] - 2026-03-26
+
+### Added
+- **Panda menu bar icon** — replaces generic mic icon with panda silhouette from app logo; turns red when recording
+- **Parallel model loading on cold start** — pressing hotkey with models unloaded now starts recording immediately while models load in background; no more "模型加载中" rejection
+
+### Fixed
+- **Thread-safe model loading** — loadModel() guards with isLoading flag; concurrent callers wait via polling instead of duplicate loading
+- **Terminal input safety** — selection capture auto-learns unsupported apps, falls back to Cmd+C only for safe apps (never terminals)
+- **Idle unload setting=0 persists** — disabling idle unload no longer resets to 10 on restart
+
+### Changed
+- Separate edit prompt — Settings → LLM now has "听写润色" and "编辑指令" tabs
+- "填入默认" button fills TextEditor with default prompt text instead of clearing
+- Floating indicator: aura glow ring with rotating gradient, fade-out dismiss animation
+- 58 unit tests
+
+## [0.2.3] - 2026-03-25
+
+(see release notes)
+
 ## [0.2.2] - 2026-03-25
 
 ### Added
