@@ -212,7 +212,7 @@ final class AppSettings {
 
     // MARK: - LLM 设置
 
-    var llmModelId: String = "mlx-community/Qwen3-4B-Instruct-2507-4bit"
+    var llmModelId: String = "mlx-community/Qwen3-4B-Instruct-2507-4bit" { didSet { autoSave() } }
 
     enum PolishIntensity: String, Codable, CaseIterable {
         case light = "light"
