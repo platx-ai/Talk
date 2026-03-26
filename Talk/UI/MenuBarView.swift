@@ -56,10 +56,12 @@ struct MenuBarView: View {
             }
         } label: {
             if viewModel.isRecording {
-                Image(systemName: "mic.fill")
-                    .foregroundStyle(.tint)
+                Image("MenuBarIcon")
+                    .renderingMode(.template)
+                    .foregroundStyle(.red)
             } else {
-                Image(systemName: "mic")
+                Image("MenuBarIcon")
+                    .renderingMode(.template)
                     .foregroundStyle(.primary)
             }
         }

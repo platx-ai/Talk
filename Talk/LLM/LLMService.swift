@@ -99,6 +99,11 @@ final class LLMService {
             AppLogger.info("LLM 模型已加载", category: .llm)
             return
         }
+        guard !isLoading else {
+            AppLogger.info("LLM 模型正在加载中，等待完成", category: .llm)
+            while isLoading { try await Task.sleep(for: .milliseconds(200)) }
+            return
+        }
 
         if let reason = MLXRuntimeValidator.missingMetalLibraryReason() {
             AppLogger.error("LLM 运行时检查失败: \(reason)", category: .llm)
