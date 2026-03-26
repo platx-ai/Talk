@@ -268,11 +268,22 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
             break
         }
 
-        // 模型未就绪时，提示用户并拒绝录音
-        if !isModelsReady && (ASRService.shared.isLoading || LLMService.shared.isLoading) {
-            statusBar.updateProcessingStatus(.loadingModel)
-            AppLogger.info("\(trigger)触发：模型尚未就绪，拒绝录音", category: .ui)
-            return false
+        // 模型未就绪时，边录音边加载（不拒绝录音）
+        if !isModelsReady && !ASRService.shared.isModelLoaded {
+            AppLogger.info("\(trigger)触发：模型未加载，启动并行加载", category: .ui)
+            let settings = AppSettings.load()
+            let bundled = resolveBundledModelSources()
+            let llmModelId = bundled.llmModelPath ?? settings.llmModelId
+            Task {
+                do {
+                    try await ASRService.shared.loadModel(modelId: settings.asrModelId, bundleResourcesURL: bundled.asrBundleResourcesURL)
+                    try await LLMService.shared.loadModel(modelId: llmModelId)
+                    isModelsReady = true
+                    AppLogger.info("并行模型加载完成", category: .general)
+                } catch {
+                    AppLogger.error("并行模型加载失败: \(error.localizedDescription)", category: .general)
+                }
+            }
         }
 
         if AudioRecorder.shared.isRecording {

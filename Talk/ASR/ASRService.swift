@@ -58,6 +58,15 @@ final class ASRService {
             AppLogger.info("ASR 模型已加载", category: .asr)
             return
         }
+        // isLoading 检查：@MainActor 保证串行，但 Task.detached 的 await 挂起点
+        // 可能让第二个 loadModel 进入。用 isLoading 防止重复下载。
+        // processAudio 会在 loadModel return 后再次检查 isModelLoaded。
+        guard !isLoading else {
+            AppLogger.info("ASR 模型正在加载中，等待完成", category: .asr)
+            // 等待加载完成（轮询，因为没有 continuation 机制）
+            while isLoading { try await Task.sleep(for: .milliseconds(200)) }
+            return
+        }
 
         if let reason = MLXRuntimeValidator.missingMetalLibraryReason() {
             AppLogger.error("ASR 运行时检查失败: \(reason)", category: .asr)
