@@ -29,6 +29,7 @@ struct SettingsView: View {
                 .tabItem { Label("高级", systemImage: "gearshape.2") }
         }
         .frame(width: 600, height: 500)
+        .toast()
     }
 }
 
@@ -57,11 +58,13 @@ private struct RecordingSettingsTab: View {
                         Text(mode.displayName).tag(mode)
                     }
                 }
+                .onChange(of: settings.recordingTriggerMode) { ToastManager.shared.show("已保存") }
 
                 KeyRecorderView(hotkey: $settings.recordingHotkey) { newCombo in
                     settings.recordingHotkey = newCombo
                     settings.save()
                     AppDelegate.shared?.applyHotKey(newCombo, triggerMode: settings.recordingTriggerMode)
+                    ToastManager.shared.show("已保存")
                 }
 
                 Text("全局快捷键依赖输入监控权限。若快捷键无反应，请在系统设置 → 隐私与安全性 → 输入监控中开启 Talk，并重启应用。")
@@ -75,6 +78,7 @@ private struct RecordingSettingsTab: View {
                         get: { settings.recordingMaxDuration > 0 },
                         set: { settings.recordingMaxDuration = $0 ? 0 : 60 }
                     ))
+                    .onChange(of: settings.recordingMaxDuration) { _ in ToastManager.shared.show("已保存") }
                     if settings.recordingMaxDuration > 0 {
                         Stepper("\(settings.recordingMaxDuration)秒",
                                 value: $settings.recordingMaxDuration,
@@ -96,6 +100,7 @@ private struct RecordingSettingsTab: View {
                     }
                     .pickerStyle(.menu)
                     .frame(width: 100)
+                    .onChange(of: settings.sampleRate) { _ in ToastManager.shared.show("已保存") }
                 }
             } header: {
                 Text("音频参数")
@@ -124,6 +129,7 @@ private struct ASRSettingsTab: View {
                     Text("HuggingFace（国际）").tag(AppSettings.ModelSource.huggingface)
                     Text("ModelScope（中国大陆）").tag(AppSettings.ModelSource.modelscope)
                 }
+                .onChange(of: settings.modelSource) { _ in ToastManager.shared.show("已保存") }
                 Text("中国大陆用户建议选择 ModelScope，可避免网络问题。")
                     .font(.caption)
                     .foregroundColor(.secondary)
@@ -135,14 +141,17 @@ private struct ASRSettingsTab: View {
                 Picker("模型选择", selection: $settings.asrModelId) {
                     Text("Qwen3-ASR-0.6B-4bit").tag("mlx-community/Qwen3-ASR-0.6B-4bit")
                 }
+                .onChange(of: settings.asrModelId) { _ in ToastManager.shared.show("已保存") }
 
                 Picker("识别语言", selection: $settings.asrLanguage) {
                     ForEach(AppSettings.ASRLanguage.allCases, id: \.self) { lang in
                         Text(lang.displayName).tag(lang)
                     }
                 }
+                .onChange(of: settings.asrLanguage) { _ in ToastManager.shared.show("已保存") }
 
                 Toggle("实时显示识别结果", isOn: $settings.showRealtimeRecognition)
+                    .onChange(of: settings.showRealtimeRecognition) { _ in ToastManager.shared.show("已保存") }
             } header: {
                 Text("语音识别设置")
             }
@@ -163,13 +172,17 @@ private struct LLMSettingsTab: View {
             Section {
                 Picker("模型选择", selection: $settings.llmModelId) {
                     Text("Qwen3-4B-Instruct (4-bit)").tag("mlx-community/Qwen3-4B-Instruct-2507-4bit")
+                    Text("Qwen3.5-0.8B-Instruct (4-bit)").tag("mlx-community/Qwen3.5-0.8B-OptiQ-4bit")
+                    Text("Qwen3.5-2B-Instruct (4-bit)").tag("mlx-community/Qwen3.5-2B-4bit")
                 }
+                .onChange(of: settings.llmModelId) { _ in ToastManager.shared.show("已保存") }
 
                 Picker("润色强度", selection: $settings.polishIntensity) {
                     ForEach(AppSettings.PolishIntensity.allCases, id: \.self) { intensity in
                         Text(intensity.displayName).tag(intensity)
                     }
                 }
+                .onChange(of: settings.polishIntensity) { _ in ToastManager.shared.show("已保存") }
 
                 HStack {
                     Text("对话历史轮数")
@@ -178,8 +191,10 @@ private struct LLMSettingsTab: View {
                             value: $settings.conversationHistoryRounds,
                             in: 0...10)
                 }
+                .onChange(of: settings.conversationHistoryRounds) { _ in ToastManager.shared.show("已保存") }
 
                 Toggle("启用对话历史", isOn: $settings.enableConversationHistory)
+                    .onChange(of: settings.enableConversationHistory) { _ in ToastManager.shared.show("已保存") }
             } header: {
                 Text("文本润色设置")
             }
@@ -394,12 +409,14 @@ private struct OutputSettingsTab: View {
                         Text(method.displayName).tag(method)
                     }
                 }
+                .onChange(of: settings.outputMethod) { _ in ToastManager.shared.show("已保存") }
 
                 Picker("输出时机", selection: $settings.outputDelay) {
                     ForEach(AppSettings.OutputDelay.allCases, id: \.self) { delay in
                         Text(delay.displayName).tag(delay)
                     }
                 }
+                .onChange(of: settings.outputDelay) { _ in ToastManager.shared.show("已保存") }
 
                 if settings.outputDelay == .custom {
                     HStack {
@@ -408,9 +425,11 @@ private struct OutputSettingsTab: View {
                                 value: $settings.customOutputDelay,
                                 in: 1...10)
                     }
+                    .onChange(of: settings.customOutputDelay) { _ in ToastManager.shared.show("已保存") }
                 }
 
                 Toggle("输出前预览", isOn: $settings.showPreviewBeforeOutput)
+                    .onChange(of: settings.showPreviewBeforeOutput) { _ in ToastManager.shared.show("已保存") }
             } header: {
                 Text("输出设置")
             }
@@ -447,6 +466,7 @@ private struct AdvancedSettingsTab: View {
                     Text("Accessibility API（低侵入）").tag(AppSettings.SelectionCaptureMethod.accessibility)
                     Text("Cmd+C 复制（兼容性好）").tag(AppSettings.SelectionCaptureMethod.clipboard)
                 }
+                .onChange(of: settings.selectionCaptureMethod) { _ in ToastManager.shared.show("已保存") }
                 Text("选中文字后录音可替换选中内容。Accessibility API 不影响剪贴板但部分应用不支持。")
                     .font(.caption)
                     .foregroundColor(.secondary)
@@ -456,12 +476,14 @@ private struct AdvancedSettingsTab: View {
 
             Section {
                 Toggle("启用命令词识别", isOn: $settings.enableVoiceCommands)
+                    .onChange(of: settings.enableVoiceCommands) { _ in ToastManager.shared.show("已保存") }
             } header: {
                 Text("高级功能")
             }
 
             Section {
                 Toggle("启用个人词库", isOn: $settings.enablePersonalVocabulary)
+                    .onChange(of: settings.enablePersonalVocabulary) { _ in ToastManager.shared.show("已保存") }
 
                 if settings.enablePersonalVocabulary {
                     HStack {
@@ -486,6 +508,7 @@ private struct AdvancedSettingsTab: View {
                         Text(lang.displayName).tag(lang)
                     }
                 }
+                .onChange(of: settings.appLanguage) { _ in ToastManager.shared.show("已保存") }
             } header: {
                 Text("语言")
             }
@@ -495,12 +518,14 @@ private struct AdvancedSettingsTab: View {
                     get: { settings.idleUnloadMinutes > 0 },
                     set: { settings.idleUnloadMinutes = $0 ? 10 : 0 }
                 ))
+                .onChange(of: settings.idleUnloadMinutes) { _ in ToastManager.shared.show("已保存") }
                 if settings.idleUnloadMinutes > 0 {
                     HStack {
                         Text("空闲卸载模型")
                         Spacer()
                         Stepper("\(settings.idleUnloadMinutes) 分钟", value: $settings.idleUnloadMinutes, in: 1...60)
                     }
+                    .onChange(of: settings.idleUnloadMinutes) { _ in ToastManager.shared.show("已保存") }
                 }
                 Text("空闲一段时间后自动卸载模型以释放内存，下次使用时自动重新加载。")
                     .font(.caption)
@@ -515,12 +540,14 @@ private struct AdvancedSettingsTab: View {
                         Text(mode.displayName).tag(mode)
                     }
                 }
+                .onChange(of: settings.performanceMode) { _ in ToastManager.shared.show("已保存") }
 
                 Picker("内存模式", selection: $settings.memoryMode) {
                     ForEach(AppSettings.MemoryMode.allCases, id: \.self) { mode in
                         Text(mode.displayName).tag(mode)
                     }
                 }
+                .onChange(of: settings.memoryMode) { _ in ToastManager.shared.show("已保存") }
             } header: {
                 Text("性能优化")
             }
@@ -536,12 +563,14 @@ private struct AdvancedSettingsTab: View {
                     Text("完全退出").tag(true)
                     Text("最小化到菜单栏").tag(false)
                 }
+                .onChange(of: settings.quitBehavior) { _ in ToastManager.shared.show("已保存") }
             } header: {
                 Text("启动与退出")
             }
 
             Section {
                 Toggle("启用详细日志", isOn: $settings.enableDetailedLogging)
+                    .onChange(of: settings.enableDetailedLogging) { _ in ToastManager.shared.show("已保存") }
 
                 Picker("日志级别", selection: $settings.logLevel) {
                     ForEach(AppSettings.LogLevel.allCases, id: \.self) { level in
@@ -549,6 +578,7 @@ private struct AdvancedSettingsTab: View {
                     }
                 }
                 .pickerStyle(.menu)
+                .onChange(of: settings.logLevel) { _ in ToastManager.shared.show("已保存") }
             } header: {
                 Text("日志")
             }
