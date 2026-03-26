@@ -77,6 +77,10 @@ final class LocalTypeMenuBar {
         floatingIndicator.updateAudioLevel(level)
     }
 
+    func updateFloatingRealtimeText(_ text: String) {
+        floatingIndicator.updateRealtimeText(text)
+    }
+
     /// Show "done" on the floating indicator, then auto-dismiss after 1.5s
     func showDoneAndDismiss() {
         viewModel.processingStatus = .idle

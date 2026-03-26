@@ -35,6 +35,7 @@ final class FloatingIndicatorState {
 
     var phase: Phase = .recording(startDate: Date(), isEditMode: false)
     var audioLevel: Float = 0.0
+    var realtimeText: String = ""
 }
 
 // MARK: - NSPanel Subclass
@@ -138,6 +139,14 @@ final class FloatingIndicatorWindow {
 
     func updateAudioLevel(_ level: Float) {
         state.audioLevel = level
+    }
+
+    func updateRealtimeText(_ text: String) {
+        state.realtimeText = text
+    }
+
+    func clearRealtimeText() {
+        state.realtimeText = ""
     }
 }
 
@@ -257,25 +266,37 @@ struct FloatingIndicatorContentView: View {
                 .font(.system(size: 12, weight: .medium))
                 .foregroundStyle(.primary)
         case .recording(let startDate, let isEditMode):
-            TimelineView(.periodic(from: startDate, by: 0.5)) { context in
-                let elapsed = context.date.timeIntervalSince(startDate)
-                let minutes = Int(elapsed) / 60
-                let seconds = Int(elapsed) % 60
-                HStack(spacing: 4) {
-                    if isEditMode {
-                        Text("编辑")
-                            .font(.system(size: 11, weight: .medium))
-                            .foregroundStyle(.orange)
+            if state.realtimeText.isEmpty {
+                TimelineView(.periodic(from: startDate, by: 0.5)) { context in
+                    let elapsed = context.date.timeIntervalSince(startDate)
+                    let minutes = Int(elapsed) / 60
+                    let seconds = Int(elapsed) % 60
+                    HStack(spacing: 4) {
+                        if isEditMode {
+                            Text("编辑")
+                                .font(.system(size: 11, weight: .medium))
+                                .foregroundStyle(.orange)
+                        }
+                        Text(String(format: "%d:%02d", minutes, seconds))
+                            .font(.system(size: 13, weight: .semibold, design: .monospaced))
+                            .foregroundStyle(.primary)
                     }
-                    Text(String(format: "%d:%02d", minutes, seconds))
-                        .font(.system(size: 13, weight: .semibold, design: .monospaced))
-                        .foregroundStyle(.primary)
                 }
+            } else {
+                Text(String(state.realtimeText.suffix(10)))
+                    .font(.system(size: 12, weight: .medium))
+                    .foregroundStyle(.primary)
             }
         case .recognizing:
-            Text("识别中...")
-                .font(.system(size: 12, weight: .medium))
-                .foregroundStyle(.primary)
+            if state.realtimeText.isEmpty {
+                Text("识别中...")
+                    .font(.system(size: 12, weight: .medium))
+                    .foregroundStyle(.primary)
+            } else {
+                Text(String(state.realtimeText.suffix(10)))
+                    .font(.system(size: 12, weight: .medium))
+                    .foregroundStyle(.primary)
+            }
         case .polishing:
             Text("润色中...")
                 .font(.system(size: 12, weight: .medium))

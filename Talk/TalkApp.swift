@@ -9,6 +9,7 @@ import SwiftUI
 import AppKit
 import AVFoundation
 import Carbon
+import MLXAudioSTT
 
 @main
 struct TalkApp: App {
@@ -32,6 +33,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     private var selectedTextBeforeRecording: String?
     private var idleUnloadTimer: Timer?
     private var onboardingWindow: NSWindow?
+    private var streamingFullText: String? = nil  // 流式识别的完整结果
+    private var cumulativeConfirmedText: String = ""  // 累积的确认文本
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         Self.shared = self
@@ -247,6 +250,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     func startRecordingFromMenuBar() async -> Bool { await startRecording(trigger: "菜单栏") }
     func stopRecordingFromMenuBar() async -> Bool { await stopRecordingAndProcess(trigger: "菜单栏") }
 
+    // MARK: - 流式识别
+
+    /// 处理音频数据块（喂入流式识别）
+    private func handleAudioChunk(_ chunk: [Float]) {
+        ASRService.shared.feedAudio(samples: chunk, sampleRate: 16000)
+    }
+
     private func startRecording(trigger: String) async -> Bool {
         guard let statusBar = statusBar else { return false }
 
@@ -302,8 +312,51 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
             AudioRecorder.shared.onAudioLevel = { [weak statusBar] level in
                 statusBar?.updateFloatingAudioLevel(level)
             }
+            // 启动流式识别（如果启用）
+            streamingFullText = nil
+            cumulativeConfirmedText = ""  // 重置累积文本
+            if settings.showRealtimeRecognition && ASRService.shared.isModelLoaded {
+                do {
+                    try await ASRService.shared.startStreaming(delayPreset: .realtime)
+                    ASRService.shared.onTranscriptionUpdate = { [weak self, weak statusBar] (confirmed, provisional) in
+                        guard let self = self else { return }
+                        Task { @MainActor in
+                            // 维护累积的确认文本
+                            if confirmed.hasPrefix(self.cumulativeConfirmedText) {
+                                // 新的 confirmed 是旧的扩展，追加增量部分
+                                let newText = String(confirmed.dropFirst(self.cumulativeConfirmedText.count))
+                                self.cumulativeConfirmedText += newText
+                            } else {
+                                // 新的 confirmed 不是扩展，可能是重新识别，直接替换
+                                self.cumulativeConfirmedText = confirmed
+                            }
+
+                            // 显示累积文本 + 临时文本
+                            let displayText = self.cumulativeConfirmedText + provisional
+                            statusBar?.updateFloatingRealtimeText(displayText)
+                        }
+                    }
+                    ASRService.shared.onTranscriptionComplete = { [weak self] fullText in
+                        Task { @MainActor in
+                            self?.streamingFullText = fullText
+                        }
+                    }
+                    // 连接 onAudioData 回调以喂入音频
+                    AudioRecorder.shared.onAudioData = { [weak self] chunk in
+                        self?.handleAudioChunk(chunk)
+                    }
+                    AppLogger.info("流式识别已启动", category: .ui)
+                } catch {
+                    AppLogger.warning("流式识别启动失败: \(error.localizedDescription)，降级为批量识别", category: .ui)
+                    ASRService.shared.stopStreaming()
+                    AudioRecorder.shared.onAudioData = nil
+                }
+            } else {
+                AudioRecorder.shared.onAudioData = nil
+            }
             try AudioRecorder.shared.startRecording(sampleRate: 16000)
             statusBar.updateProcessingStatus(.recording, isEditMode: selectedTextBeforeRecording != nil)
+            statusBar.updateFloatingRealtimeText("")  // 清空之前的实时文本
             AppLogger.info("\(trigger)触发：开始录音，目标应用: \(targetApp?.localizedName ?? "unknown")", category: .ui)
             return true
         } catch {
@@ -322,6 +375,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         }
 
         AudioRecorder.shared.onAudioLevel = nil
+        AudioRecorder.shared.onAudioData = nil
         AudioRecorder.shared.stopRecording()
         statusBar.updateProcessingStatus(.asr)
 
@@ -332,14 +386,86 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         guard !audioData.isEmpty else {
             statusBar.updateProcessingStatus(.idle)
             AppLogger.warning("录音为空，没有采集到有效音频", category: .audio)
+            ASRService.shared.stopStreaming()
             return false
         }
 
-        await processAudio(audio: audioData, duration: duration, sampleRate: sampleRate)
+        // 如果流式识别已完成，使用流式结果；否则降级为批量识别
+        if let fullText = streamingFullText {
+            AppLogger.info("使用流式识别结果: \(fullText)", category: .ui)
+            // 等待一小段时间确保流式识别完全结束
+            try? await Task.sleep(for: .milliseconds(100))
+            ASRService.shared.stopStreaming()
+            await processTranscription(text: fullText, duration: duration)
+        } else {
+            // 停止流式会话（如果已启动但未完成）
+            ASRService.shared.stopStreaming()
+            // 使用批量识别
+            await processAudio(audio: audioData, duration: duration, sampleRate: sampleRate)
+        }
+
         return true
     }
 
     // MARK: - 音频处理
+
+    @MainActor
+    private func processTranscription(text: String, duration: TimeInterval) {
+        Task {
+            guard let statusBar = statusBar else { return }
+            let settings = AppSettings.load()
+            let bundled = resolveBundledModelSources()
+            let llmModelId = bundled.llmModelPath ?? settings.llmModelId
+
+            do {
+                if !LLMService.shared.isModelLoaded {
+                    statusBar.updateProcessingStatus(.loadingModel)
+                }
+                if !LLMService.shared.isModelLoaded {
+                    try await LLMService.shared.loadModel(modelId: llmModelId)
+                }
+
+                statusBar.updateProcessingStatus(.polishing)
+                // Per-app prompt takes priority over global custom prompt
+                let effectivePrompt: String?
+                if let targetBundleId = self.targetApp?.bundleIdentifier,
+                   let appPrompt = settings.appPrompts[targetBundleId],
+                   !appPrompt.isEmpty {
+                    effectivePrompt = appPrompt
+                } else {
+                    effectivePrompt = settings.customSystemPrompt.isEmpty ? nil : settings.customSystemPrompt
+                }
+                let polishedText = try await LLMService.shared.polish(
+                    text: text,
+                    intensity: settings.polishIntensity,
+                    customPrompt: effectivePrompt,
+                    selectedText: self.selectedTextBeforeRecording
+                )
+                AppLogger.info("LLM 润色完成: \(polishedText)", category: .general)
+
+                statusBar.updateProcessingStatus(.outputting)
+                if let target = self.targetApp {
+                    target.activate(options: .activateIgnoringOtherApps)
+                    try await Task.sleep(for: .milliseconds(400))
+                }
+
+                try await TextInjector.shared.inject(polishedText)
+
+                let historyItem = HistoryItem(
+                    duration: duration, rawText: text, polishedText: polishedText,
+                    asrModel: settings.asrModelId, llmModel: llmModelId
+                )
+                HistoryManager.shared.add(historyItem)
+
+                statusBar.showDoneAndDismiss()
+                self.resetIdleTimer()
+            } catch {
+                AppLogger.error("转录处理失败: \(error.localizedDescription)", category: .general)
+                statusBar.updateProcessingStatus(.idle)
+                statusBar.showNotification(title: "处理失败", message: error.localizedDescription)
+            }
+        }
+    }
 
     @MainActor
     private func processAudio(audio: [Float], duration: TimeInterval, sampleRate: Int) {

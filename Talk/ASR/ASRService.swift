@@ -33,6 +33,15 @@ final class ASRService {
     /// 加载进度（0-1）
     private(set) var loadingProgress: Double = 0
 
+    /// 流式推理会话
+    private var streamingSession: StreamingInferenceSession?
+
+    /// 实时转录回调（confirmed: 已确认文本, provisional: 临时文本）
+    var onTranscriptionUpdate: ((String, String) -> Void)?
+
+    /// 流式识别结束回调（fullText: 完整文本）
+    var onTranscriptionComplete: ((String) -> Void)?
+
     // MARK: - 初始化
 
     private init() {
@@ -105,9 +114,117 @@ final class ASRService {
 
     /// 卸载模型
     func unloadModel() {
+        stopStreaming()
         model = nil
         isModelLoaded = false
         AppLogger.info("ASR 模型已卸载", category: .asr)
+    }
+
+    // MARK: - 流式语音识别
+
+    /// 开始流式识别
+    /// - Parameters:
+    ///   - delayPreset: 延迟预设（Realtime ~200ms, Agent ~480ms, Subtitle ~2400ms）
+    ///   - language: 语言代码（如 "Chinese", "English"）
+    ///   - temperature: 温度参数（0.0-1.0），越高越随机
+    func startStreaming(
+        delayPreset: DelayPreset = .agent,
+        language: String = "Chinese",
+        temperature: Float = 0.0
+    ) async throws {
+        guard isModelLoaded else {
+            AppLogger.error("ASR 模型未加载", category: .asr)
+            throw ASRError.modelNotLoaded
+        }
+
+        guard let model = model else {
+            AppLogger.error("ASR 模型为空", category: .asr)
+            throw ASRError.modelNotLoaded
+        }
+
+        // 停止之前的会话
+        stopStreaming()
+
+        let config = StreamingConfig(
+            decodeIntervalSeconds: 2.00,
+            delayPreset: delayPreset,
+            language: language,
+            temperature: temperature,
+            maxTokensPerPass: 20,
+            minAgreementPasses: 2,
+            finalizeCompletedWindows: false
+        )
+
+        streamingSession = StreamingInferenceSession(model: model, config: config)
+
+        AppLogger.info("开始流式识别，延迟预设: \(delayPreset)", category: .asr)
+
+        // 监听事件流
+        Task {
+            guard let session = streamingSession else { return }
+
+            for await event in session.events {
+                switch event {
+                case .provisional(let text):
+                    // 临时文本，可能还会变化
+                    AppLogger.debug("临时识别: \(text)", category: .asr)
+                    await MainActor.run {
+                        onTranscriptionUpdate?("", text)
+                    }
+                case .confirmed(let text):
+                    // 已确认文本
+                    AppLogger.debug("确认识别: \(text)", category: .asr)
+                    await MainActor.run {
+                        onTranscriptionUpdate?(text, "")
+                    }
+                case .displayUpdate(let confirmed, let provisional):
+                    // 显示更新：确认文本 + 临时文本
+                    AppLogger.debug("显示更新: 确认=\(confirmed), 临时=\(provisional)", category: .asr)
+                    await MainActor.run {
+                        onTranscriptionUpdate?(confirmed, provisional)
+                    }
+                case .stats(let stats):
+                    // 性能统计
+                    AppLogger.debug("流式统计: \(stats)", category: .asr)
+                case .ended(let fullText):
+                    // 识别结束
+                    AppLogger.info("流式识别结束: \(fullText)", category: .asr)
+                    await MainActor.run {
+                        onTranscriptionComplete?(fullText)
+                        onTranscriptionUpdate?(fullText, "")
+                    }
+                }
+            }
+        }
+    }
+
+    /// 喂入音频数据
+    /// - Parameters:
+    ///   - samples: 音频样点数组
+    ///   - sampleRate: 采样率（应为 16000）
+    func feedAudio(samples: [Float], sampleRate: Int) {
+        guard let session = streamingSession else {
+            AppLogger.warning("流式会话未启动", category: .asr)
+            return
+        }
+
+        if sampleRate != 16000 {
+            AppLogger.warning("流式识别输入采样率不是 16kHz: \(sampleRate)Hz", category: .asr)
+        }
+
+        session.feedAudio(samples: samples)
+    }
+
+    /// 停止流式识别
+    func stopStreaming() {
+        guard streamingSession != nil else {
+            return
+        }
+
+        AppLogger.info("停止流式识别", category: .asr)
+        streamingSession = nil
+        onTranscriptionUpdate = nil
+        onTranscriptionComplete = nil
     }
 
     // MARK: - 语音识别
@@ -179,14 +296,14 @@ final class ASRService {
 
 // MARK: - ASR 错误
 
-enum ASRError: LocalizedError {
+public enum ASRError: LocalizedError {
     case modelNotLoaded
     case modelLoadFailed(Error)
     case transcriptionFailed(Error)
     case invalidAudioFormat
     case runtimeUnavailable(String)
 
-    var errorDescription: String? {
+    public var errorDescription: String? {
         switch self {
         case .modelNotLoaded:
             return "ASR 模型未加载"
