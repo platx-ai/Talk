@@ -205,6 +205,10 @@ final class AudioRecorder: NSObject, @unchecked Sendable {
             selectedDeviceUID = nil
         }
 
+        // 先清理回调，避免 tap 继续喂入数据
+        onAudioData = nil
+        onAudioLevel = nil
+
         audioEngine?.stop()
         inputNode?.removeTap(onBus: 0)
         audioEngine = nil
@@ -288,6 +292,10 @@ final class AudioRecorder: NSObject, @unchecked Sendable {
             category: .audio
         )
 
+        // 先清理回调，避免 tap 继续喂入数据
+        onAudioData = nil
+        onAudioLevel = nil
+
         audioEngine?.stop()
         inputNode?.removeTap(onBus: 0)
         audioEngine = nil
@@ -328,6 +336,10 @@ final class AudioRecorder: NSObject, @unchecked Sendable {
             engineRetryCount = 0
             isRestartingEngine = false
         }
+
+        // 先清理回调，避免 tap 继续喂入数据
+        onAudioData = nil
+        onAudioLevel = nil
 
         audioEngine?.stop()
         inputNode?.removeTap(onBus: 0)
@@ -387,6 +399,10 @@ final class AudioRecorder: NSObject, @unchecked Sendable {
             engineRetryCount = 0
             isRestartingEngine = false
         }
+
+        // 先清理回调，避免 tap 继续喂入数据
+        onAudioData = nil
+        onAudioLevel = nil
 
         audioEngine?.stop()
         inputNode?.removeTap(onBus: 0)
