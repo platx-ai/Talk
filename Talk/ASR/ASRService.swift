@@ -146,13 +146,13 @@ final class ASRService {
         stopStreaming()
 
         let config = StreamingConfig(
-            decodeIntervalSeconds: 2.00,
+            decodeIntervalSeconds: 1.00,
             delayPreset: delayPreset,
             language: language,
             temperature: temperature,
             maxTokensPerPass: 20,
             minAgreementPasses: 2,
-            finalizeCompletedWindows: false
+            finalizeCompletedWindows: true
         )
 
         streamingSession = StreamingInferenceSession(model: model, config: config)
@@ -209,7 +209,7 @@ final class ASRService {
         }
 
         if sampleRate != 16000 {
-            AppLogger.warning("流式识别输入采样率不是 16kHz: \(sampleRate)Hz", category: .asr)
+            AppLogger.warning("流式识别输入采样率不是 16kHz: \(sampleRate)Hz, samples=\(samples.count)", category: .asr)
         }
 
         session.feedAudio(samples: samples)

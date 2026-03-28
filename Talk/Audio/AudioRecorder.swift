@@ -116,6 +116,7 @@ final class AudioRecorder: NSObject, @unchecked Sendable {
             let shouldAppend = self.withStateLock { self.isRecording }
             guard shouldAppend else { return }
 
+            // Store raw chunk in audioData (for final batch processing)
             self.withStateLock {
                 self.audioData.append(contentsOf: chunk)
             }
@@ -129,8 +130,29 @@ final class AudioRecorder: NSObject, @unchecked Sendable {
                 }
             }
 
-            DispatchQueue.main.async {
-                self.onAudioData?(chunk)
+            // Resample streaming chunk to targetSampleRate for ASR
+            let (sourceRate, targetRate): (Double, Double) = self.withStateLock {
+                (self.recordingSampleRate, self.targetSampleRate)
+            }
+
+            let streamingChunk: [Float]
+            if abs(sourceRate - targetRate) > 0.5 {
+                streamingChunk = self.resampleLinear(chunk, from: sourceRate, to: targetRate)
+            } else {
+                streamingChunk = chunk
+            }
+
+            // 流式识别延迟发送：录音开始后的前3秒不发送，避免开头填充词
+            let shouldSendStreamingData = self.withStateLock { () -> Bool in
+                guard let startTime = self.recordingStartTime else { return false }
+                let elapsed = Date().timeIntervalSince(startTime)
+                return elapsed >= 3.0
+            }
+
+            if shouldSendStreamingData {
+                DispatchQueue.main.async {
+                    self.onAudioData?(streamingChunk)
+                }
             }
         }
 
@@ -445,7 +467,13 @@ final class AudioRecorder: NSObject, @unchecked Sendable {
         }
     }
 
-    private func resampleLinear(_ input: [Float], from sourceRate: Double, to targetRate: Double) -> [Float] {
+    /// 线性插值重采样算法
+    /// - Parameters:
+    ///   - input: 输入音频样点
+    ///   - sourceRate: 源采样率
+    ///   - targetRate: 目标采样率
+    /// - Returns: 重采样后的音频样点
+    internal func resampleLinear(_ input: [Float], from sourceRate: Double, to targetRate: Double) -> [Float] {
         guard !input.isEmpty else { return [] }
         guard sourceRate > 0, targetRate > 0 else { return input }
         guard abs(sourceRate - targetRate) > 0.5 else { return input }
