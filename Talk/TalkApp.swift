@@ -35,6 +35,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     private var onboardingWindow: NSWindow?
     private var streamingFullText: String? = nil  // 流式识别的完整结果
     private var cumulativeConfirmedText: String = ""  // 累积的确认文本
+    private var recordingStartTime: Date? = nil  // 录音开始时间
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         Self.shared = self
@@ -252,9 +253,38 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
 
     // MARK: - 流式识别
 
-    /// 处理音频数据块（喂入流式识别）
+    /// 处理音频数据块（直接喂入流式识别，内部由 MLX 管理缓冲）
     private func handleAudioChunk(_ chunk: [Float]) {
-        ASRService.shared.feedAudio(samples: chunk, sampleRate: 16000)
+        let settings = AppSettings.load()
+
+        guard settings.enableVADFilter else {
+            ASRService.shared.feedAudio(samples: chunk, sampleRate: 16000)
+            return
+        }
+
+        let threshold = Float(settings.vadThreshold)
+        let paddingChunks = settings.vadPaddingChunks
+        Task(priority: .userInitiated) {
+            let streamResult = await VADService.shared.filterStreamingSpeechAsync(
+                samples: chunk,
+                sampleRate: 16000,
+                threshold: threshold,
+                paddingChunks: paddingChunks
+            )
+
+            await MainActor.run {
+                if !streamResult.filteredSamples.isEmpty {
+                    ASRService.shared.feedAudio(samples: streamResult.filteredSamples, sampleRate: 16000)
+                }
+
+                if streamResult.processedFrames > 0 {
+                    AppLogger.debug(
+                        "流式 VAD: in=\(chunk.count), out=\(streamResult.filteredSamples.count), frames=\(streamResult.processedFrames), speechFrames=\(streamResult.speechFrames), peakProb=\(String(format: "%.3f", streamResult.maxProbability))",
+                        category: .audio
+                    )
+                }
+            }
+        }
     }
 
     private func startRecording(trigger: String) async -> Bool {
@@ -302,6 +332,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         }
         do {
             targetApp = NSWorkspace.shared.frontmostApplication
+            VADService.shared.reset()
             // 先用 Accessibility API（不阻塞），失败则用 Cmd+C fallback
             selectedTextBeforeRecording = captureSelectedText()
             if let sel = selectedTextBeforeRecording {
@@ -315,12 +346,21 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
             // 启动流式识别（如果启用）
             streamingFullText = nil
             cumulativeConfirmedText = ""  // 重置累积文本
-            if settings.showRealtimeRecognition && ASRService.shared.isModelLoaded {
+            recordingStartTime = Date()  // 记录录音开始时间
+            if settings.enableStreamingInference {
                 do {
+                    if !ASRService.shared.isModelLoaded {
+                        let bundled = resolveBundledModelSources()
+                        try await ASRService.shared.loadModel(
+                            modelId: settings.asrModelId,
+                            bundleResourcesURL: bundled.asrBundleResourcesURL
+                        )
+                    }
                     try await ASRService.shared.startStreaming(delayPreset: .realtime)
                     ASRService.shared.onTranscriptionUpdate = { [weak self, weak statusBar] (confirmed, provisional) in
                         guard let self = self else { return }
                         Task { @MainActor in
+                            guard settings.showRealtimeRecognition else { return }
                             // 维护累积的确认文本
                             if confirmed.hasPrefix(self.cumulativeConfirmedText) {
                                 // 新的 confirmed 是旧的扩展，追加增量部分
@@ -352,6 +392,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
                     AudioRecorder.shared.onAudioData = nil
                 }
             } else {
+                ASRService.shared.stopStreaming()
                 AudioRecorder.shared.onAudioData = nil
             }
             try AudioRecorder.shared.startRecording(sampleRate: 16000)
@@ -379,6 +420,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         AudioRecorder.shared.stopRecording()
         statusBar.updateProcessingStatus(.asr)
 
+        // 清理流式识别相关状态
+        recordingStartTime = nil
+
         let audioData = AudioRecorder.shared.getCurrentAudioData()
         let duration = AudioRecorder.shared.getCurrentDuration()
         let sampleRate = AudioRecorder.shared.getCurrentSampleRate()
@@ -393,6 +437,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         // 如果流式识别已完成，使用流式结果；否则降级为批量识别
         if let fullText = streamingFullText {
             AppLogger.info("使用流式识别结果: \(fullText)", category: .ui)
+            AppLogger.info("本次已走流式识别完成路径，跳过批量 VAD 过滤", category: .audio)
             // 等待一小段时间确保流式识别完全结束
             try? await Task.sleep(for: .milliseconds(100))
             ASRService.shared.stopStreaming()
@@ -400,8 +445,48 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         } else {
             // 停止流式会话（如果已启动但未完成）
             ASRService.shared.stopStreaming()
+            let settings = AppSettings.load()
+            let vadResult: VADFilterResult
+            if settings.enableVADFilter {
+                AppLogger.info(
+                    "开始 VAD 过滤: samples=\(audioData.count), sampleRate=\(sampleRate), threshold=\(String(format: "%.2f", settings.vadThreshold)), padding=\(settings.vadPaddingChunks), minSpeech=\(settings.vadMinSpeechChunks)",
+                    category: .audio
+                )
+                vadResult = VADService.shared.filterSpeech(
+                    audio: audioData,
+                    sampleRate: sampleRate,
+                    threshold: Float(settings.vadThreshold),
+                    paddingChunks: settings.vadPaddingChunks,
+                    minSpeechChunks: settings.vadMinSpeechChunks
+                )
+                AppLogger.info(
+                    "VAD 过滤完成: speechDetected=\(vadResult.speechDetected), outputSamples=\(vadResult.speechAudio.count), peakProb=\(String(format: "%.3f", vadResult.maxProbability))",
+                    category: .audio
+                )
+            } else {
+                AppLogger.info("VAD 已关闭，直接使用原始音频", category: .audio)
+                vadResult = VADFilterResult(
+                    speechAudio: audioData,
+                    speechDetected: true,
+                    maxProbability: 1
+                )
+            }
+            guard vadResult.speechDetected else {
+                statusBar.updateProcessingStatus(.idle)
+                statusBar.showNotification(title: "未检测到语音", message: "请重试并靠近麦克风")
+                AppLogger.info("VAD 判定为无语音，跳过 ASR", category: .audio)
+                return false
+            }
+
+            if vadResult.speechAudio.count != audioData.count {
+                AppLogger.info(
+                    "VAD 过滤完成: \(audioData.count) -> \(vadResult.speechAudio.count) 样点, 峰值概率=\(String(format: "%.3f", vadResult.maxProbability))",
+                    category: .audio
+                )
+            }
+
             // 使用批量识别
-            await processAudio(audio: audioData, duration: duration, sampleRate: sampleRate)
+            await processAudio(audio: vadResult.speechAudio, duration: duration, sampleRate: sampleRate)
         }
 
         return true

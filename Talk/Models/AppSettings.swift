@@ -208,7 +208,12 @@ final class AppSettings {
     }
 
     var asrLanguage: ASRLanguage = .auto { didSet { autoSave() } }
-    var showRealtimeRecognition: Bool = true { didSet { autoSave() } }
+    var enableStreamingInference: Bool = false { didSet { autoSave() } }
+    var showRealtimeRecognition: Bool = false { didSet { autoSave() } }
+    var enableVADFilter: Bool = true { didSet { autoSave() } }
+    var vadThreshold: Double = 0.5 { didSet { autoSave() } }
+    var vadPaddingChunks: Int = 1 { didSet { autoSave() } }
+    var vadMinSpeechChunks: Int = 2 { didSet { autoSave() } }
 
     // MARK: - LLM 设置
 
@@ -368,7 +373,19 @@ extension AppSettings {
            let language = ASRLanguage(rawValue: lang) {
             self.asrLanguage = language
         }
-        self.showRealtimeRecognition = boolValue("showRealtimeRecognition", default: true)
+        if defaults.object(forKey: "enableStreamingInference") != nil {
+            self.enableStreamingInference = boolValue("enableStreamingInference", default: false)
+        } else {
+            // 兼容旧版本：未配置新开关时沿用原"实时显示识别结果"的值
+            self.enableStreamingInference = boolValue("showRealtimeRecognition", default: false)
+        }
+        self.showRealtimeRecognition = boolValue("showRealtimeRecognition", default: false)
+        self.enableVADFilter = boolValue("enableVADFilter", default: true)
+        if defaults.object(forKey: "vadThreshold") != nil {
+            self.vadThreshold = defaults.double(forKey: "vadThreshold")
+        }
+        self.vadPaddingChunks = defaults.integer(forKey: "vadPaddingChunks") != 0 ? defaults.integer(forKey: "vadPaddingChunks") : 1
+        self.vadMinSpeechChunks = defaults.integer(forKey: "vadMinSpeechChunks") != 0 ? defaults.integer(forKey: "vadMinSpeechChunks") : 2
 
         self.llmModelId = defaults.string(forKey: "llmModelId") ?? "mlx-community/Qwen3-4B-Instruct-2507-4bit"
         if let intensity = defaults.string(forKey: "polishIntensity"),
@@ -448,7 +465,12 @@ extension AppSettings {
 
         defaults.set(asrModelId, forKey: "asrModelId")
         defaults.set(asrLanguage.rawValue, forKey: "asrLanguage")
+        defaults.set(enableStreamingInference, forKey: "enableStreamingInference")
         defaults.set(showRealtimeRecognition, forKey: "showRealtimeRecognition")
+        defaults.set(enableVADFilter, forKey: "enableVADFilter")
+        defaults.set(vadThreshold, forKey: "vadThreshold")
+        defaults.set(vadPaddingChunks, forKey: "vadPaddingChunks")
+        defaults.set(vadMinSpeechChunks, forKey: "vadMinSpeechChunks")
 
         defaults.set(llmModelId, forKey: "llmModelId")
         defaults.set(polishIntensity.rawValue, forKey: "polishIntensity")

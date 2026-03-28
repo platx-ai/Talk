@@ -172,6 +172,7 @@ private struct HistoryRow: View {
 
     private func modelShortName(_ modelId: String) -> String {
         if modelId.contains("Qwen3-4B") { return "Qwen3-4B" }
+        if modelId.contains("Qwen3.5-2B") {return "Qwen3.5-2B"}
         if modelId.contains("Qwen3-2B") { return "Qwen3-2B" }
         if modelId.contains("ASR-0.6B") { return "Qwen3-ASR" }
         return modelId

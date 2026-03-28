@@ -150,10 +150,54 @@ private struct ASRSettingsTab: View {
                 }
                 .onChange(of: settings.asrLanguage) { _ in ToastManager.shared.show("已保存") }
 
-                Toggle("实时显示识别结果", isOn: $settings.showRealtimeRecognition)
+                Toggle("启用流式识别（边录边出字）", isOn: $settings.enableStreamingInference)
+                    .onChange(of: settings.enableStreamingInference) { _ in ToastManager.shared.show("已保存") }
+
+                Toggle("显示实时识别文字（仅流式模式）", isOn: $settings.showRealtimeRecognition)
+                    .disabled(!settings.enableStreamingInference)
                     .onChange(of: settings.showRealtimeRecognition) { _ in ToastManager.shared.show("已保存") }
             } header: {
                 Text("语音识别设置")
+            }
+
+            Section {
+                Toggle("启用静音过滤（Silero VAD）", isOn: $settings.enableVADFilter)
+                    .onChange(of: settings.enableVADFilter) { _ in ToastManager.shared.show("已保存") }
+
+                if settings.enableVADFilter {
+                    HStack {
+                        Text("语音阈值")
+                        Spacer()
+                        Text(String(format: "%.2f", settings.vadThreshold))
+                            .foregroundColor(.secondary)
+                    }
+                    Slider(value: $settings.vadThreshold, in: 0.1...0.9, step: 0.05)
+                        .onChange(of: settings.vadThreshold) { _ in ToastManager.shared.show("已保存") }
+
+                    HStack {
+                        Text("前后补偿帧")
+                        Spacer()
+                        Stepper("\(settings.vadPaddingChunks)",
+                                value: $settings.vadPaddingChunks,
+                                in: 0...8)
+                    }
+                    .onChange(of: settings.vadPaddingChunks) { _ in ToastManager.shared.show("已保存") }
+
+                    HStack {
+                        Text("最少语音帧")
+                        Spacer()
+                        Stepper("\(settings.vadMinSpeechChunks)",
+                                value: $settings.vadMinSpeechChunks,
+                                in: 1...16)
+                    }
+                    .onChange(of: settings.vadMinSpeechChunks) { _ in ToastManager.shared.show("已保存") }
+                }
+
+                Text("开启后会在批量识别前过滤静音，减少空白输入。阈值越高越严格。")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+            } header: {
+                Text("静音检测（VAD）")
             }
         }
         .formStyle(.grouped)
