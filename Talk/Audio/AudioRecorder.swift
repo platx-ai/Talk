@@ -84,6 +84,15 @@ final class AudioRecorder: NSObject, @unchecked Sendable {
             recordingSampleRate = inputFormat.sampleRate
         }
 
+        // Capture rates once here — they are fixed for the duration of this engine session.
+        // Avoid re-reading them inside the hot tap callback.
+        let tapSrcRate = inputFormat.sampleRate
+        let tapTgtRate: Double = withStateLock { targetSampleRate }
+        let tapNeedsResample = abs(tapSrcRate - tapTgtRate) > 0.5
+        // Closure-local flag: tap callbacks are serialized on the audio render thread,
+        // so a plain Bool is safe without a lock.
+        var tapHasLoggedResample = false
+
         input.installTap(
             onBus: 0,
             bufferSize: 1024,
@@ -129,8 +138,29 @@ final class AudioRecorder: NSObject, @unchecked Sendable {
                 }
             }
 
+            // Resample chunk to targetSampleRate before streaming to ASR.
+            // The raw tap runs at the device's native hardware rate (e.g. 48 kHz),
+            // but ASR expects 16 kHz.  Only the stopRecording() path resampled
+            // previously; now we also resample here so onAudioData always emits
+            // samples at targetSampleRate.
+            let streamingChunk: [Float]
+            if tapNeedsResample {
+                streamingChunk = self.resampleLinear(chunk, from: tapSrcRate, to: tapTgtRate)
+                // Log once per tap installation to confirm resampling is active.
+                if !tapHasLoggedResample {
+                    tapHasLoggedResample = true
+                    AppLogger.debug(
+                        "流式重采样已启动: \(Int(tapSrcRate))Hz -> \(Int(tapTgtRate))Hz，"
+                        + "首块原始 \(chunk.count) 样点 -> 重采样后 \(streamingChunk.count) 样点",
+                        category: .audio
+                    )
+                }
+            } else {
+                streamingChunk = chunk
+            }
+
             DispatchQueue.main.async {
-                self.onAudioData?(chunk)
+                self.onAudioData?(streamingChunk)
             }
         }
 

@@ -253,6 +253,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     // MARK: - 流式识别
 
     /// 处理音频数据块（喂入流式识别）
+    /// AudioRecorder 已将数据块重采样至 targetSampleRate（16000 Hz），直接喂入 ASR。
     private func handleAudioChunk(_ chunk: [Float]) {
         ASRService.shared.feedAudio(samples: chunk, sampleRate: 16000)
     }
