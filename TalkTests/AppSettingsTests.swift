@@ -21,7 +21,12 @@ struct AppSettingsTests {
         #expect(settings.silenceTimeout == 0)
         #expect(settings.sampleRate == 16000)
         #expect(settings.asrLanguage == .auto)
-        #expect(settings.showRealtimeRecognition == true)
+        #expect(settings.enableStreamingInference == false)
+        #expect(settings.showRealtimeRecognition == false)
+        #expect(settings.enableVADFilter == true)
+        #expect(settings.vadThreshold == 0.5)
+        #expect(settings.vadPaddingChunks == 1)
+        #expect(settings.vadMinSpeechChunks == 2)
         #expect(settings.polishIntensity == .medium)
         #expect(settings.conversationHistoryRounds == 5)
         #expect(settings.enableConversationHistory == true)
@@ -43,22 +48,42 @@ struct AppSettingsTests {
         let origTrigger = shared.recordingTriggerMode
         let origIntensity = shared.polishIntensity
         let origSampleRate = shared.sampleRate
+        let origEnableStreamingInference = shared.enableStreamingInference
+        let origEnableVADFilter = shared.enableVADFilter
+        let origVADThreshold = shared.vadThreshold
+        let origVADPaddingChunks = shared.vadPaddingChunks
+        let origVADMinSpeechChunks = shared.vadMinSpeechChunks
 
         // Modify and save (autoSave via didSet)
         shared.recordingTriggerMode = .toggle
         shared.polishIntensity = .strong
         shared.sampleRate = 44100
+        shared.enableStreamingInference = false
+        shared.enableVADFilter = false
+        shared.vadThreshold = 0.65
+        shared.vadPaddingChunks = 3
+        shared.vadMinSpeechChunks = 4
 
         // Reload from UserDefaults to verify persistence
         shared.loadFromDefaults()
         #expect(shared.recordingTriggerMode == .toggle)
         #expect(shared.polishIntensity == .strong)
         #expect(shared.sampleRate == 44100)
+        #expect(shared.enableStreamingInference == false)
+        #expect(shared.enableVADFilter == false)
+        #expect(shared.vadThreshold == 0.65)
+        #expect(shared.vadPaddingChunks == 3)
+        #expect(shared.vadMinSpeechChunks == 4)
 
         // Restore
         shared.recordingTriggerMode = origTrigger
         shared.polishIntensity = origIntensity
         shared.sampleRate = origSampleRate
+        shared.enableStreamingInference = origEnableStreamingInference
+        shared.enableVADFilter = origEnableVADFilter
+        shared.vadThreshold = origVADThreshold
+        shared.vadPaddingChunks = origVADPaddingChunks
+        shared.vadMinSpeechChunks = origVADMinSpeechChunks
     }
 
     // MARK: - Reset

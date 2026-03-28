@@ -71,7 +71,7 @@ final class FloatingIndicatorWindow {
 
         let hostingView = NSHostingView(rootView: wrappedView)
 
-        let panelWidth: CGFloat = 260
+        let panelWidth: CGFloat = 400
         let panelHeight: CGFloat = 80
 
         // 屏幕上边沿、左右居中，紧贴刘海下方
@@ -283,7 +283,7 @@ struct FloatingIndicatorContentView: View {
                     }
                 }
             } else {
-                Text(String(state.realtimeText.suffix(10)))
+                Text(String(state.realtimeText.suffix(15)))
                     .font(.system(size: 12, weight: .medium))
                     .foregroundStyle(.primary)
             }

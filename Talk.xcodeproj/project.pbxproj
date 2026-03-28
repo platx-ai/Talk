@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		AD1AC2C82F78260800C586CC /* SileroVAD in Frameworks */ = {isa = PBXBuildFile; productRef = AD1AC2C72F78260800C586CC /* SileroVAD */; };
 		AD9ECD012F6C557100468229 /* MLX in Frameworks */ = {isa = PBXBuildFile; productRef = AD9ECCF52F6C557100468229 /* MLX */; };
 		AD9ECD032F6C557100468229 /* MLXLLM in Frameworks */ = {isa = PBXBuildFile; productRef = AD9ECCF72F6C557100468229 /* MLXLLM */; };
 		AD9ECD042F6C557100468229 /* MLXLMCommon in Frameworks */ = {isa = PBXBuildFile; productRef = AD9ECCF82F6C557100468229 /* MLXLMCommon */; };
@@ -50,6 +51,7 @@
 			files = (
 				AD9ECD012F6C557100468229 /* MLX in Frameworks */,
 				AD9ECD032F6C557100468229 /* MLXLLM in Frameworks */,
+				AD1AC2C82F78260800C586CC /* SileroVAD in Frameworks */,
 				AD9ECD042F6C557100468229 /* MLXLMCommon in Frameworks */,
 				AD9ECD052F6C557100468229 /* MLXAudioSTT in Frameworks */,
 				AD9ECD062F6C557100468229 /* MLXAudioCore in Frameworks */,
@@ -112,6 +114,7 @@
 				AD9ECCF92F6C557100468229 /* MLXAudioSTT */,
 				AD9ECCFA2F6C557100468229 /* MLXAudioCore */,
 				AD9ECCFB2F6C557100468229 /* HuggingFace */,
+				AD1AC2C72F78260800C586CC /* SileroVAD */,
 			);
 			productName = Talk;
 			productReference = AD9ECCC62F6C557100468229 /* Talk.app */;
@@ -171,6 +174,7 @@
 				AD9ECCF22F6C557100468229 /* XCRemoteSwiftPackageReference "mlx-swift-lm" */,
 				AD9ECCF32F6C557100468229 /* XCRemoteSwiftPackageReference "mlx-audio-swift" */,
 				AD9ECCF42F6C557100468229 /* XCRemoteSwiftPackageReference "swift-huggingface" */,
+				AD1AC2C62F78260800C586CC /* XCLocalSwiftPackageReference "../MLX/silero-vad-swift" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = AD9ECCC72F6C557100468229 /* Products */;
@@ -383,7 +387,7 @@
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = "";
+				DEVELOPMENT_TEAM = FF6NS9F6UU;
 				ENABLE_APP_SANDBOX = NO;
 				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_PREVIEWS = YES;
@@ -433,7 +437,7 @@
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = "";
+				DEVELOPMENT_TEAM = FF6NS9F6UU;
 				ENABLE_APP_SANDBOX = NO;
 				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_PREVIEWS = YES;
@@ -547,6 +551,13 @@
 		};
 /* End XCConfigurationList section */
 
+/* Begin XCLocalSwiftPackageReference section */
+		AD1AC2C62F78260800C586CC /* XCLocalSwiftPackageReference "../MLX/silero-vad-swift" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = "../MLX/silero-vad-swift";
+		};
+/* End XCLocalSwiftPackageReference section */
+
 /* Begin XCRemoteSwiftPackageReference section */
 		AD9ECCF12F6C557100468229 /* XCRemoteSwiftPackageReference "mlx-swift" */ = {
 			isa = XCRemoteSwiftPackageReference;
@@ -583,6 +594,10 @@
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
+		AD1AC2C72F78260800C586CC /* SileroVAD */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = SileroVAD;
+		};
 		AD9ECCF52F6C557100468229 /* MLX */ = {
 			isa = XCSwiftPackageProductDependency;
 			package = AD9ECCF12F6C557100468229 /* XCRemoteSwiftPackageReference "mlx-swift" */;
