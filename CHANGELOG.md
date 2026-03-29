@@ -2,6 +2,27 @@
 
 All notable changes to Talk are documented here.
 
+## [0.2.5] - 2026-03-29
+
+### Added
+- **Streaming ASR** — real-time transcription while recording ("边录边出字"), toggle in Settings → ASR
+- **Silero VAD** — voice activity detection filters silence, improves ASR accuracy
+- **Toast feedback** — settings changes show brief "已保存" confirmation
+- **Clipboard-only output mode** — Settings → Output → "仅复制到剪贴板"
+
+### Fixed
+- **Trigger mode switch** — push-to-talk / toggle now takes effect immediately without restart
+- **VAD model bundled** — Silero VAD CoreML model (904KB) included in app, no more "model not found" errors
+- **Streaming ASR garbled text** — real-time audio resampling (48kHz→16kHz) + 3s startup delay
+- **silero-vad-swift** — converted from broken local path to remote SPM (paean-ai/silero-vad-swift)
+- **3 upstream test failures** — resample rounding, MainActor isolation, singleton state leakage
+- **Output tab clarity** — removed unimplemented options, only working modes shown with explanations
+- **LLM settings auto-save** — llmModelId was missing didSet { autoSave() }
+
+### Changed
+- 94 unit tests (up from 58)
+- Removed committed .vscode/settings.json
+
 ## [0.2.4] - 2026-03-26
 
 ### Added
