@@ -174,7 +174,7 @@
 				AD9ECCF22F6C557100468229 /* XCRemoteSwiftPackageReference "mlx-swift-lm" */,
 				AD9ECCF32F6C557100468229 /* XCRemoteSwiftPackageReference "mlx-audio-swift" */,
 				AD9ECCF42F6C557100468229 /* XCRemoteSwiftPackageReference "swift-huggingface" */,
-				AD1AC2C62F78260800C586CC /* XCLocalSwiftPackageReference "../MLX/silero-vad-swift" */,
+				AD1AC2C62F78260800C586CC /* XCRemoteSwiftPackageReference "silero-vad-swift" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = AD9ECCC72F6C557100468229 /* Products */;
@@ -551,14 +551,15 @@
 		};
 /* End XCConfigurationList section */
 
-/* Begin XCLocalSwiftPackageReference section */
-		AD1AC2C62F78260800C586CC /* XCLocalSwiftPackageReference "../MLX/silero-vad-swift" */ = {
-			isa = XCLocalSwiftPackageReference;
-			relativePath = "../MLX/silero-vad-swift";
-		};
-/* End XCLocalSwiftPackageReference section */
-
 /* Begin XCRemoteSwiftPackageReference section */
+		AD1AC2C62F78260800C586CC /* XCRemoteSwiftPackageReference "silero-vad-swift" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/paean-ai/silero-vad-swift.git";
+			requirement = {
+				kind = revision;
+				revision = 9f03b552e8131b37498495cbc6f0a6e2a47e58c8;
+			};
+		};
 		AD9ECCF12F6C557100468229 /* XCRemoteSwiftPackageReference "mlx-swift" */ = {
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/ml-explore/mlx-swift.git";
@@ -596,6 +597,7 @@
 /* Begin XCSwiftPackageProductDependency section */
 		AD1AC2C72F78260800C586CC /* SileroVAD */ = {
 			isa = XCSwiftPackageProductDependency;
+			package = AD1AC2C62F78260800C586CC /* XCRemoteSwiftPackageReference "silero-vad-swift" */;
 			productName = SileroVAD;
 		};
 		AD9ECCF52F6C557100468229 /* MLX */ = {
