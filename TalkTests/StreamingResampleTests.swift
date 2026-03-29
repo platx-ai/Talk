@@ -185,8 +185,8 @@ struct StreamingResampleTests {
         // 重采样到 16kHz
         let chunk16k = recorder.resampleLinear(chunk44k1, from: 44100.0, to: 16000.0)
 
-        // 1024 * (16000 / 44100) ≈ 371 样点
-        let expectedCount = 371
+        // 1024 * (16000 / 44100) ≈ 371.5 → rounded = 372
+        let expectedCount = Int((Double(1024) * 16000.0 / 44100.0).rounded())
         #expect(chunk16k.count == expectedCount, "44.1kHz chunk 应重采样到 \(expectedCount) 样点，实际: \(chunk16k.count)")
     }
 
