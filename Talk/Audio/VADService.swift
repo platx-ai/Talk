@@ -49,6 +49,7 @@ final class VADService {
     private var streamingPreviousSpeechState: Bool?
     private var streamingFrameIndex = 0
     private var didLogStreamingSampleRateMismatch = false
+    private var isVADUnavailable = false
 
     private init() {}
 
@@ -117,6 +118,15 @@ final class VADService {
                 )
                 didLogStreamingSampleRateMismatch = true
             }
+            return StreamingVADResult(
+                filteredSamples: samples,
+                processedFrames: 0,
+                speechFrames: 0,
+                maxProbability: 1
+            )
+        }
+
+        if isVADUnavailable {
             return StreamingVADResult(
                 filteredSamples: samples,
                 processedFrames: 0,
@@ -196,7 +206,9 @@ final class VADService {
                 maxProbability: maxProbability
             )
         } catch {
-            AppLogger.warning("流式 VAD 推理失败，回退为原始音频: \(error.localizedDescription)", category: .audio)
+            if !isVADUnavailable {
+                AppLogger.warning("流式 VAD 推理失败，回退为原始音频: \(error.localizedDescription)", category: .audio)
+            }
             return StreamingVADResult(
                 filteredSamples: samples,
                 processedFrames: 0,
@@ -280,6 +292,10 @@ final class VADService {
             return VADFilterResult(speechAudio: audio, speechDetected: true, maxProbability: 1)
         }
 
+        if isVADUnavailable {
+            return VADFilterResult(speechAudio: audio, speechDetected: true, maxProbability: 1)
+        }
+
         do {
             let vad = try ensureVADLoaded()
             vad.reset()
@@ -305,7 +321,9 @@ final class VADService {
                 maxProbability: maxProbability
             )
         } catch {
-            AppLogger.warning("VAD 推理失败，回退为原始音频: \(error.localizedDescription)", category: .audio)
+            if !isVADUnavailable {
+                AppLogger.warning("VAD 推理失败，回退为原始音频: \(error.localizedDescription)", category: .audio)
+            }
             return VADFilterResult(speechAudio: audio, speechDetected: true, maxProbability: 1)
         }
     }
@@ -315,10 +333,27 @@ final class VADService {
             return vad
         }
 
-        let loaded = try SileroVAD()
-        vad = loaded
-        AppLogger.info("Silero VAD 初始化完成", category: .audio)
-        return loaded
+        do {
+            let loaded = try SileroVAD()
+            vad = loaded
+            AppLogger.info("Silero VAD 初始化完成", category: .audio)
+            return loaded
+        } catch {
+            if Self.isMissingVADModelError(error) {
+                isVADUnavailable = true
+                AppLogger.warning(
+                    "Silero VAD 模型资源缺失（silero_vad.mlmodelc），已自动关闭 VAD 推理并回退原始音频。请检查 SileroVAD 资源是否被正确打包到 App Bundle。",
+                    category: .audio
+                )
+            }
+            throw error
+        }
+    }
+
+    internal static func isMissingVADModelError(_ error: Error) -> Bool {
+        let message = error.localizedDescription.lowercased()
+        return message.contains("silero_vad.mlmodelc") ||
+            (message.contains("coreml") && message.contains("not found") && message.contains("bundle"))
     }
 
     internal static func extractSpeech(
