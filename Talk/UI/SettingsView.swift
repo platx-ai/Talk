@@ -58,7 +58,10 @@ private struct RecordingSettingsTab: View {
                         Text(mode.displayName).tag(mode)
                     }
                 }
-                .onChange(of: settings.recordingTriggerMode) { ToastManager.shared.show("已保存") }
+                .onChange(of: settings.recordingTriggerMode) {
+                    AppDelegate.shared?.applyHotKey(settings.recordingHotkey, triggerMode: settings.recordingTriggerMode)
+                    ToastManager.shared.show("已保存")
+                }
 
                 KeyRecorderView(hotkey: $settings.recordingHotkey) { newCombo in
                     settings.recordingHotkey = newCombo
@@ -449,31 +452,14 @@ private struct OutputSettingsTab: View {
         Form {
             Section {
                 Picker("输出方式", selection: $settings.outputMethod) {
-                    ForEach(AppSettings.OutputMethod.allCases, id: \.self) { method in
-                        Text(method.displayName).tag(method)
-                    }
+                    Text("自动粘贴到当前应用").tag(AppSettings.OutputMethod.autoPaste)
+                    Text("仅复制到剪贴板").tag(AppSettings.OutputMethod.clipboardOnly)
                 }
                 .onChange(of: settings.outputMethod) { _ in ToastManager.shared.show("已保存") }
 
-                Picker("输出时机", selection: $settings.outputDelay) {
-                    ForEach(AppSettings.OutputDelay.allCases, id: \.self) { delay in
-                        Text(delay.displayName).tag(delay)
-                    }
-                }
-                .onChange(of: settings.outputDelay) { _ in ToastManager.shared.show("已保存") }
-
-                if settings.outputDelay == .custom {
-                    HStack {
-                        Text("延迟")
-                        Stepper("\(settings.customOutputDelay)秒",
-                                value: $settings.customOutputDelay,
-                                in: 1...10)
-                    }
-                    .onChange(of: settings.customOutputDelay) { _ in ToastManager.shared.show("已保存") }
-                }
-
-                Toggle("输出前预览", isOn: $settings.showPreviewBeforeOutput)
-                    .onChange(of: settings.showPreviewBeforeOutput) { _ in ToastManager.shared.show("已保存") }
+                Text("自动粘贴：润色完成后模拟 Cmd+V 粘贴到前台应用。仅剪贴板：结果只放入剪贴板，需手动粘贴。")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
             } header: {
                 Text("输出设置")
             }
