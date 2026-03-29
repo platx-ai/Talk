@@ -12,6 +12,11 @@ import Foundation
 @Suite("VAD Service Tests")
 struct VADServiceTests {
 
+    private struct MockError: LocalizedError {
+        let message: String
+        var errorDescription: String? { message }
+    }
+
     @Test("splitIntoChunks 会按固定大小切分并补零")
     func splitIntoChunksPadsLastChunk() {
         let audio: [Float] = [1, 2, 3, 4, 5]
@@ -136,5 +141,16 @@ struct VADServiceTests {
 
         #expect(output == silence)
         #expect(next.hangoverFrames == 0)
+    }
+
+    @Test("VAD 缺模型错误识别")
+    func missingModelErrorDetection() {
+        let missingModelError = MockError(
+            message: "SileroVAD: CoreML model file (silero_vad.mlmodelc) not found in bundle."
+        )
+        let otherError = MockError(message: "network timeout")
+
+        #expect(VADService.isMissingVADModelError(missingModelError) == true)
+        #expect(VADService.isMissingVADModelError(otherError) == false)
     }
 }
