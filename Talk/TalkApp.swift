@@ -529,12 +529,20 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
                 AppLogger.info("LLM 润色完成: \(polishedText)", category: .general)
 
                 statusBar.updateProcessingStatus(.outputting)
-                if let target = self.targetApp {
-                    target.activate(options: .activateIgnoringOtherApps)
-                    try await Task.sleep(for: .milliseconds(400))
-                }
 
-                try await TextInjector.shared.inject(polishedText)
+                if settings.outputMethod == .clipboardOnly {
+                    // 仅复制到剪贴板
+                    NSPasteboard.general.clearContents()
+                    NSPasteboard.general.setString(polishedText, forType: .string)
+                    AppLogger.info("结果已复制到剪贴板", category: .ui)
+                } else {
+                    // 自动粘贴
+                    if let target = self.targetApp {
+                        target.activate(options: .activateIgnoringOtherApps)
+                        try await Task.sleep(for: .milliseconds(400))
+                    }
+                    try await TextInjector.shared.inject(polishedText)
+                }
 
                 let historyItem = HistoryItem(
                     duration: duration, rawText: text, polishedText: polishedText,
@@ -599,12 +607,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
                 AppLogger.info("LLM 润色完成: \(polishedText)", category: .general)
 
                 statusBar.updateProcessingStatus(.outputting)
-                if let target = self.targetApp {
-                    target.activate(options: .activateIgnoringOtherApps)
-                    try await Task.sleep(for: .milliseconds(400))
-                }
 
-                try await TextInjector.shared.inject(polishedText)
+                if settings.outputMethod == .clipboardOnly {
+                    NSPasteboard.general.clearContents()
+                    NSPasteboard.general.setString(polishedText, forType: .string)
+                    AppLogger.info("结果已复制到剪贴板（流式模式）", category: .ui)
+                } else {
+                    if let target = self.targetApp {
+                        target.activate(options: .activateIgnoringOtherApps)
+                        try await Task.sleep(for: .milliseconds(400))
+                    }
+                    try await TextInjector.shared.inject(polishedText)
+                }
 
                 let historyItem = HistoryItem(
                     duration: duration, rawText: rawText, polishedText: polishedText,
