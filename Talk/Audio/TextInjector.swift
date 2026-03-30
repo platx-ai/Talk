@@ -71,12 +71,47 @@ final class TextInjector {
     }
 
     private func injectViaClipboard(_ text: String) async throws {
-        NSPasteboard.general.clearContents()
-        NSPasteboard.general.setString(text, forType: .string)
+        let pasteboard = NSPasteboard.general
+
+        // 备份当前剪贴板内容
+        let backup = backupPasteboard(pasteboard)
+
+        // 写入要注入的文本
+        pasteboard.clearContents()
+        pasteboard.setString(text, forType: .string)
 
         try await Task.sleep(for: .milliseconds(100))
 
         simulatePaste()
+
+        // 等粘贴完成后恢复剪贴板
+        try await Task.sleep(for: .milliseconds(300))
+        restorePasteboard(pasteboard, from: backup)
+    }
+
+    // MARK: - 剪贴板备份/恢复
+
+    private func backupPasteboard(_ pasteboard: NSPasteboard) -> [(NSPasteboard.PasteboardType, Data)] {
+        var backup: [(NSPasteboard.PasteboardType, Data)] = []
+        for item in pasteboard.pasteboardItems ?? [] {
+            for type in item.types {
+                if let data = item.data(forType: type) {
+                    backup.append((type, data))
+                }
+            }
+        }
+        return backup
+    }
+
+    private func restorePasteboard(_ pasteboard: NSPasteboard, from backup: [(NSPasteboard.PasteboardType, Data)]) {
+        guard !backup.isEmpty else { return }
+        pasteboard.clearContents()
+        let item = NSPasteboardItem()
+        for (type, data) in backup {
+            item.setData(data, forType: type)
+        }
+        pasteboard.writeObjects([item])
+        AppLogger.debug("剪贴板已恢复", category: .ui)
     }
 
     private func injectViaAccessibility(_ text: String) async throws {
