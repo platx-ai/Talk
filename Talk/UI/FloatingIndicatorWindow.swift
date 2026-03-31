@@ -262,7 +262,7 @@ struct FloatingIndicatorContentView: View {
     private var textView: some View {
         switch state.phase {
         case .loadingModel:
-            Text("加载模型中...")
+            Text(String(localized: "加载模型中..."))
                 .font(.system(size: 12, weight: .medium))
                 .foregroundStyle(.primary)
         case .recording(let startDate, let isEditMode):
@@ -273,7 +273,7 @@ struct FloatingIndicatorContentView: View {
                     let seconds = Int(elapsed) % 60
                     HStack(spacing: 4) {
                         if isEditMode {
-                            Text("编辑")
+                            Text(String(localized: "编辑"))
                                 .font(.system(size: 11, weight: .medium))
                                 .foregroundStyle(.orange)
                         }
@@ -289,7 +289,7 @@ struct FloatingIndicatorContentView: View {
             }
         case .recognizing:
             if state.realtimeText.isEmpty {
-                Text("识别中...")
+                Text(String(localized: "识别中..."))
                     .font(.system(size: 12, weight: .medium))
                     .foregroundStyle(.primary)
             } else {
@@ -298,15 +298,15 @@ struct FloatingIndicatorContentView: View {
                     .foregroundStyle(.primary)
             }
         case .polishing:
-            Text("润色中...")
+            Text(String(localized: "润色中..."))
                 .font(.system(size: 12, weight: .medium))
                 .foregroundStyle(.primary)
         case .outputting:
-            Text("输出中...")
+            Text(String(localized: "输出中..."))
                 .font(.system(size: 12, weight: .medium))
                 .foregroundStyle(.primary)
         case .done:
-            Text("完成")
+            Text(String(localized: "完成"))
                 .font(.system(size: 12, weight: .medium))
                 .foregroundStyle(.primary)
         }

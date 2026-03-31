@@ -120,7 +120,7 @@ final class LocalTypeMenuBar {
                 backing: .buffered,
                 defer: false
             )
-            settingsWindow?.title = "设置"
+            settingsWindow?.title = String(localized: "设置")
             settingsWindow?.contentViewController = NSHostingController(rootView: settingsView)
             settingsWindow?.center()
             settingsWindow?.isReleasedWhenClosed = false
@@ -140,7 +140,7 @@ final class LocalTypeMenuBar {
                 backing: .buffered,
                 defer: false
             )
-            historyWindow?.title = "历史记录"
+            historyWindow?.title = String(localized: "历史记录")
             historyWindow?.contentViewController = NSHostingController(rootView: historyView)
             historyWindow?.center()
             historyWindow?.isReleasedWhenClosed = false

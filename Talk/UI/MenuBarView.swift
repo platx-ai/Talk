@@ -18,12 +18,12 @@ struct MenuBarView: View {
         Menu {
             Section {
                 Button(action: startRecording) {
-                    Label("开始录音", systemImage: "mic.fill")
+                    Label(String(localized: "开始录音"), systemImage: "mic.fill")
                 }
                 .disabled(viewModel.isRecording)
 
                 Button(action: stopRecording) {
-                    Label("停止录音", systemImage: "stop.circle.fill")
+                    Label(String(localized: "停止录音"), systemImage: "stop.circle.fill")
                 }
                 .disabled(!viewModel.isRecording)
 
@@ -35,24 +35,24 @@ struct MenuBarView: View {
 
             Section {
                 Button(action: onOpenHistory) {
-                    Label("历史记录", systemImage: "clock.arrow.circlepath")
+                    Label(String(localized: "历史记录"), systemImage: "clock.arrow.circlepath")
                 }
             }
 
             Section {
                 Button(action: onOpenSettings) {
-                    Label("设置...", systemImage: "gearshape.fill")
+                    Label(String(localized: "设置..."), systemImage: "gearshape.fill")
                 }
 
                 Button(action: clearHistory) {
-                    Label("清空历史", systemImage: "trash.fill")
+                    Label(String(localized: "清空历史"), systemImage: "trash.fill")
                 }
             }
 
             Divider()
 
             Button(action: quitApp) {
-                Label("退出 Talk", systemImage: "power")
+                Label(String(localized: "退出 Talk"), systemImage: "power")
             }
         } label: {
             if viewModel.isRecording {
@@ -114,6 +114,10 @@ class MenuViewModel: ObservableObject {
         case asr = "识别中..."
         case polishing = "润色中..."
         case outputting = "输出中..."
+
+        var localizedName: String {
+            String(localized: String.LocalizationValue(rawValue))
+        }
     }
 
     var onOpenSettings: () -> Void = {}

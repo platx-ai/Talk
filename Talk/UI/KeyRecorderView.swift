@@ -25,7 +25,7 @@ struct KeyRecorderView: View {
 
     var body: some View {
         HStack {
-            Text("快捷键")
+            Text(String(localized: "快捷键"))
             Spacer()
 
             switch state {
@@ -33,7 +33,7 @@ struct KeyRecorderView: View {
                 Text(hotkey.displayString)
                     .foregroundStyle(.secondary)
                     .frame(minWidth: 100, alignment: .trailing)
-                Button("录制") {
+                Button(String(localized: "录制")) {
                     state = .recording
                 }
 
@@ -43,11 +43,11 @@ struct KeyRecorderView: View {
                 }
                 .frame(width: 180, height: 24)
                 .overlay(
-                    Text("请按下快捷键...")
+                    Text(String(localized: "请按下快捷键..."))
                         .foregroundStyle(.secondary)
                         .allowsHitTesting(false)
                 )
-                Button("取消") {
+                Button(String(localized: "取消")) {
                     state = .display
                 }
 
@@ -55,12 +55,12 @@ struct KeyRecorderView: View {
                 Text(combo.displayString)
                     .foregroundStyle(.primary)
                     .frame(minWidth: 100, alignment: .trailing)
-                Button("保存") {
+                Button(String(localized: "保存")) {
                     hotkey = combo
                     state = .display
                     onSave?(combo)
                 }
-                Button("取消") {
+                Button(String(localized: "取消")) {
                     state = .display
                 }
             }

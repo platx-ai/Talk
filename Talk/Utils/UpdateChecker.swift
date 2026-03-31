@@ -100,12 +100,12 @@ class UpdateChecker {
 
     private func showUpdateAlert(latestVersion: String, releaseURL: String) {
         let alert = NSAlert()
-        alert.messageText = "Talk 有新版本"
-        alert.informativeText = "当前版本: \(currentVersion)\n最新版本: \(latestVersion)\n\n是否前往下载？"
+        alert.messageText = String(localized: "Talk 有新版本")
+        alert.informativeText = String(localized: "当前版本: \(currentVersion)\n最新版本: \(latestVersion)\n\n是否前往下载？")
         alert.alertStyle = .informational
-        alert.addButton(withTitle: "前往下载")
-        alert.addButton(withTitle: "稍后提醒")
-        alert.addButton(withTitle: "跳过此版本")
+        alert.addButton(withTitle: String(localized: "前往下载"))
+        alert.addButton(withTitle: String(localized: "稍后提醒"))
+        alert.addButton(withTitle: String(localized: "跳过此版本"))
 
         let response = alert.runModal()
         switch response {
