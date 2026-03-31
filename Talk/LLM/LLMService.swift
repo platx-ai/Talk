@@ -20,11 +20,16 @@ final class LLMService {
     // MARK: - 属性
 
     private var modelContainer: ModelContainer?
-    private var conversationHistory: [(role: String, content: String)] = []
     private var maxHistoryRounds: Int = 5
     private(set) var isModelLoaded = false
     private(set) var isLoading = false
     private(set) var loadingProgress: Double = 0
+
+    /// Per-app ChatSession 缓存 — 复用 KV Cache 加速推理
+    /// key = bundleId (nil 用 "__global__")
+    private var appSessions: [String: ChatSession] = [:]
+    /// 每个 app 的对话轮数计数
+    private var appRoundCounts: [String: Int] = [:]
 
     // MARK: - 系统提示词
 
@@ -141,14 +146,15 @@ final class LLMService {
 
     func unloadModel() {
         modelContainer = nil
-        conversationHistory = []
+        appSessions.removeAll()
+        appRoundCounts.removeAll()
         isModelLoaded = false
         AppLogger.info("LLM 模型已卸载", category: .llm)
     }
 
     // MARK: - 文本润色
 
-    func polish(text: String, intensity: AppSettings.PolishIntensity, customPrompt: String? = nil, customEditPrompt: String? = nil, selectedText: String? = nil) async throws -> String {
+    func polish(text: String, intensity: AppSettings.PolishIntensity, customPrompt: String? = nil, customEditPrompt: String? = nil, selectedText: String? = nil, appBundleId: String? = nil) async throws -> String {
         guard isModelLoaded else {
             AppLogger.error("LLM 模型未加载", category: .llm)
             throw LLMError.modelNotLoaded
@@ -201,22 +207,46 @@ final class LLMService {
         }
 
         do {
-            // 限制最大生成 token 数，防止短输入触发无限生成
-            // 润色输出不应超过输入的 3 倍长度，最少 200 tokens，最多 1024 tokens
             let inputLength = text.count + (selectedText?.count ?? 0)
             let maxTokens = min(1024, max(200, inputLength * 3))
             let params = GenerateParameters(maxTokens: maxTokens)
-            let session = ChatSession(modelContainer, instructions: instructions, generateParameters: params)
+
+            let sessionKey = appBundleId ?? "__global__"
+
+            // 获取或创建 per-app ChatSession（复用 KV Cache）
+            let session: ChatSession
+            if let existing = appSessions[sessionKey],
+               existing.instructions == instructions {
+                // 复用已有 session — KV Cache 中已有之前对话的 token
+                session = existing
+                session.generateParameters = params
+                AppLogger.debug("复用 ChatSession (app=\(sessionKey), rounds=\(appRoundCounts[sessionKey] ?? 0))", category: .llm)
+            } else {
+                // 新 session 或 instructions 变了（提示词切换）
+                session = ChatSession(modelContainer, instructions: instructions, generateParameters: params)
+                appSessions[sessionKey] = session
+                appRoundCounts[sessionKey] = 0
+                AppLogger.debug("新建 ChatSession (app=\(sessionKey))", category: .llm)
+            }
+
+            let startTime = CFAbsoluteTimeGetCurrent()
             let response = try await session.respond(to: userMessage)
+            let elapsed = CFAbsoluteTimeGetCurrent() - startTime
 
             let polishedText = response.trimmingCharacters(in: CharacterSet.whitespacesAndNewlines)
 
-            conversationHistory.append(("user", text))
-            conversationHistory.append(("assistant", polishedText))
+            // 更新轮数计数
+            let rounds = (appRoundCounts[sessionKey] ?? 0) + 1
+            appRoundCounts[sessionKey] = rounds
 
-            while conversationHistory.count > maxHistoryRounds * 2 {
-                conversationHistory.removeFirst()
+            // 超过 maxHistoryRounds 时重置 session（防止 KV Cache 无限增长）
+            if rounds >= maxHistoryRounds {
+                appSessions.removeValue(forKey: sessionKey)
+                appRoundCounts.removeValue(forKey: sessionKey)
+                AppLogger.info("ChatSession 已重置 (app=\(sessionKey), 达到 \(maxHistoryRounds) 轮上限)", category: .llm)
             }
+
+            AppLogger.info("润色完成: \(String(format: "%.2f", elapsed))s, app=\(sessionKey), round=\(rounds)", category: .llm)
 
             AppLogger.debug("文本润色完成: \(polishedText)", category: .llm)
             return polishedText
@@ -234,8 +264,16 @@ final class LLMService {
     }
 
     func clearHistory() {
-        conversationHistory = []
-        AppLogger.info("已清空对话历史", category: .llm)
+        appSessions.removeAll()
+        appRoundCounts.removeAll()
+        AppLogger.info("已清空所有 app 对话历史和 KV Cache", category: .llm)
+    }
+
+    /// 清除特定 app 的对话历史
+    func clearHistory(forApp bundleId: String) {
+        appSessions.removeValue(forKey: bundleId)
+        appRoundCounts.removeValue(forKey: bundleId)
+        AppLogger.info("已清空 \(bundleId) 的对话历史", category: .llm)
     }
 }
 

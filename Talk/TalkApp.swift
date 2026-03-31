@@ -524,7 +524,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
                     text: text,
                     intensity: settings.polishIntensity,
                     customPrompt: effectivePrompt,
-                    selectedText: self.selectedTextBeforeRecording
+                    selectedText: self.selectedTextBeforeRecording,
+                    appBundleId: self.targetApp?.bundleIdentifier
                 )
                 AppLogger.info("LLM 润色完成: \(polishedText)", category: .general)
 
@@ -602,7 +603,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
                     intensity: settings.polishIntensity,
                     customPrompt: effectivePrompt,
                     customEditPrompt: editPrompt,
-                    selectedText: self.selectedTextBeforeRecording
+                    selectedText: self.selectedTextBeforeRecording,
+                    appBundleId: self.targetApp?.bundleIdentifier
                 )
                 AppLogger.info("LLM 润色完成: \(polishedText)", category: .general)
 
