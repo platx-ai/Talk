@@ -21,22 +21,22 @@ enum AppPermission: CaseIterable, Identifiable {
     var title: String {
         switch self {
         case .microphone:
-            return "麦克风权限"
+            return String(localized: "麦克风权限")
         case .inputMonitoring:
-            return "输入监控"
+            return String(localized: "输入监控")
         case .accessibility:
-            return "辅助功能权限"
+            return String(localized: "辅助功能权限")
         }
     }
 
     var detail: String {
         switch self {
         case .microphone:
-            return "Talk 需要录制你的语音，音频仅在本地处理。"
+            return String(localized: "Talk 需要录制你的语音，音频仅在本地处理。")
         case .inputMonitoring:
-            return "Talk 需要输入监控权限来监听全局快捷键。"
+            return String(localized: "Talk 需要输入监控权限来监听全局快捷键。")
         case .accessibility:
-            return "Talk 需要辅助功能权限来将文字自动粘贴到当前应用。"
+            return String(localized: "Talk 需要辅助功能权限来将文字自动粘贴到当前应用。")
         }
     }
 
@@ -67,7 +67,7 @@ enum AppPermission: CaseIterable, Identifiable {
 
     var restartHint: String? {
         guard self == .inputMonitoring else { return nil }
-        return "开启后请退出并重新打开 Talk，全局快捷键才会生效。"
+        return String(localized: "开启后请退出并重新打开 Talk，全局快捷键才会生效。")
     }
 }
 

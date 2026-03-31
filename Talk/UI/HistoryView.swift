@@ -32,11 +32,11 @@ struct HistoryView: View {
                     historyList
                 }
             }
-            .navigationTitle("历史记录")
+            .navigationTitle(String(localized: "历史记录"))
             .toolbar {
                 ToolbarItem(placement: .primaryAction) {
                     Button(action: exportHistory) {
-                        Label("导出", systemImage: "square.and.arrow.up")
+                        Label(String(localized: "导出"), systemImage: "square.and.arrow.up")
                     }
                 }
             }
@@ -52,10 +52,10 @@ struct HistoryView: View {
             Image(systemName: "tray")
                 .font(.system(size: 60))
                 .foregroundStyle(.secondary)
-            Text("暂无历史记录")
+            Text(String(localized: "暂无历史记录"))
                 .font(.headline)
                 .foregroundStyle(.secondary)
-            Text("开始录音后，识别结果会显示在这里")
+            Text(String(localized: "开始录音后，识别结果会显示在这里"))
                 .font(.body)
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
@@ -117,7 +117,7 @@ private struct SearchBar: View {
         HStack(spacing: 8) {
             Image(systemName: "magnifyingglass")
                 .foregroundStyle(.secondary)
-            TextField("搜索历史记录...", text: $text)
+            TextField(String(localized: "搜索历史记录..."), text: $text)
                 .textFieldStyle(.plain)
             if !text.isEmpty {
                 Button(action: { text = "" }) {
@@ -194,25 +194,25 @@ struct HistoryEditSheet: View {
         VStack(alignment: .leading, spacing: 16) {
             // Header
             HStack {
-                Text("历史详情").font(.headline)
+                Text(String(localized: "历史详情")).font(.headline)
                 Spacer()
                 if showLearnConfirmation {
-                    Label("已学习修正", systemImage: "checkmark.circle.fill")
+                    Label(String(localized: "已学习修正"), systemImage: "checkmark.circle.fill")
                         .font(.caption)
                         .foregroundStyle(.green)
                 }
-                Button("关闭") { dismiss() }
+                Button(String(localized: "关闭")) { dismiss() }
             }
 
             // 基本信息
-            GroupBox("基本信息") {
+            GroupBox(String(localized: "基本信息")) {
                 Grid(alignment: .leading, horizontalSpacing: 16, verticalSpacing: 6) {
                     GridRow {
-                        Text("录音时间").foregroundStyle(.secondary)
+                        Text(String(localized: "录音时间")).foregroundStyle(.secondary)
                         Text(item.formattedTimestamp)
                     }
                     GridRow {
-                        Text("录音时长").foregroundStyle(.secondary)
+                        Text(String(localized: "录音时长")).foregroundStyle(.secondary)
                         Text(item.formattedDuration)
                     }
                 }
@@ -221,7 +221,7 @@ struct HistoryEditSheet: View {
             }
 
             // 原始识别
-            GroupBox("原始识别文本") {
+            GroupBox(String(localized: "原始识别文本")) {
                 Text(item.rawText)
                     .font(.body)
                     .textSelection(.enabled)
@@ -230,7 +230,7 @@ struct HistoryEditSheet: View {
             }
 
             // 润色后文本（可编辑）
-            GroupBox(isEditing ? "编辑润色文本" : "润色后文本") {
+            GroupBox(isEditing ? String(localized: "编辑润色文本") : String(localized: "润色后文本")) {
                 if isEditing {
                     EditableTextView(text: $editedText)
                         .frame(minHeight: 80)
@@ -246,16 +246,16 @@ struct HistoryEditSheet: View {
             // 操作按钮
             HStack(spacing: 12) {
                 Button(action: copyText) {
-                    Label("复制", systemImage: "doc.on.doc")
+                    Label(String(localized: "复制"), systemImage: "doc.on.doc")
                 }
 
                 if isEditing {
                     Button(action: saveEdit) {
-                        Label("保存修正", systemImage: "checkmark")
+                        Label(String(localized: "保存修正"), systemImage: "checkmark")
                     }
                     .buttonStyle(.borderedProminent)
 
-                    Button("取消") {
+                    Button(String(localized: "取消")) {
                         isEditing = false
                         editedText = displayText
                     }
@@ -264,14 +264,14 @@ struct HistoryEditSheet: View {
                         editedText = displayText
                         isEditing = true
                     }) {
-                        Label("编辑", systemImage: "pencil")
+                        Label(String(localized: "编辑"), systemImage: "pencil")
                     }
                 }
 
                 Spacer()
 
                 Button(role: .destructive, action: deleteItem) {
-                    Label("删除", systemImage: "trash")
+                    Label(String(localized: "删除"), systemImage: "trash")
                 }
             }
         }

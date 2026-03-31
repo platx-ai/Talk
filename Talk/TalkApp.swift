@@ -232,12 +232,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     private func handleHotKeyPressed() {
         Task {
             if await HotKeyManager.shared.triggerMode == .pushToTalk {
-                _ = await startRecording(trigger: "热键")
+                _ = await startRecording(trigger: String(localized: "热键"))
             } else {
                 if AudioRecorder.shared.isRecording {
-                    _ = await stopRecordingAndProcess(trigger: "热键")
+                    _ = await stopRecordingAndProcess(trigger: String(localized: "热键"))
                 } else {
-                    _ = await startRecording(trigger: "热键")
+                    _ = await startRecording(trigger: String(localized: "热键"))
                 }
             }
         }
@@ -245,11 +245,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
 
     @MainActor
     private func handleHotKeyReleased() {
-        Task { _ = await stopRecordingAndProcess(trigger: "热键") }
+        Task { _ = await stopRecordingAndProcess(trigger: String(localized: "热键")) }
     }
 
-    func startRecordingFromMenuBar() async -> Bool { await startRecording(trigger: "菜单栏") }
-    func stopRecordingFromMenuBar() async -> Bool { await stopRecordingAndProcess(trigger: "菜单栏") }
+    func startRecordingFromMenuBar() async -> Bool { await startRecording(trigger: String(localized: "菜单栏")) }
+    func stopRecordingFromMenuBar() async -> Bool { await stopRecordingAndProcess(trigger: String(localized: "菜单栏")) }
 
     // MARK: - 流式识别
 
@@ -402,7 +402,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
             return true
         } catch {
             AppLogger.error("\(trigger)开始录音失败: \(error.localizedDescription)", category: .ui)
-            statusBar.showNotification(title: "录音失败", message: error.localizedDescription)
+            statusBar.showNotification(title: String(localized: "录音失败"), message: error.localizedDescription)
             statusBar.updateProcessingStatus(.idle)
             return false
         }
@@ -473,7 +473,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
             }
             guard vadResult.speechDetected else {
                 statusBar.updateProcessingStatus(.idle)
-                statusBar.showNotification(title: "未检测到语音", message: "请重试并靠近麦克风")
+                statusBar.showNotification(title: String(localized: "未检测到语音"), message: String(localized: "请重试并靠近麦克风"))
                 AppLogger.info("VAD 判定为无语音，跳过 ASR", category: .audio)
                 return false
             }
@@ -555,7 +555,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
             } catch {
                 AppLogger.error("转录处理失败: \(error.localizedDescription)", category: .general)
                 statusBar.updateProcessingStatus(.idle)
-                statusBar.showNotification(title: "处理失败", message: error.localizedDescription)
+                statusBar.showNotification(title: String(localized: "处理失败"), message: error.localizedDescription)
             }
         }
     }
@@ -631,7 +631,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
             } catch {
                 AppLogger.error("音频处理失败: \(error.localizedDescription)", category: .general)
                 statusBar.updateProcessingStatus(.idle)
-                statusBar.showNotification(title: "处理失败", message: error.localizedDescription)
+                statusBar.showNotification(title: String(localized: "处理失败"), message: error.localizedDescription)
             }
         }
     }
@@ -755,11 +755,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         AVCaptureDevice.requestAccess(for: .audio) { _ in }
 
         let alert = NSAlert()
-        alert.messageText = "需要麦克风权限"
-        alert.informativeText = "Talk 需要麦克风权限才能录音。\n\n如果没有弹出系统授权窗口，请手动前往：\n系统设置 → 隐私与安全性 → 麦克风，为 Talk 开启权限。"
+        alert.messageText = String(localized: "需要麦克风权限")
+        alert.informativeText = String(localized: "Talk 需要麦克风权限才能录音。\n\n如果没有弹出系统授权窗口，请手动前往：\n系统设置 → 隐私与安全性 → 麦克风，为 Talk 开启权限。")
         alert.alertStyle = .warning
-        alert.addButton(withTitle: "打开系统设置")
-        alert.addButton(withTitle: "稍后")
+        alert.addButton(withTitle: String(localized: "打开系统设置"))
+        alert.addButton(withTitle: String(localized: "稍后"))
         let response = alert.runModal()
         if response == .alertFirstButtonReturn {
             NSWorkspace.shared.open(URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Microphone")!)

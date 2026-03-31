@@ -44,20 +44,20 @@ struct VocabularyView: View {
                     vocabularyList
                 }
             }
-            .navigationTitle("词库管理")
+            .navigationTitle(String(localized: "词库管理"))
             .toolbar {
                 ToolbarItem(placement: .primaryAction) {
                     HStack(spacing: 8) {
                         Button(action: importVocabulary) {
-                            Label("导入", systemImage: "square.and.arrow.down")
+                            Label(String(localized: "导入"), systemImage: "square.and.arrow.down")
                         }
                         Button(action: exportVocabulary) {
-                            Label("导出", systemImage: "square.and.arrow.up")
+                            Label(String(localized: "导出"), systemImage: "square.and.arrow.up")
                         }
                     }
                 }
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("关闭") {
+                    Button(String(localized: "关闭")) {
                         dismiss()
                     }
                 }
@@ -71,11 +71,11 @@ struct VocabularyView: View {
     private var addEntryForm: some View {
         VStack(spacing: 8) {
             HStack(spacing: 8) {
-                TextField("原词/错误写法", text: $newWord)
+                TextField(String(localized: "原词/错误写法"), text: $newWord)
                     .textFieldStyle(.roundedBorder)
-                TextField("正确写法（选填）", text: $newCorrectedForm)
+                TextField(String(localized: "正确写法（选填）"), text: $newCorrectedForm)
                     .textFieldStyle(.roundedBorder)
-                Button("添加") {
+                Button(String(localized: "添加")) {
                     addEntry()
                 }
                 .disabled(newWord.trimmingCharacters(in: .whitespaces).isEmpty)
@@ -98,7 +98,7 @@ struct VocabularyView: View {
         HStack(spacing: 8) {
             Image(systemName: "magnifyingglass")
                 .foregroundStyle(.secondary)
-            TextField("搜索词库...", text: $searchText)
+            TextField(String(localized: "搜索词库..."), text: $searchText)
                 .textFieldStyle(.plain)
             if !searchText.isEmpty {
                 Button(action: { searchText = "" }) {
@@ -122,10 +122,10 @@ struct VocabularyView: View {
             Image(systemName: "character.book.closed")
                 .font(.system(size: 60))
                 .foregroundStyle(.secondary)
-            Text("词库为空")
+            Text(String(localized: "词库为空"))
                 .font(.headline)
                 .foregroundStyle(.secondary)
-            Text("可以手动添加词汇，也会从编辑历史记录中自动学习")
+            Text(String(localized: "可以手动添加词汇，也会从编辑历史记录中自动学习"))
                 .font(.body)
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
@@ -139,14 +139,14 @@ struct VocabularyView: View {
     private var vocabularyList: some View {
         List {
             if !correctionItems.isEmpty {
-                Section("纠正词库") {
+                Section(String(localized: "纠正词库")) {
                     ForEach(correctionItems) { item in
                         VocabularyRow(item: item, onDelete: { deleteItem(item) })
                     }
                 }
             }
             if !regularItems.isEmpty {
-                Section("常用词汇") {
+                Section(String(localized: "常用词汇")) {
                     ForEach(regularItems) { item in
                         VocabularyRow(item: item, onDelete: { deleteItem(item) })
                     }
@@ -167,13 +167,13 @@ struct VocabularyView: View {
         if corrected.isEmpty {
             // Regular vocabulary word
             if vocabularyManager.contains(word) {
-                errorMessage = "词汇「\(word)」已存在"
+                errorMessage = String(localized: "词汇「\(word)」已存在")
                 return
             }
             vocabularyManager.add(word: word)
         } else {
             if word == corrected {
-                errorMessage = "原词和正确写法不能相同"
+                errorMessage = String(localized: "原词和正确写法不能相同")
                 return
             }
             vocabularyManager.addCorrection(original: word, corrected: corrected)
@@ -242,10 +242,10 @@ private struct VocabularyRow: View {
                 }
 
                 HStack(spacing: 12) {
-                    Text("频率: \(item.frequency)")
+                    Text(String(localized: "频率: \(item.frequency)"))
                         .font(.caption2)
                         .foregroundStyle(.secondary)
-                    Text("最近使用: \(item.formattedLastUsed)")
+                    Text(String(localized: "最近使用: \(item.formattedLastUsed)"))
                         .font(.caption2)
                         .foregroundStyle(.secondary)
                 }

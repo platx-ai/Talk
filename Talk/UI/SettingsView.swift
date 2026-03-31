@@ -14,19 +14,19 @@ struct SettingsView: View {
     var body: some View {
         TabView {
             RecordingSettingsTab(settings: settings)
-                .tabItem { Label("录音", systemImage: "mic.circle") }
+                .tabItem { Label(String(localized: "录音"), systemImage: "mic.circle") }
 
             ASRSettingsTab(settings: settings)
-                .tabItem { Label("语音识别", systemImage: "waveform") }
+                .tabItem { Label(String(localized: "语音识别"), systemImage: "waveform") }
 
             LLMSettingsTab(settings: settings)
-                .tabItem { Label("文本润色", systemImage: "sparkles") }
+                .tabItem { Label(String(localized: "文本润色"), systemImage: "sparkles") }
 
             OutputSettingsTab(settings: settings)
-                .tabItem { Label("输出", systemImage: "text.bubble") }
+                .tabItem { Label(String(localized: "输出"), systemImage: "text.bubble") }
 
             AdvancedSettingsTab(settings: settings)
-                .tabItem { Label("高级", systemImage: "gearshape.2") }
+                .tabItem { Label(String(localized: "高级"), systemImage: "gearshape.2") }
         }
         .frame(width: 600, height: 500)
         .toast()
@@ -42,59 +42,59 @@ private struct RecordingSettingsTab: View {
     var body: some View {
         Form {
             Section {
-                Picker("输入设备", selection: $settings.selectedAudioDeviceUID) {
-                    Text("内置麦克风（默认）").tag(nil as String?)
+                Picker(String(localized: "输入设备"), selection: $settings.selectedAudioDeviceUID) {
+                    Text(String(localized: "内置麦克风（默认）")).tag(nil as String?)
                     ForEach(deviceManager.inputDevices.filter { !$0.isBuiltIn }) { device in
                         Text(device.name).tag(device.uid as String?)
                     }
                 }
             } header: {
-                Text("音频输入")
+                Text(String(localized: "音频输入"))
             }
 
             Section {
-                Picker("触发方式", selection: $settings.recordingTriggerMode) {
+                Picker(String(localized: "触发方式"), selection: $settings.recordingTriggerMode) {
                     ForEach(AppSettings.RecordingTriggerMode.allCases, id: \.self) { mode in
                         Text(mode.displayName).tag(mode)
                     }
                 }
                 .onChange(of: settings.recordingTriggerMode) {
                     AppDelegate.shared?.applyHotKey(settings.recordingHotkey, triggerMode: settings.recordingTriggerMode)
-                    ToastManager.shared.show("已保存")
+                    ToastManager.shared.show(String(localized: "已保存"))
                 }
 
                 KeyRecorderView(hotkey: $settings.recordingHotkey) { newCombo in
                     settings.recordingHotkey = newCombo
                     settings.save()
                     AppDelegate.shared?.applyHotKey(newCombo, triggerMode: settings.recordingTriggerMode)
-                    ToastManager.shared.show("已保存")
+                    ToastManager.shared.show(String(localized: "已保存"))
                 }
 
-                Text("全局快捷键依赖输入监控权限。若快捷键无反应，请在系统设置 → 隐私与安全性 → 输入监控中开启 Talk，并重启应用。")
+                Text(String(localized: "全局快捷键依赖输入监控权限。若快捷键无反应，请在系统设置 → 隐私与安全性 → 输入监控中开启 Talk，并重启应用。"))
                     .font(.caption)
                     .foregroundColor(.secondary)
 
                 HStack {
-                    Text("录音时长限制")
+                    Text(String(localized: "录音时长限制"))
                     Spacer()
                     Toggle("", isOn: Binding(
                         get: { settings.recordingMaxDuration > 0 },
                         set: { settings.recordingMaxDuration = $0 ? 0 : 60 }
                     ))
-                    .onChange(of: settings.recordingMaxDuration) { _ in ToastManager.shared.show("已保存") }
+                    .onChange(of: settings.recordingMaxDuration) { _ in ToastManager.shared.show(String(localized: "已保存")) }
                     if settings.recordingMaxDuration > 0 {
-                        Stepper("\(settings.recordingMaxDuration)秒",
+                        Stepper(String(localized: "\(settings.recordingMaxDuration)秒"),
                                 value: $settings.recordingMaxDuration,
                                 in: 1...300)
                     }
                 }
             } header: {
-                Text("录音设置")
+                Text(String(localized: "录音设置"))
             }
 
             Section {
                 HStack {
-                    Text("音频采样率")
+                    Text(String(localized: "音频采样率"))
                     Spacer()
                     Picker("", selection: $settings.sampleRate) {
                         Text("16 kHz").tag(16000)
@@ -103,17 +103,17 @@ private struct RecordingSettingsTab: View {
                     }
                     .pickerStyle(.menu)
                     .frame(width: 100)
-                    .onChange(of: settings.sampleRate) { _ in ToastManager.shared.show("已保存") }
+                    .onChange(of: settings.sampleRate) { _ in ToastManager.shared.show(String(localized: "已保存")) }
                 }
             } header: {
-                Text("音频参数")
+                Text(String(localized: "音频参数"))
             }
 
             Section {
-                Toggle("录音时菜单栏图标变化", isOn: .constant(true))
-                Toggle("播放提示音", isOn: .constant(false))
+                Toggle(String(localized: "录音时菜单栏图标变化"), isOn: .constant(true))
+                Toggle(String(localized: "播放提示音"), isOn: .constant(false))
             } header: {
-                Text("录音提示")
+                Text(String(localized: "录音提示"))
             }
         }
         .formStyle(.grouped)
@@ -128,79 +128,79 @@ private struct ASRSettingsTab: View {
     var body: some View {
         Form {
             Section {
-                Picker("下载源", selection: $settings.modelSource) {
-                    Text("HuggingFace（国际）").tag(AppSettings.ModelSource.huggingface)
-                    Text("ModelScope（中国大陆）").tag(AppSettings.ModelSource.modelscope)
+                Picker(String(localized: "下载源"), selection: $settings.modelSource) {
+                    Text(String(localized: "HuggingFace（国际）")).tag(AppSettings.ModelSource.huggingface)
+                    Text(String(localized: "ModelScope（中国大陆）")).tag(AppSettings.ModelSource.modelscope)
                 }
-                .onChange(of: settings.modelSource) { _ in ToastManager.shared.show("已保存") }
-                Text("中国大陆用户建议选择 ModelScope，可避免网络问题。")
+                .onChange(of: settings.modelSource) { _ in ToastManager.shared.show(String(localized: "已保存")) }
+                Text(String(localized: "中国大陆用户建议选择 ModelScope，可避免网络问题。"))
                     .font(.caption)
                     .foregroundColor(.secondary)
             } header: {
-                Text("模型下载源")
+                Text(String(localized: "模型下载源"))
             }
 
             Section {
-                Picker("模型选择", selection: $settings.asrModelId) {
+                Picker(String(localized: "模型选择"), selection: $settings.asrModelId) {
                     Text("Qwen3-ASR-0.6B-4bit").tag("mlx-community/Qwen3-ASR-0.6B-4bit")
                 }
-                .onChange(of: settings.asrModelId) { _ in ToastManager.shared.show("已保存") }
+                .onChange(of: settings.asrModelId) { _ in ToastManager.shared.show(String(localized: "已保存")) }
 
-                Picker("识别语言", selection: $settings.asrLanguage) {
+                Picker(String(localized: "识别语言"), selection: $settings.asrLanguage) {
                     ForEach(AppSettings.ASRLanguage.allCases, id: \.self) { lang in
                         Text(lang.displayName).tag(lang)
                     }
                 }
-                .onChange(of: settings.asrLanguage) { _ in ToastManager.shared.show("已保存") }
+                .onChange(of: settings.asrLanguage) { _ in ToastManager.shared.show(String(localized: "已保存")) }
 
-                Toggle("启用流式识别（边录边出字）", isOn: $settings.enableStreamingInference)
-                    .onChange(of: settings.enableStreamingInference) { _ in ToastManager.shared.show("已保存") }
+                Toggle(String(localized: "启用流式识别（边录边出字）"), isOn: $settings.enableStreamingInference)
+                    .onChange(of: settings.enableStreamingInference) { _ in ToastManager.shared.show(String(localized: "已保存")) }
 
-                Toggle("显示实时识别文字（仅流式模式）", isOn: $settings.showRealtimeRecognition)
+                Toggle(String(localized: "显示实时识别文字（仅流式模式）"), isOn: $settings.showRealtimeRecognition)
                     .disabled(!settings.enableStreamingInference)
-                    .onChange(of: settings.showRealtimeRecognition) { _ in ToastManager.shared.show("已保存") }
+                    .onChange(of: settings.showRealtimeRecognition) { _ in ToastManager.shared.show(String(localized: "已保存")) }
             } header: {
-                Text("语音识别设置")
+                Text(String(localized: "语音识别设置"))
             }
 
             Section {
-                Toggle("启用静音过滤（Silero VAD）", isOn: $settings.enableVADFilter)
-                    .onChange(of: settings.enableVADFilter) { _ in ToastManager.shared.show("已保存") }
+                Toggle(String(localized: "启用静音过滤（Silero VAD）"), isOn: $settings.enableVADFilter)
+                    .onChange(of: settings.enableVADFilter) { _ in ToastManager.shared.show(String(localized: "已保存")) }
 
                 if settings.enableVADFilter {
                     HStack {
-                        Text("语音阈值")
+                        Text(String(localized: "语音阈值"))
                         Spacer()
                         Text(String(format: "%.2f", settings.vadThreshold))
                             .foregroundColor(.secondary)
                     }
                     Slider(value: $settings.vadThreshold, in: 0.1...0.9, step: 0.05)
-                        .onChange(of: settings.vadThreshold) { _ in ToastManager.shared.show("已保存") }
+                        .onChange(of: settings.vadThreshold) { _ in ToastManager.shared.show(String(localized: "已保存")) }
 
                     HStack {
-                        Text("前后补偿帧")
+                        Text(String(localized: "前后补偿帧"))
                         Spacer()
                         Stepper("\(settings.vadPaddingChunks)",
                                 value: $settings.vadPaddingChunks,
                                 in: 0...8)
                     }
-                    .onChange(of: settings.vadPaddingChunks) { _ in ToastManager.shared.show("已保存") }
+                    .onChange(of: settings.vadPaddingChunks) { _ in ToastManager.shared.show(String(localized: "已保存")) }
 
                     HStack {
-                        Text("最少语音帧")
+                        Text(String(localized: "最少语音帧"))
                         Spacer()
                         Stepper("\(settings.vadMinSpeechChunks)",
                                 value: $settings.vadMinSpeechChunks,
                                 in: 1...16)
                     }
-                    .onChange(of: settings.vadMinSpeechChunks) { _ in ToastManager.shared.show("已保存") }
+                    .onChange(of: settings.vadMinSpeechChunks) { _ in ToastManager.shared.show(String(localized: "已保存")) }
                 }
 
-                Text("开启后会在批量识别前过滤静音，减少空白输入。阈值越高越严格。")
+                Text(String(localized: "开启后会在批量识别前过滤静音，减少空白输入。阈值越高越严格。"))
                     .font(.caption)
                     .foregroundColor(.secondary)
             } header: {
-                Text("静音检测（VAD）")
+                Text(String(localized: "静音检测（VAD）"))
             }
         }
         .formStyle(.grouped)
@@ -217,33 +217,33 @@ private struct LLMSettingsTab: View {
     var body: some View {
         Form {
             Section {
-                Picker("模型选择", selection: $settings.llmModelId) {
+                Picker(String(localized: "模型选择"), selection: $settings.llmModelId) {
                     Text("Qwen3-4B-Instruct (4-bit)").tag("mlx-community/Qwen3-4B-Instruct-2507-4bit")
                     Text("Qwen3.5-0.8B-Instruct (4-bit)").tag("mlx-community/Qwen3.5-0.8B-OptiQ-4bit")
                     Text("Qwen3.5-2B-Instruct (4-bit)").tag("mlx-community/Qwen3.5-2B-4bit")
                 }
-                .onChange(of: settings.llmModelId) { _ in ToastManager.shared.show("已保存") }
+                .onChange(of: settings.llmModelId) { _ in ToastManager.shared.show(String(localized: "已保存")) }
 
-                Picker("润色强度", selection: $settings.polishIntensity) {
+                Picker(String(localized: "润色强度"), selection: $settings.polishIntensity) {
                     ForEach(AppSettings.PolishIntensity.allCases, id: \.self) { intensity in
                         Text(intensity.displayName).tag(intensity)
                     }
                 }
-                .onChange(of: settings.polishIntensity) { _ in ToastManager.shared.show("已保存") }
+                .onChange(of: settings.polishIntensity) { _ in ToastManager.shared.show(String(localized: "已保存")) }
 
                 HStack {
-                    Text("对话历史轮数")
+                    Text(String(localized: "对话历史轮数"))
                     Spacer()
-                    Stepper("\(settings.conversationHistoryRounds) 轮",
+                    Stepper(String(localized: "\(settings.conversationHistoryRounds) 轮"),
                             value: $settings.conversationHistoryRounds,
                             in: 0...10)
                 }
-                .onChange(of: settings.conversationHistoryRounds) { _ in ToastManager.shared.show("已保存") }
+                .onChange(of: settings.conversationHistoryRounds) { _ in ToastManager.shared.show(String(localized: "已保存")) }
 
-                Toggle("启用对话历史", isOn: $settings.enableConversationHistory)
-                    .onChange(of: settings.enableConversationHistory) { _ in ToastManager.shared.show("已保存") }
+                Toggle(String(localized: "启用对话历史"), isOn: $settings.enableConversationHistory)
+                    .onChange(of: settings.enableConversationHistory) { _ in ToastManager.shared.show(String(localized: "已保存")) }
             } header: {
-                Text("文本润色设置")
+                Text(String(localized: "文本润色设置"))
             }
 
             Section {
@@ -273,8 +273,8 @@ private struct LLMSettingsTab: View {
 
                 // Add new app prompt — running apps + well-known presets, deduplicated
                 HStack {
-                    Picker("添加应用", selection: $newAppBundleId) {
-                        Text("选择应用...").tag("")
+                    Picker(String(localized: "添加应用"), selection: $newAppBundleId) {
+                        Text(String(localized: "选择应用...")).tag("")
 
                         let existingIds = Set(settings.appPrompts.keys)
                         let runningApps = NSWorkspace.shared.runningApplications
@@ -286,7 +286,7 @@ private struct LLMSettingsTab: View {
                             .sorted { $0.1 < $1.1 }
 
                         if !runningApps.isEmpty {
-                            Section("正在运行") {
+                            Section(String(localized: "正在运行")) {
                                 ForEach(runningApps, id: \.0) { bid, name in
                                     Text(name).tag(bid)
                                 }
@@ -294,26 +294,26 @@ private struct LLMSettingsTab: View {
                         }
 
                         let wellKnownIds: [(String, String)] = [
-                            ("com.apple.Terminal", "终端"),
+                            ("com.apple.Terminal", String(localized: "终端")),
                             ("com.googlecode.iterm2", "iTerm2"),
                             ("com.microsoft.VSCode", "VS Code"),
                             ("com.apple.dt.Xcode", "Xcode"),
-                            ("com.tencent.xinWeChat", "微信"),
+                            ("com.tencent.xinWeChat", String(localized: "微信")),
                             ("com.tinyspeck.slackmacgap", "Slack"),
-                            ("com.apple.mail", "邮件"),
-                            ("com.apple.Notes", "备忘录"),
-                            ("com.bytedance.lark.mac", "飞书"),
+                            ("com.apple.mail", String(localized: "邮件")),
+                            ("com.apple.Notes", String(localized: "备忘录")),
+                            ("com.bytedance.lark.mac", String(localized: "飞书")),
                         ].filter { item in !existingIds.contains(item.0) && !runningApps.contains { r in r.0 == item.0 } }
 
                         if !wellKnownIds.isEmpty {
-                            Section("常用应用") {
+                            Section(String(localized: "常用应用")) {
                                 ForEach(wellKnownIds, id: \.0) { bid, name in
                                     Text(name).tag(bid)
                                 }
                             }
                         }
                     }
-                    Button("添加") {
+                    Button(String(localized: "添加")) {
                         guard !newAppBundleId.isEmpty else { return }
                         if settings.appPrompts[newAppBundleId] == nil {
                             settings.appPrompts[newAppBundleId] = defaultPromptForApp(newAppBundleId)
@@ -323,17 +323,17 @@ private struct LLMSettingsTab: View {
                     .disabled(newAppBundleId.isEmpty)
                 }
 
-                Text("为不同应用设置专属提示词。录音时自动检测前台应用并使用对应提示词。未配置的应用使用全局提示词。")
+                Text(String(localized: "为不同应用设置专属提示词。录音时自动检测前台应用并使用对应提示词。未配置的应用使用全局提示词。"))
                     .font(.caption)
                     .foregroundColor(.secondary)
             } header: {
-                Text("应用专属提示词")
+                Text(String(localized: "应用专属提示词"))
             }
 
             Section {
-                Picker("提示词类型", selection: $promptTab) {
-                    Text("听写润色").tag(0)
-                    Text("编辑指令").tag(1)
+                Picker(String(localized: "提示词类型"), selection: $promptTab) {
+                    Text(String(localized: "听写润色")).tag(0)
+                    Text(String(localized: "编辑指令")).tag(1)
                 }
                 .pickerStyle(.segmented)
 
@@ -341,28 +341,28 @@ private struct LLMSettingsTab: View {
                     // 听写润色提示词
                     HStack {
                         if settings.customSystemPrompt.isEmpty {
-                            Label("使用默认", systemImage: "checkmark.circle")
+                            Label(String(localized: "使用默认"), systemImage: "checkmark.circle")
                                 .font(.caption).foregroundColor(.green)
                         } else {
-                            Label("自定义", systemImage: "pencil.circle.fill")
+                            Label(String(localized: "自定义"), systemImage: "pencil.circle.fill")
                                 .font(.caption).foregroundColor(.orange)
                         }
                         Spacer()
-                        Menu("预设模板") {
-                            Button("严格纠错") {
-                                settings.customSystemPrompt = "你是一个严格的文本纠错助手。只修正明显的语音识别错误和错别字，不改变原文的表达方式、语气和结构。直接输出修正后的文本，不要添加任何解释。"
+                        Menu(String(localized: "预设模板")) {
+                            Button(String(localized: "严格纠错")) {
+                                settings.customSystemPrompt = String(localized: "你是一个严格的文本纠错助手。只修正明显的语音识别错误和错别字，不改变原文的表达方式、语气和结构。直接输出修正后的文本，不要添加任何解释。")
                             }
-                            Button("轻度润色") {
-                                settings.customSystemPrompt = "你是一个文本清理助手。去除口语填充词（嗯、啊、呃），添加标点符号，修正明显错误。保留原文的表达风格和语气，不做改写。直接输出清理后的文本，不要添加任何解释。"
+                            Button(String(localized: "轻度润色")) {
+                                settings.customSystemPrompt = String(localized: "你是一个文本清理助手。去除口语填充词（嗯、啊、呃），添加标点符号，修正明显错误。保留原文的表达风格和语气，不做改写。直接输出清理后的文本，不要添加任何解释。")
                             }
-                            Button("会议纪要") {
-                                settings.customSystemPrompt = "你是一个会议纪要整理助手。将语音识别的会议内容整理为结构化的纪要格式：提取要点、决议和待办事项。直接输出纪要，不要添加任何解释。"
+                            Button(String(localized: "会议纪要")) {
+                                settings.customSystemPrompt = String(localized: "你是一个会议纪要整理助手。将语音识别的会议内容整理为结构化的纪要格式：提取要点、决议和待办事项。直接输出纪要，不要添加任何解释。")
                             }
-                            Button("技术文档") {
-                                settings.customSystemPrompt = "你是一个技术文档整理助手。将语音输入整理为技术文档风格：保留代码标识符和技术术语的原文，使用 Markdown 格式。直接输出文档，不要添加任何解释。"
+                            Button(String(localized: "技术文档")) {
+                                settings.customSystemPrompt = String(localized: "你是一个技术文档整理助手。将语音输入整理为技术文档风格：保留代码标识符和技术术语的原文，使用 Markdown 格式。直接输出文档，不要添加任何解释。")
                             }
                         }
-                        Button("填入默认") { settings.customSystemPrompt = LLMService.defaultSystemPrompt }
+                        Button(String(localized: "填入默认")) { settings.customSystemPrompt = LLMService.defaultSystemPrompt }
                     }
 
                     TextEditor(text: $settings.customSystemPrompt)
@@ -370,20 +370,20 @@ private struct LLMSettingsTab: View {
                         .frame(minHeight: 100, maxHeight: 160)
                         .overlay(RoundedRectangle(cornerRadius: 4).stroke(Color.secondary.opacity(0.3), lineWidth: 1))
 
-                    Text("留空使用默认提示词。自定义后润色强度选项被忽略。")
+                    Text(String(localized: "留空使用默认提示词。自定义后润色强度选项被忽略。"))
                         .font(.caption).foregroundColor(.secondary)
                 } else {
                     // 编辑指令提示词
                     HStack {
                         if settings.customEditPrompt.isEmpty {
-                            Label("使用默认", systemImage: "checkmark.circle")
+                            Label(String(localized: "使用默认"), systemImage: "checkmark.circle")
                                 .font(.caption).foregroundColor(.green)
                         } else {
-                            Label("自定义", systemImage: "pencil.circle.fill")
+                            Label(String(localized: "自定义"), systemImage: "pencil.circle.fill")
                                 .font(.caption).foregroundColor(.orange)
                         }
                         Spacer()
-                        Button("填入默认") { settings.customEditPrompt = LLMService.defaultEditPrompt }
+                        Button(String(localized: "填入默认")) { settings.customEditPrompt = LLMService.defaultEditPrompt }
                     }
 
                     TextEditor(text: $settings.customEditPrompt)
@@ -391,11 +391,11 @@ private struct LLMSettingsTab: View {
                         .frame(minHeight: 100, maxHeight: 160)
                         .overlay(RoundedRectangle(cornerRadius: 4).stroke(Color.secondary.opacity(0.3), lineWidth: 1))
 
-                    Text("选中文字后录音进入编辑模式。语音作为指令，可用于替换词语、风格改写、纠错、格式转换等。")
+                    Text(String(localized: "选中文字后录音进入编辑模式。语音作为指令，可用于替换词语、风格改写、纠错、格式转换等。"))
                         .font(.caption).foregroundColor(.secondary)
                 }
             } header: {
-                Text("提示词")
+                Text(String(localized: "提示词"))
             }
         }
         .formStyle(.grouped)
@@ -403,15 +403,15 @@ private struct LLMSettingsTab: View {
 
     private func appDisplayName(for bundleId: String) -> String {
         let wellKnown: [String: String] = [
-            "com.apple.Terminal": "终端",
+            "com.apple.Terminal": String(localized: "终端"),
             "com.googlecode.iterm2": "iTerm2",
             "com.microsoft.VSCode": "VS Code",
             "com.apple.dt.Xcode": "Xcode",
-            "com.tencent.xinWeChat": "微信",
+            "com.tencent.xinWeChat": String(localized: "微信"),
             "com.tinyspeck.slackmacgap": "Slack",
-            "com.apple.mail": "邮件",
-            "com.apple.Notes": "备忘录",
-            "com.bytedance.lark.mac": "飞书",
+            "com.apple.mail": String(localized: "邮件"),
+            "com.apple.Notes": String(localized: "备忘录"),
+            "com.bytedance.lark.mac": String(localized: "飞书"),
         ]
         if let name = wellKnown[bundleId] { return name }
         // Try to get name from running apps or installed apps
@@ -428,17 +428,17 @@ private struct LLMSettingsTab: View {
     private func defaultPromptForApp(_ bundleId: String) -> String {
         switch bundleId {
         case "com.apple.Terminal", "com.googlecode.iterm2":
-            return "保留命令行语法和技术术语。代码标识符、文件路径、命令名不要修改。直接输出清理后的文本。"
+            return String(localized: "保留命令行语法和技术术语。代码标识符、文件路径、命令名不要修改。直接输出清理后的文本。")
         case "com.microsoft.VSCode", "com.apple.dt.Xcode":
-            return "保留代码变量名、函数名和技术术语。使用技术文档风格，Markdown 格式。直接输出清理后的文本。"
+            return String(localized: "保留代码变量名、函数名和技术术语。使用技术文档风格，Markdown 格式。直接输出清理后的文本。")
         case "com.tencent.xinWeChat", "com.tinyspeck.slackmacgap", "com.bytedance.lark.mac":
-            return "口语化，简洁，适合即时通讯。不要过度正式化。直接输出清理后的文本。"
+            return String(localized: "口语化，简洁，适合即时通讯。不要过度正式化。直接输出清理后的文本。")
         case "com.apple.mail":
-            return "正式语气，添加适当的问候和结尾。直接输出清理后的文本。"
+            return String(localized: "正式语气，添加适当的问候和结尾。直接输出清理后的文本。")
         case "com.apple.Notes":
-            return "结构化笔记格式，使用标题和项目符号列表。直接输出清理后的文本。"
+            return String(localized: "结构化笔记格式，使用标题和项目符号列表。直接输出清理后的文本。")
         default:
-            return "直接输出清理后的文本，不要添加任何解释。"
+            return String(localized: "直接输出清理后的文本，不要添加任何解释。")
         }
     }
 }
@@ -451,17 +451,17 @@ private struct OutputSettingsTab: View {
     var body: some View {
         Form {
             Section {
-                Picker("输出方式", selection: $settings.outputMethod) {
-                    Text("自动粘贴到当前应用").tag(AppSettings.OutputMethod.autoPaste)
-                    Text("仅复制到剪贴板").tag(AppSettings.OutputMethod.clipboardOnly)
+                Picker(String(localized: "输出方式"), selection: $settings.outputMethod) {
+                    Text(String(localized: "自动粘贴到当前应用")).tag(AppSettings.OutputMethod.autoPaste)
+                    Text(String(localized: "仅复制到剪贴板")).tag(AppSettings.OutputMethod.clipboardOnly)
                 }
-                .onChange(of: settings.outputMethod) { _ in ToastManager.shared.show("已保存") }
+                .onChange(of: settings.outputMethod) { _ in ToastManager.shared.show(String(localized: "已保存")) }
 
-                Text("自动粘贴：润色完成后模拟 Cmd+V 粘贴到前台应用。仅剪贴板：结果只放入剪贴板，需手动粘贴。")
+                Text(String(localized: "自动粘贴：润色完成后模拟 Cmd+V 粘贴到前台应用。仅剪贴板：结果只放入剪贴板，需手动粘贴。"))
                     .font(.caption)
                     .foregroundColor(.secondary)
             } header: {
-                Text("输出设置")
+                Text(String(localized: "输出设置"))
             }
         }
         .formStyle(.grouped)
@@ -488,129 +488,129 @@ private struct AdvancedSettingsTab: View {
                     )
                 }
             } header: {
-                Text("权限")
+                Text(String(localized: "权限"))
             }
 
             Section {
-                Picker("选中文本捕获方式", selection: $settings.selectionCaptureMethod) {
-                    Text("Accessibility API（低侵入）").tag(AppSettings.SelectionCaptureMethod.accessibility)
-                    Text("Cmd+C 复制（兼容性好）").tag(AppSettings.SelectionCaptureMethod.clipboard)
+                Picker(String(localized: "选中文本捕获方式"), selection: $settings.selectionCaptureMethod) {
+                    Text(String(localized: "Accessibility API（低侵入）")).tag(AppSettings.SelectionCaptureMethod.accessibility)
+                    Text(String(localized: "Cmd+C 复制（兼容性好）")).tag(AppSettings.SelectionCaptureMethod.clipboard)
                 }
-                .onChange(of: settings.selectionCaptureMethod) { _ in ToastManager.shared.show("已保存") }
-                Text("选中文字后录音可替换选中内容。Accessibility API 不影响剪贴板但部分应用不支持。")
+                .onChange(of: settings.selectionCaptureMethod) { _ in ToastManager.shared.show(String(localized: "已保存")) }
+                Text(String(localized: "选中文字后录音可替换选中内容。Accessibility API 不影响剪贴板但部分应用不支持。"))
                     .font(.caption)
                     .foregroundColor(.secondary)
             } header: {
-                Text("选中修正")
+                Text(String(localized: "选中修正"))
             }
 
             Section {
-                Toggle("启用命令词识别", isOn: $settings.enableVoiceCommands)
-                    .onChange(of: settings.enableVoiceCommands) { _ in ToastManager.shared.show("已保存") }
+                Toggle(String(localized: "启用命令词识别"), isOn: $settings.enableVoiceCommands)
+                    .onChange(of: settings.enableVoiceCommands) { _ in ToastManager.shared.show(String(localized: "已保存")) }
             } header: {
-                Text("高级功能")
+                Text(String(localized: "高级功能"))
             }
 
             Section {
-                Toggle("启用个人词库", isOn: $settings.enablePersonalVocabulary)
-                    .onChange(of: settings.enablePersonalVocabulary) { _ in ToastManager.shared.show("已保存") }
+                Toggle(String(localized: "启用个人词库"), isOn: $settings.enablePersonalVocabulary)
+                    .onChange(of: settings.enablePersonalVocabulary) { _ in ToastManager.shared.show(String(localized: "已保存")) }
 
                 if settings.enablePersonalVocabulary {
                     HStack {
-                        Text("已学习 \(VocabularyManager.shared.items.count) 个词汇")
+                        Text(String(localized: "已学习 \(VocabularyManager.shared.items.count) 个词汇"))
                             .foregroundColor(.secondary)
                         Spacer()
-                        Button("管理词库") {
+                        Button(String(localized: "管理词库")) {
                             showVocabularyView = true
                         }
                     }
-                    Text("词库通过编辑历史记录自动学习，也可手动添加。纠正词库会在润色时自动应用。")
+                    Text(String(localized: "词库通过编辑历史记录自动学习，也可手动添加。纠正词库会在润色时自动应用。"))
                         .font(.caption)
                         .foregroundColor(.secondary)
                 }
             } header: {
-                Text("个人词库")
+                Text(String(localized: "个人词库"))
             }
 
             Section {
-                Picker("应用语言", selection: $settings.appLanguage) {
+                Picker(String(localized: "应用语言"), selection: $settings.appLanguage) {
                     ForEach(AppSettings.AppLanguage.allCases, id: \.self) { lang in
                         Text(lang.displayName).tag(lang)
                     }
                 }
-                .onChange(of: settings.appLanguage) { _ in ToastManager.shared.show("已保存") }
+                .onChange(of: settings.appLanguage) { _ in ToastManager.shared.show(String(localized: "已保存")) }
             } header: {
-                Text("语言")
+                Text(String(localized: "语言"))
             }
 
             Section {
-                Toggle("启用空闲卸载", isOn: Binding(
+                Toggle(String(localized: "启用空闲卸载"), isOn: Binding(
                     get: { settings.idleUnloadMinutes > 0 },
                     set: { settings.idleUnloadMinutes = $0 ? 10 : 0 }
                 ))
-                .onChange(of: settings.idleUnloadMinutes) { _ in ToastManager.shared.show("已保存") }
+                .onChange(of: settings.idleUnloadMinutes) { _ in ToastManager.shared.show(String(localized: "已保存")) }
                 if settings.idleUnloadMinutes > 0 {
                     HStack {
-                        Text("空闲卸载模型")
+                        Text(String(localized: "空闲卸载模型"))
                         Spacer()
-                        Stepper("\(settings.idleUnloadMinutes) 分钟", value: $settings.idleUnloadMinutes, in: 1...60)
+                        Stepper(String(localized: "\(settings.idleUnloadMinutes) 分钟"), value: $settings.idleUnloadMinutes, in: 1...60)
                     }
-                    .onChange(of: settings.idleUnloadMinutes) { _ in ToastManager.shared.show("已保存") }
+                    .onChange(of: settings.idleUnloadMinutes) { _ in ToastManager.shared.show(String(localized: "已保存")) }
                 }
-                Text("空闲一段时间后自动卸载模型以释放内存，下次使用时自动重新加载。")
+                Text(String(localized: "空闲一段时间后自动卸载模型以释放内存，下次使用时自动重新加载。"))
                     .font(.caption)
                     .foregroundColor(.secondary)
             } header: {
-                Text("内存管理")
+                Text(String(localized: "内存管理"))
             }
 
             Section {
-                Picker("性能模式", selection: $settings.performanceMode) {
+                Picker(String(localized: "性能模式"), selection: $settings.performanceMode) {
                     ForEach(AppSettings.PerformanceMode.allCases, id: \.self) { mode in
                         Text(mode.displayName).tag(mode)
                     }
                 }
-                .onChange(of: settings.performanceMode) { _ in ToastManager.shared.show("已保存") }
+                .onChange(of: settings.performanceMode) { _ in ToastManager.shared.show(String(localized: "已保存")) }
 
-                Picker("内存模式", selection: $settings.memoryMode) {
+                Picker(String(localized: "内存模式"), selection: $settings.memoryMode) {
                     ForEach(AppSettings.MemoryMode.allCases, id: \.self) { mode in
                         Text(mode.displayName).tag(mode)
                     }
                 }
-                .onChange(of: settings.memoryMode) { _ in ToastManager.shared.show("已保存") }
+                .onChange(of: settings.memoryMode) { _ in ToastManager.shared.show(String(localized: "已保存")) }
             } header: {
-                Text("性能优化")
+                Text(String(localized: "性能优化"))
             }
 
             Section {
-                Picker("启动方式", selection: .constant(false)) {
-                    Text("用户手动启动").tag(false)
-                    Text("登录时自动启动").tag(true)
+                Picker(String(localized: "启动方式"), selection: .constant(false)) {
+                    Text(String(localized: "用户手动启动")).tag(false)
+                    Text(String(localized: "登录时自动启动")).tag(true)
                 }
                 .disabled(true)
 
-                Picker("退出行为", selection: $settings.quitBehavior) {
-                    Text("完全退出").tag(true)
-                    Text("最小化到菜单栏").tag(false)
+                Picker(String(localized: "退出行为"), selection: $settings.quitBehavior) {
+                    Text(String(localized: "完全退出")).tag(true)
+                    Text(String(localized: "最小化到菜单栏")).tag(false)
                 }
-                .onChange(of: settings.quitBehavior) { _ in ToastManager.shared.show("已保存") }
+                .onChange(of: settings.quitBehavior) { _ in ToastManager.shared.show(String(localized: "已保存")) }
             } header: {
-                Text("启动与退出")
+                Text(String(localized: "启动与退出"))
             }
 
             Section {
-                Toggle("启用详细日志", isOn: $settings.enableDetailedLogging)
-                    .onChange(of: settings.enableDetailedLogging) { _ in ToastManager.shared.show("已保存") }
+                Toggle(String(localized: "启用详细日志"), isOn: $settings.enableDetailedLogging)
+                    .onChange(of: settings.enableDetailedLogging) { _ in ToastManager.shared.show(String(localized: "已保存")) }
 
-                Picker("日志级别", selection: $settings.logLevel) {
+                Picker(String(localized: "日志级别"), selection: $settings.logLevel) {
                     ForEach(AppSettings.LogLevel.allCases, id: \.self) { level in
                         Text(level.displayName).tag(level)
                     }
                 }
                 .pickerStyle(.menu)
-                .onChange(of: settings.logLevel) { _ in ToastManager.shared.show("已保存") }
+                .onChange(of: settings.logLevel) { _ in ToastManager.shared.show(String(localized: "已保存")) }
             } header: {
-                Text("日志")
+                Text(String(localized: "日志"))
             }
         }
         .formStyle(.grouped)
@@ -628,8 +628,8 @@ private struct AdvancedSettingsTab: View {
     }
 
     private func actionTitle(for permission: AppPermission) -> String {
-        guard permission == .microphone else { return "打开设置" }
-        return AVCaptureDevice.authorizationStatus(for: .audio) == .notDetermined ? "授权麦克风" : "打开设置"
+        guard permission == .microphone else { return String(localized: "打开设置") }
+        return AVCaptureDevice.authorizationStatus(for: .audio) == .notDetermined ? String(localized: "授权麦克风") : String(localized: "打开设置")
     }
 
     private func handlePermissionAction(_ permission: AppPermission) {
@@ -668,8 +668,8 @@ private struct AdvancedSettingsTab: View {
 extension AppSettings.RecordingTriggerMode {
     var displayName: String {
         switch self {
-        case .pushToTalk: return "按住录音"
-        case .toggle: return "点击切换"
+        case .pushToTalk: return String(localized: "按住录音")
+        case .toggle: return String(localized: "点击切换")
         }
     }
 }
@@ -677,10 +677,10 @@ extension AppSettings.RecordingTriggerMode {
 extension AppSettings.ASRLanguage {
     var displayName: String {
         switch self {
-        case .auto: return "自动检测"
-        case .chinese: return "中文"
-        case .english: return "英文"
-        case .mixed: return "中英混合"
+        case .auto: return String(localized: "自动检测")
+        case .chinese: return String(localized: "中文")
+        case .english: return String(localized: "英文")
+        case .mixed: return String(localized: "中英混合")
         }
     }
 }
@@ -688,9 +688,9 @@ extension AppSettings.ASRLanguage {
 extension AppSettings.PolishIntensity {
     var displayName: String {
         switch self {
-        case .light: return "轻度"
-        case .medium: return "中度"
-        case .strong: return "强度"
+        case .light: return String(localized: "轻度")
+        case .medium: return String(localized: "中度")
+        case .strong: return String(localized: "强度")
         }
     }
 }
@@ -698,9 +698,9 @@ extension AppSettings.PolishIntensity {
 extension AppSettings.OutputMethod {
     var displayName: String {
         switch self {
-        case .autoPaste: return "自动粘贴"
-        case .clipboardOnly: return "仅复制到剪贴板"
-        case .previewWindow: return "预览窗口"
+        case .autoPaste: return String(localized: "自动粘贴")
+        case .clipboardOnly: return String(localized: "仅复制到剪贴板")
+        case .previewWindow: return String(localized: "预览窗口")
         }
     }
 }
@@ -708,9 +708,9 @@ extension AppSettings.OutputMethod {
 extension AppSettings.OutputDelay {
     var displayName: String {
         switch self {
-        case .immediate: return "立即输出"
-        case .afterPolish: return "润色完成后"
-        case .custom: return "自定义延迟"
+        case .immediate: return String(localized: "立即输出")
+        case .afterPolish: return String(localized: "润色完成后")
+        case .custom: return String(localized: "自定义延迟")
         }
     }
 }
@@ -718,8 +718,8 @@ extension AppSettings.OutputDelay {
 extension AppSettings.AppLanguage {
     var displayName: String {
         switch self {
-        case .system: return "跟随系统"
-        case .chinese: return "简体中文"
+        case .system: return String(localized: "跟随系统")
+        case .chinese: return String(localized: "简体中文")
         case .english: return "English"
         }
     }
@@ -728,9 +728,9 @@ extension AppSettings.AppLanguage {
 extension AppSettings.PerformanceMode {
     var displayName: String {
         switch self {
-        case .speed: return "优先速度"
-        case .accuracy: return "优先准确率"
-        case .balanced: return "平衡模式"
+        case .speed: return String(localized: "优先速度")
+        case .accuracy: return String(localized: "优先准确率")
+        case .balanced: return String(localized: "平衡模式")
         }
     }
 }
@@ -738,9 +738,9 @@ extension AppSettings.PerformanceMode {
 extension AppSettings.MemoryMode {
     var displayName: String {
         switch self {
-        case .low: return "8GB 内存"
-        case .normal: return "16GB+ 内存"
-        case .auto: return "自动适配"
+        case .low: return String(localized: "8GB 内存")
+        case .normal: return String(localized: "16GB+ 内存")
+        case .auto: return String(localized: "自动适配")
         }
     }
 }
@@ -748,10 +748,10 @@ extension AppSettings.MemoryMode {
 extension AppSettings.LogLevel {
     var displayName: String {
         switch self {
-        case .debug: return "调试"
-        case .info: return "信息"
-        case .warning: return "警告"
-        case .error: return "错误"
+        case .debug: return String(localized: "调试")
+        case .info: return String(localized: "信息")
+        case .warning: return String(localized: "警告")
+        case .error: return String(localized: "错误")
         }
     }
 }
@@ -759,8 +759,8 @@ extension AppSettings.LogLevel {
 extension AppSettings.ModelSource {
     var displayName: String {
         switch self {
-        case .huggingface: return "HuggingFace（国际）"
-        case .modelscope: return "ModelScope（中国大陆）"
+        case .huggingface: return String(localized: "HuggingFace（国际）")
+        case .modelscope: return String(localized: "ModelScope（中国大陆）")
         }
     }
 }

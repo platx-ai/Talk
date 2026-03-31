@@ -34,7 +34,7 @@ final class TextInjector {
             let options = ["AXTrustedCheckOptionPrompt": true] as CFDictionary
             AXIsProcessTrustedWithOptions(options)
             AppLogger.warning(
-                "Accessibility 权限未授予！已弹出授权请求。",
+                String(localized: "Accessibility 权限未授予！已弹出授权请求。"),
                 category: .ui
             )
         } else {
@@ -44,11 +44,11 @@ final class TextInjector {
 
     static func showAccessibilityAlert() {
         let alert = NSAlert()
-        alert.messageText = "需要辅助功能权限"
-        alert.informativeText = "自动粘贴功能需要系统辅助功能权限。\n\n请手动到：\n系统设置 → 隐私与安全性 → 辅助功能，点击 + 添加 Talk.app，然后重启本应用。"
+        alert.messageText = String(localized: "需要辅助功能权限")
+        alert.informativeText = String(localized: "自动粘贴功能需要系统辅助功能权限。\n\n请手动到：\n系统设置 → 隐私与安全性 → 辅助功能，点击 + 添加 Talk.app，然后重启本应用。")
         alert.alertStyle = .warning
-        alert.addButton(withTitle: "打开辅助功能设置")
-        alert.addButton(withTitle: "稍后")
+        alert.addButton(withTitle: String(localized: "打开辅助功能设置"))
+        alert.addButton(withTitle: String(localized: "稍后"))
         let response = alert.runModal()
         if response == .alertFirstButtonReturn {
             NSWorkspace.shared.open(
@@ -140,7 +140,7 @@ final class TextInjector {
     private func simulatePaste() {
         guard AXIsProcessTrusted() else {
             AppLogger.error(
-                "Accessibility 权限未授予，CGEvent 无法发送到其他应用。",
+                String(localized: "Accessibility 权限未授予，CGEvent 无法发送到其他应用。"),
                 category: .ui
             )
             DispatchQueue.main.async {
@@ -181,13 +181,13 @@ enum InjectionError: LocalizedError {
     var errorDescription: String? {
         switch self {
         case .noFocusedApp:
-            return "没有找到焦点应用"
+            return String(localized: "没有找到焦点应用")
         case .clipboardCopyFailed:
-            return "复制到剪贴板失败"
+            return String(localized: "复制到剪贴板失败")
         case .accessibilityFailed:
-            return "Accessibility API 调用失败"
+            return String(localized: "Accessibility API 调用失败")
         case .simulationFailed:
-            return "按键模拟失败"
+            return String(localized: "按键模拟失败")
         }
     }
 }
