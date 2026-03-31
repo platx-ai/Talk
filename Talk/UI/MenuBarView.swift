@@ -29,7 +29,7 @@ struct MenuBarView: View {
 
                 Divider()
 
-                Label(viewModel.processingStatus.rawValue, systemImage: getStatusIcon())
+                Label(viewModel.processingStatus.localizedName, systemImage: getStatusIcon())
                     .foregroundColor(viewModel.processingStatus == .idle ? .primary : .accentColor)
             }
 

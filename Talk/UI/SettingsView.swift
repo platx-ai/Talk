@@ -28,7 +28,7 @@ struct SettingsView: View {
             AdvancedSettingsTab(settings: settings)
                 .tabItem { Label(String(localized: "高级"), systemImage: "gearshape.2") }
         }
-        .frame(width: 600, height: 500)
+        .frame(width: 680, height: 520)
         .toast()
     }
 }

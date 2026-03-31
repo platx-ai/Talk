@@ -12,8 +12,8 @@
         },
         "en": {
           "stringUnit": {
-            "state": "needs_review",
-            "value": "))。可稍后在设置 → 高级 → 权限中完成。"
+            "state": "translated",
+            "value": "). You can complete this later in Settings → Advanced → Permissions."
           }
         }
       }
@@ -28,8 +28,8 @@
         },
         "en": {
           "stringUnit": {
-            "state": "needs_review",
-            "value": "16GB+ 内存"
+            "state": "translated",
+            "value": "16GB+ RAM"
           }
         }
       }
@@ -44,8 +44,8 @@
         },
         "en": {
           "stringUnit": {
-            "state": "needs_review",
-            "value": "8GB 内存"
+            "state": "translated",
+            "value": "8GB RAM"
           }
         }
       }
@@ -60,8 +60,8 @@
         },
         "en": {
           "stringUnit": {
-            "state": "needs_review",
-            "value": "Accessibility API 调用失败"
+            "state": "translated",
+            "value": "Accessibility API call failed"
           }
         }
       }
@@ -76,8 +76,8 @@
         },
         "en": {
           "stringUnit": {
-            "state": "needs_review",
-            "value": "Accessibility API（低侵入）"
+            "state": "translated",
+            "value": "Accessibility API (Low intrusion)"
           }
         }
       }
@@ -92,8 +92,8 @@
         },
         "en": {
           "stringUnit": {
-            "state": "needs_review",
-            "value": "Accessibility 权限未授予！已弹出授权请求。"
+            "state": "translated",
+            "value": "Accessibility permission not granted. Authorization requested."
           }
         }
       }
@@ -108,8 +108,8 @@
         },
         "en": {
           "stringUnit": {
-            "state": "needs_review",
-            "value": "Accessibility 权限未授予，CGEvent 无法发送到其他应用。"
+            "state": "translated",
+            "value": "Accessibility permission not granted. CGEvent cannot be sent to other apps."
           }
         }
       }
@@ -124,8 +124,8 @@
         },
         "en": {
           "stringUnit": {
-            "state": "needs_review",
-            "value": "Cmd+C 复制（兼容性好）"
+            "state": "translated",
+            "value": "Cmd+C Copy (Better compatibility)"
           }
         }
       }
@@ -140,8 +140,8 @@
         },
         "en": {
           "stringUnit": {
-            "state": "needs_review",
-            "value": "HuggingFace（国际）"
+            "state": "translated",
+            "value": "HuggingFace (International)"
           }
         }
       }
@@ -156,8 +156,8 @@
         },
         "en": {
           "stringUnit": {
-            "state": "needs_review",
-            "value": "ModelScope（中国大陆）"
+            "state": "translated",
+            "value": "ModelScope (China Mainland)"
           }
         }
       }
@@ -172,8 +172,8 @@
         },
         "en": {
           "stringUnit": {
-            "state": "needs_review",
-            "value": "Talk 使用本地 AI 模型进行语音识别和文本润色，首次使用需下载约 3GB 模型文件。"
+            "state": "translated",
+            "value": "Talk uses on-device AI models for speech recognition and text polishing. First-time use requires downloading ~3GB of model files."
           }
         }
       }
@@ -188,8 +188,8 @@
         },
         "en": {
           "stringUnit": {
-            "state": "needs_review",
-            "value": "Talk 已就绪！"
+            "state": "translated",
+            "value": "Talk is ready!"
           }
         }
       }
@@ -204,8 +204,8 @@
         },
         "en": {
           "stringUnit": {
-            "state": "needs_review",
-            "value": "Talk 是 macOS 语音输入工具。按下快捷键说话，AI 自动识别、润色并输入到光标位置。全部在本地运行，无需联网。"
+            "state": "translated",
+            "value": "Talk is a macOS voice input tool. Press the hotkey to speak, and AI will recognize, polish, and insert text at your cursor. Everything runs locally, no internet needed."
           }
         }
       }
@@ -236,8 +236,8 @@
         },
         "en": {
           "stringUnit": {
-            "state": "needs_review",
-            "value": "Talk 需要以下权限才能完整工作"
+            "state": "translated",
+            "value": "Talk needs the following permissions to work fully"
           }
         }
       }
@@ -252,8 +252,8 @@
         },
         "en": {
           "stringUnit": {
-            "state": "needs_review",
-            "value": "Talk 需要录制你的语音，音频仅在本地处理。"
+            "state": "translated",
+            "value": "Talk needs to record your voice. Audio is processed locally only."
           }
         }
       }
@@ -268,8 +268,8 @@
         },
         "en": {
           "stringUnit": {
-            "state": "needs_review",
-            "value": "Talk 需要辅助功能权限来将文字自动粘贴到当前应用。"
+            "state": "translated",
+            "value": "Talk needs Accessibility to auto-paste text into apps."
           }
         }
       }
@@ -284,8 +284,8 @@
         },
         "en": {
           "stringUnit": {
-            "state": "needs_review",
-            "value": "Talk 需要输入监控权限来监听全局快捷键。"
+            "state": "translated",
+            "value": "Talk needs Input Monitoring to listen for global hotkeys."
           }
         }
       }
@@ -316,8 +316,8 @@
         },
         "en": {
           "stringUnit": {
-            "state": "needs_review",
-            "value": "\\(settings.conversationHistoryRounds) 轮"
+            "state": "translated",
+            "value": "\\(settings.conversationHistoryRounds) rounds"
           }
         }
       }
@@ -332,8 +332,8 @@
         },
         "en": {
           "stringUnit": {
-            "state": "needs_review",
-            "value": "\\(settings.idleUnloadMinutes) 分钟"
+            "state": "translated",
+            "value": "\\(settings.idleUnloadMinutes) minutes"
           }
         }
       }
@@ -348,8 +348,8 @@
         },
         "en": {
           "stringUnit": {
-            "state": "needs_review",
-            "value": "\\(settings.recordingMaxDuration)秒"
+            "state": "translated",
+            "value": "\\(settings.recordingMaxDuration)s"
           }
         }
       }
@@ -428,8 +428,8 @@
         },
         "en": {
           "stringUnit": {
-            "state": "needs_review",
-            "value": "中国大陆用户建议选择 ModelScope，可避免网络问题。"
+            "state": "translated",
+            "value": "Users in China mainland should choose ModelScope to avoid network issues."
           }
         }
       }
@@ -492,8 +492,8 @@
         },
         "en": {
           "stringUnit": {
-            "state": "needs_review",
-            "value": "为不同应用设置专属提示词。录音时自动检测前台应用并使用对应提示词。未配置的应用使用全局提示词。"
+            "state": "translated",
+            "value": "Set per-app prompts. Auto-detects frontmost app. Unconfigured apps use global prompt."
           }
         }
       }
@@ -764,8 +764,8 @@
         },
         "en": {
           "stringUnit": {
-            "state": "needs_review",
-            "value": "全局快捷键依赖输入监控权限。若快捷键无反应，请在系统设置 → 隐私与安全性 → 输入监控中开启 Talk，并重启应用。"
+            "state": "translated",
+            "value": "Global hotkey requires Input Monitoring permission. If hotkey doesn't respond, enable Talk in System Settings → Privacy & Security → Input Monitoring, then restart."
           }
         }
       }
@@ -892,8 +892,8 @@
         },
         "en": {
           "stringUnit": {
-            "state": "needs_review",
-            "value": "前后补偿帧"
+            "state": "translated",
+            "value": "Padding Chunks"
           }
         }
       }
@@ -1212,8 +1212,8 @@
         },
         "en": {
           "stringUnit": {
-            "state": "needs_review",
-            "value": "启用静音过滤（Silero VAD）"
+            "state": "translated",
+            "value": "Enable silence filtering (Silero VAD)"
           }
         }
       }
@@ -1308,8 +1308,8 @@
         },
         "en": {
           "stringUnit": {
-            "state": "needs_review",
-            "value": "复制到剪贴板失败"
+            "state": "translated",
+            "value": "Failed to copy to clipboard"
           }
         }
       }
@@ -1436,8 +1436,8 @@
         },
         "en": {
           "stringUnit": {
-            "state": "needs_review",
-            "value": "已学习 \\(VocabularyManager.shared.items.count) 个词汇"
+            "state": "translated",
+            "value": "Learned \\(VocabularyManager.shared.items.count) words"
           }
         }
       }
@@ -1548,8 +1548,8 @@
         },
         "en": {
           "stringUnit": {
-            "state": "needs_review",
-            "value": "开启后会在批量识别前过滤静音，减少空白输入。阈值越高越严格。"
+            "state": "translated",
+            "value": "Filters silence before batch recognition. Higher threshold = stricter filtering."
           }
         }
       }
@@ -1564,8 +1564,8 @@
         },
         "en": {
           "stringUnit": {
-            "state": "needs_review",
-            "value": "开启后请退出并重新打开 Talk，全局快捷键才会生效。"
+            "state": "translated",
+            "value": "After enabling, quit and relaunch Talk for the global hotkey to work."
           }
         }
       }
@@ -1612,8 +1612,8 @@
         },
         "en": {
           "stringUnit": {
-            "state": "needs_review",
-            "value": "开始录音后，识别结果会显示在这里"
+            "state": "translated",
+            "value": "After recording, results will appear here"
           }
         }
       }
@@ -2092,8 +2092,8 @@
         },
         "en": {
           "stringUnit": {
-            "state": "needs_review",
-            "value": "按键模拟失败"
+            "state": "translated",
+            "value": "Key simulation failed"
           }
         }
       }
@@ -2172,8 +2172,8 @@
         },
         "en": {
           "stringUnit": {
-            "state": "needs_review",
-            "value": "搜索词库..."
+            "state": "translated",
+            "value": "Search vocabulary..."
           }
         }
       }
@@ -2332,8 +2332,8 @@
         },
         "en": {
           "stringUnit": {
-            "state": "needs_review",
-            "value": "最少语音帧"
+            "state": "translated",
+            "value": "Min Speech Chunks"
           }
         }
       }
@@ -2396,8 +2396,8 @@
         },
         "en": {
           "stringUnit": {
-            "state": "needs_review",
-            "value": "权限设置"
+            "state": "translated",
+            "value": "Permissions Setup"
           }
         }
       }
@@ -2524,8 +2524,8 @@
         },
         "en": {
           "stringUnit": {
-            "state": "needs_review",
-            "value": "没有找到焦点应用"
+            "state": "translated",
+            "value": "No focused app found"
           }
         }
       }
@@ -2700,8 +2700,8 @@
         },
         "en": {
           "stringUnit": {
-            "state": "needs_review",
-            "value": "留空使用默认提示词。自定义后润色强度选项被忽略。"
+            "state": "translated",
+            "value": "Leave empty for default prompt. Custom prompt overrides polish intensity."
           }
         }
       }
@@ -2796,8 +2796,8 @@
         },
         "en": {
           "stringUnit": {
-            "state": "needs_review",
-            "value": "空闲一段时间后自动卸载模型以释放内存，下次使用时自动重新加载。"
+            "state": "translated",
+            "value": "Auto-unload models after inactivity to free memory. Reloads on next use."
           }
         }
       }
@@ -3052,8 +3052,8 @@
         },
         "en": {
           "stringUnit": {
-            "state": "needs_review",
-            "value": "自动粘贴：润色完成后模拟 Cmd+V 粘贴到前台应用。仅剪贴板：结果只放入剪贴板，需手动粘贴。"
+            "state": "translated",
+            "value": "Auto-paste: simulates Cmd+V after polishing. Clipboard only: result goes to clipboard, paste manually."
           }
         }
       }
@@ -3292,8 +3292,8 @@
         },
         "en": {
           "stringUnit": {
-            "state": "needs_review",
-            "value": "词库通过编辑历史记录自动学习，也可手动添加。纠正词库会在润色时自动应用。"
+            "state": "translated",
+            "value": "Vocabulary learns from history edits automatically. Corrections are applied during polishing."
           }
         }
       }
@@ -3388,8 +3388,8 @@
         },
         "en": {
           "stringUnit": {
-            "state": "needs_review",
-            "value": "语音阈值"
+            "state": "translated",
+            "value": "Voice Threshold"
           }
         }
       }
@@ -3548,8 +3548,8 @@
         },
         "en": {
           "stringUnit": {
-            "state": "needs_review",
-            "value": "辅助功能（自动粘贴）"
+            "state": "translated",
+            "value": "Accessibility (Auto-paste)"
           }
         }
       }
@@ -3580,8 +3580,8 @@
         },
         "en": {
           "stringUnit": {
-            "state": "needs_review",
-            "value": "输入监控（全局快捷键）"
+            "state": "translated",
+            "value": "Input Monitoring (Global Hotkey)"
           }
         }
       }
@@ -3724,8 +3724,8 @@
         },
         "en": {
           "stringUnit": {
-            "state": "needs_review",
-            "value": "选中文字后录音可替换选中内容。Accessibility API 不影响剪贴板但部分应用不支持。"
+            "state": "translated",
+            "value": "Record after selecting text to replace it. Accessibility API doesn't affect clipboard but some apps don't support it."
           }
         }
       }
@@ -3740,8 +3740,8 @@
         },
         "en": {
           "stringUnit": {
-            "state": "needs_review",
-            "value": "选中文字后录音进入编辑模式。语音作为指令，可用于替换词语、风格改写、纠错、格式转换等。"
+            "state": "translated",
+            "value": "Select text then record to enter edit mode. Voice acts as instructions for word replacement, style rewrite, error correction, etc."
           }
         }
       }
@@ -3884,8 +3884,8 @@
         },
         "en": {
           "stringUnit": {
-            "state": "needs_review",
-            "value": "静音检测（VAD）"
+            "state": "translated",
+            "value": "Voice Activity Detection (VAD)"
           }
         }
       }
