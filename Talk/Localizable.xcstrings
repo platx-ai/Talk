@@ -300,8 +300,8 @@
         },
         "en": {
           "stringUnit": {
-            "state": "needs_review",
-            "value": "Talk 需要麦克风权限才能录音。\\n\\n如果没有弹出系统授权窗口，请手动前往：\\n系统设置 → 隐私与安全性 → 麦克风，为 Talk 开启权限。"
+            "state": "translated",
+            "value": "Talk needs microphone permission to record.\n\nIf no system prompt appeared, go to:\nSystem Settings → Privacy & Security → Microphone, and enable Talk."
           }
         }
       }
@@ -364,8 +364,8 @@
         },
         "en": {
           "stringUnit": {
-            "state": "needs_review",
-            "value": "下载 AI 模型"
+            "state": "translated",
+            "value": "Download AI Models"
           }
         }
       }
@@ -380,8 +380,8 @@
         },
         "en": {
           "stringUnit": {
-            "state": "needs_review",
-            "value": "下载源"
+            "state": "translated",
+            "value": "Download Source"
           }
         }
       }
@@ -524,7 +524,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "needs_review",
+            "state": "translated",
             "value": "仍有权限未完成：\\(items.joined(separator: "
           }
         }
@@ -588,8 +588,8 @@
         },
         "en": {
           "stringUnit": {
-            "state": "needs_review",
-            "value": "你是一个严格的文本纠错助手。只修正明显的语音识别错误和错别字，不改变原文的表达方式、语气和结构。直接输出修正后的文本，不要添加任何解释。"
+            "state": "translated",
+            "value": "You are a strict text correction assistant. Only fix obvious ASR errors and typos. Don't change expression, tone, or structure. Output corrected text directly."
           }
         }
       }
@@ -604,8 +604,8 @@
         },
         "en": {
           "stringUnit": {
-            "state": "needs_review",
-            "value": "你是一个会议纪要整理助手。将语音识别的会议内容整理为结构化的纪要格式：提取要点、决议和待办事项。直接输出纪要，不要添加任何解释。"
+            "state": "translated",
+            "value": "You are a meeting notes assistant. Organize speech into structured minutes: extract key points, decisions, and action items. Output notes directly."
           }
         }
       }
@@ -620,8 +620,8 @@
         },
         "en": {
           "stringUnit": {
-            "state": "needs_review",
-            "value": "你是一个技术文档整理助手。将语音输入整理为技术文档风格：保留代码标识符和技术术语的原文，使用 Markdown 格式。直接输出文档，不要添加任何解释。"
+            "state": "translated",
+            "value": "You are a technical doc assistant. Organize speech into technical doc style: preserve code identifiers and terms, use Markdown. Output doc directly."
           }
         }
       }
@@ -636,8 +636,8 @@
         },
         "en": {
           "stringUnit": {
-            "state": "needs_review",
-            "value": "你是一个文本清理助手。去除口语填充词（嗯、啊、呃），添加标点符号，修正明显错误。保留原文的表达风格和语气，不做改写。直接输出清理后的文本，不要添加任何解释。"
+            "state": "translated",
+            "value": "You are a text cleanup assistant. Remove filler words, add punctuation, fix obvious errors. Preserve original style and tone. Output cleaned text directly."
           }
         }
       }
@@ -700,8 +700,8 @@
         },
         "en": {
           "stringUnit": {
-            "state": "needs_review",
-            "value": "保留代码变量名、函数名和技术术语。使用技术文档风格，Markdown 格式。直接输出清理后的文本。"
+            "state": "translated",
+            "value": "Preserve variable names, function names, and technical terms. Use technical doc style with Markdown. Output cleaned text directly."
           }
         }
       }
@@ -716,8 +716,8 @@
         },
         "en": {
           "stringUnit": {
-            "state": "needs_review",
-            "value": "保留命令行语法和技术术语。代码标识符、文件路径、命令名不要修改。直接输出清理后的文本。"
+            "state": "translated",
+            "value": "Preserve CLI syntax and technical terms. Don't modify code identifiers, paths, or commands. Output cleaned text directly."
           }
         }
       }
@@ -844,8 +844,8 @@
         },
         "en": {
           "stringUnit": {
-            "state": "needs_review",
-            "value": "再次按下停止录音，AI 自动识别、润色并输入到光标位置"
+            "state": "translated",
+            "value": "Press again to stop. AI recognizes, polishes, and inserts at cursor"
           }
         }
       }
@@ -860,8 +860,8 @@
         },
         "en": {
           "stringUnit": {
-            "state": "needs_review",
-            "value": "切换模式 (Toggle)"
+            "state": "translated",
+            "value": "Toggle Mode"
           }
         }
       }
@@ -1004,8 +1004,8 @@
         },
         "en": {
           "stringUnit": {
-            "state": "needs_review",
-            "value": "原词和正确写法不能相同"
+            "state": "translated",
+            "value": "Original and corrected form cannot be the same"
           }
         }
       }
@@ -1036,8 +1036,8 @@
         },
         "en": {
           "stringUnit": {
-            "state": "needs_review",
-            "value": "口语化，简洁，适合即时通讯。不要过度正式化。直接输出清理后的文本。"
+            "state": "translated",
+            "value": "Casual, concise, suitable for messaging. Don't over-formalize. Output cleaned text directly."
           }
         }
       }
@@ -1052,8 +1052,8 @@
         },
         "en": {
           "stringUnit": {
-            "state": "needs_review",
-            "value": "可以手动添加词汇，也会从编辑历史记录中自动学习"
+            "state": "translated",
+            "value": "Add words manually or learn automatically from history edits"
           }
         }
       }
@@ -1260,8 +1260,8 @@
         },
         "en": {
           "stringUnit": {
-            "state": "needs_review",
-            "value": "处理失败"
+            "state": "translated",
+            "value": "Processing failed"
           }
         }
       }
@@ -1276,8 +1276,8 @@
         },
         "en": {
           "stringUnit": {
-            "state": "needs_review",
-            "value": "备忘录"
+            "state": "translated",
+            "value": "Notes"
           }
         }
       }
@@ -1356,8 +1356,8 @@
         },
         "en": {
           "stringUnit": {
-            "state": "needs_review",
-            "value": "完成设置"
+            "state": "translated",
+            "value": "Complete Setup"
           }
         }
       }
@@ -1644,8 +1644,8 @@
         },
         "en": {
           "stringUnit": {
-            "state": "needs_review",
-            "value": "开始说话"
+            "state": "translated",
+            "value": "Start speaking"
           }
         }
       }
@@ -1676,8 +1676,8 @@
         },
         "en": {
           "stringUnit": {
-            "state": "needs_review",
-            "value": "当前版本: \\(currentVersion)\\n最新版本: \\(latestVersion)\\n\\n是否前往下载？"
+            "state": "translated",
+            "value": "Current: \\(currentVersion)\\nLatest: \\(latestVersion)\\n\\nWould you like to download?"
           }
         }
       }
@@ -1724,8 +1724,8 @@
         },
         "en": {
           "stringUnit": {
-            "state": "needs_review",
-            "value": "录音失败"
+            "state": "translated",
+            "value": "Recording failed"
           }
         }
       }
@@ -1836,8 +1836,8 @@
         },
         "en": {
           "stringUnit": {
-            "state": "needs_review",
-            "value": "微信"
+            "state": "translated",
+            "value": "WeChat"
           }
         }
       }
@@ -1932,8 +1932,8 @@
         },
         "en": {
           "stringUnit": {
-            "state": "needs_review",
-            "value": "打开设置可以调整更多选项"
+            "state": "translated",
+            "value": "Open Settings for more options"
           }
         }
       }
@@ -1980,8 +1980,8 @@
         },
         "en": {
           "stringUnit": {
-            "state": "needs_review",
-            "value": "按一次开始录音，再按一次停止并处理。适合较长的口述场景。"
+            "state": "translated",
+            "value": "Press once to start, press again to stop. Good for longer dictation."
           }
         }
       }
@@ -1996,8 +1996,8 @@
         },
         "en": {
           "stringUnit": {
-            "state": "needs_review",
-            "value": "按下"
+            "state": "translated",
+            "value": "Press"
           }
         }
       }
@@ -2012,8 +2012,8 @@
         },
         "en": {
           "stringUnit": {
-            "state": "needs_review",
-            "value": "按住"
+            "state": "translated",
+            "value": "Hold"
           }
         }
       }
@@ -2044,8 +2044,8 @@
         },
         "en": {
           "stringUnit": {
-            "state": "needs_review",
-            "value": "按住快捷键开始录音，松开后自动处理。推荐新用户使用。"
+            "state": "translated",
+            "value": "Hold hotkey to record, release to process. Recommended for beginners."
           }
         }
       }
@@ -2060,8 +2060,8 @@
         },
         "en": {
           "stringUnit": {
-            "state": "needs_review",
-            "value": "按住说话 (Push-to-Talk)"
+            "state": "translated",
+            "value": "Push to Talk"
           }
         }
       }
@@ -2076,8 +2076,8 @@
         },
         "en": {
           "stringUnit": {
-            "state": "needs_review",
-            "value": "按住说话，自动输入"
+            "state": "translated",
+            "value": "Hold to speak, auto-input"
           }
         }
       }
@@ -2140,8 +2140,8 @@
         },
         "en": {
           "stringUnit": {
-            "state": "needs_review",
-            "value": "提示词类型"
+            "state": "translated",
+            "value": "Prompt Type"
           }
         }
       }
@@ -2220,8 +2220,8 @@
         },
         "en": {
           "stringUnit": {
-            "state": "needs_review",
-            "value": "文本润色模型 (LLM)"
+            "state": "translated",
+            "value": "Text Polishing Model (LLM)"
           }
         }
       }
@@ -2348,8 +2348,8 @@
         },
         "en": {
           "stringUnit": {
-            "state": "needs_review",
-            "value": "最近使用: \\(item.formattedLastUsed)"
+            "state": "translated",
+            "value": "Last used: \\(item.formattedLastUsed)"
           }
         }
       }
@@ -2364,8 +2364,8 @@
         },
         "en": {
           "stringUnit": {
-            "state": "needs_review",
-            "value": "未检测到语音"
+            "state": "translated",
+            "value": "No speech detected"
           }
         }
       }
@@ -2412,8 +2412,8 @@
         },
         "en": {
           "stringUnit": {
-            "state": "needs_review",
-            "value": "松开后 AI 自动识别、润色并输入到光标位置"
+            "state": "translated",
+            "value": "Release to let AI recognize, polish, and insert at cursor"
           }
         }
       }
@@ -2444,8 +2444,8 @@
         },
         "en": {
           "stringUnit": {
-            "state": "needs_review",
-            "value": "模型将在首次使用时自动下载。也可在终端中运行 make download-models 手动下载。"
+            "state": "translated",
+            "value": "Models download automatically on first use. You can also run `make download-models` in terminal."
           }
         }
       }
@@ -2492,8 +2492,8 @@
         },
         "en": {
           "stringUnit": {
-            "state": "needs_review",
-            "value": "正式语气，添加适当的问候和结尾。直接输出清理后的文本。"
+            "state": "translated",
+            "value": "Formal tone, add appropriate greetings and closings. Output cleaned text directly."
           }
         }
       }
@@ -2508,8 +2508,8 @@
         },
         "en": {
           "stringUnit": {
-            "state": "needs_review",
-            "value": "正确写法（选填）"
+            "state": "translated",
+            "value": "Correct form (optional)"
           }
         }
       }
@@ -2572,8 +2572,8 @@
         },
         "en": {
           "stringUnit": {
-            "state": "needs_review",
-            "value": "润色完成后"
+            "state": "translated",
+            "value": "After polishing"
           }
         }
       }
@@ -2620,8 +2620,8 @@
         },
         "en": {
           "stringUnit": {
-            "state": "needs_review",
-            "value": "添加应用"
+            "state": "translated",
+            "value": "Add App"
           }
         }
       }
@@ -2668,8 +2668,8 @@
         },
         "en": {
           "stringUnit": {
-            "state": "needs_review",
-            "value": "热键"
+            "state": "translated",
+            "value": "Hotkey"
           }
         }
       }
@@ -2732,8 +2732,8 @@
         },
         "en": {
           "stringUnit": {
-            "state": "needs_review",
-            "value": "直接输出清理后的文本，不要添加任何解释。"
+            "state": "translated",
+            "value": "Output cleaned text directly without any explanation."
           }
         }
       }
@@ -2812,8 +2812,8 @@
         },
         "en": {
           "stringUnit": {
-            "state": "needs_review",
-            "value": "空闲卸载模型"
+            "state": "translated",
+            "value": "Idle Model Unload"
           }
         }
       }
@@ -2828,8 +2828,8 @@
         },
         "en": {
           "stringUnit": {
-            "state": "needs_review",
-            "value": "立即输出"
+            "state": "translated",
+            "value": "Immediate output"
           }
         }
       }
@@ -2892,8 +2892,8 @@
         },
         "en": {
           "stringUnit": {
-            "state": "needs_review",
-            "value": "终端"
+            "state": "translated",
+            "value": "Terminal"
           }
         }
       }
@@ -2908,8 +2908,8 @@
         },
         "en": {
           "stringUnit": {
-            "state": "needs_review",
-            "value": "结构化笔记格式，使用标题和项目符号列表。直接输出清理后的文本。"
+            "state": "translated",
+            "value": "Structured note format with headings and bullet points. Output cleaned text directly."
           }
         }
       }
@@ -3004,8 +3004,8 @@
         },
         "en": {
           "stringUnit": {
-            "state": "needs_review",
-            "value": "自动粘贴"
+            "state": "translated",
+            "value": "Auto-paste"
           }
         }
       }
@@ -3036,8 +3036,8 @@
         },
         "en": {
           "stringUnit": {
-            "state": "needs_review",
-            "value": "自动粘贴功能需要系统辅助功能权限。\\n\\n请手动到：\\n系统设置 → 隐私与安全性 → 辅助功能，点击 + 添加 Talk.app，然后重启本应用。"
+            "state": "translated",
+            "value": "Auto-paste requires Accessibility permission.\n\nGo to: System Settings → Privacy & Security → Accessibility, click + to add Talk.app, then restart."
           }
         }
       }
@@ -3100,8 +3100,8 @@
         },
         "en": {
           "stringUnit": {
-            "state": "needs_review",
-            "value": "自定义延迟"
+            "state": "translated",
+            "value": "Custom delay"
           }
         }
       }
@@ -3132,8 +3132,8 @@
         },
         "en": {
           "stringUnit": {
-            "state": "needs_review",
-            "value": "菜单栏"
+            "state": "translated",
+            "value": "Menu Bar"
           }
         }
       }
@@ -3180,8 +3180,8 @@
         },
         "en": {
           "stringUnit": {
-            "state": "needs_review",
-            "value": "设置"
+            "state": "translated",
+            "value": "Settings"
           }
         }
       }
@@ -3212,8 +3212,8 @@
         },
         "en": {
           "stringUnit": {
-            "state": "needs_review",
-            "value": "设置快捷键"
+            "state": "translated",
+            "value": "Set Hotkey"
           }
         }
       }
@@ -3276,8 +3276,8 @@
         },
         "en": {
           "stringUnit": {
-            "state": "needs_review",
-            "value": "词库管理"
+            "state": "translated",
+            "value": "Vocabulary Manager"
           }
         }
       }
@@ -3308,8 +3308,8 @@
         },
         "en": {
           "stringUnit": {
-            "state": "needs_review",
-            "value": "词汇「\\(word)」已存在"
+            "state": "translated",
+            "value": "Word \"\\(word)\" already exists"
           }
         }
       }
@@ -3356,8 +3356,8 @@
         },
         "en": {
           "stringUnit": {
-            "state": "needs_review",
-            "value": "语音识别模型 (ASR)"
+            "state": "translated",
+            "value": "Speech Recognition Model (ASR)"
           }
         }
       }
@@ -3420,8 +3420,8 @@
         },
         "en": {
           "stringUnit": {
-            "state": "needs_review",
-            "value": "请重试并靠近麦克风"
+            "state": "translated",
+            "value": "Please try again closer to the microphone"
           }
         }
       }
@@ -3596,8 +3596,8 @@
         },
         "en": {
           "stringUnit": {
-            "state": "needs_review",
-            "value": "输入设备"
+            "state": "translated",
+            "value": "Input Device"
           }
         }
       }
@@ -3756,8 +3756,8 @@
         },
         "en": {
           "stringUnit": {
-            "state": "needs_review",
-            "value": "选中文本捕获方式"
+            "state": "translated",
+            "value": "Selection Capture Method"
           }
         }
       }
@@ -3772,8 +3772,8 @@
         },
         "en": {
           "stringUnit": {
-            "state": "needs_review",
-            "value": "选择下载源"
+            "state": "translated",
+            "value": "Choose Download Source"
           }
         }
       }
@@ -3804,8 +3804,8 @@
         },
         "en": {
           "stringUnit": {
-            "state": "needs_review",
-            "value": "选择触发录音的快捷键和触发方式。"
+            "state": "translated",
+            "value": "Choose the hotkey and trigger mode for recording."
           }
         }
       }
@@ -3820,8 +3820,8 @@
         },
         "en": {
           "stringUnit": {
-            "state": "needs_review",
-            "value": "邮件"
+            "state": "translated",
+            "value": "Mail"
           }
         }
       }
@@ -3948,8 +3948,8 @@
         },
         "en": {
           "stringUnit": {
-            "state": "needs_review",
-            "value": "预览窗口"
+            "state": "translated",
+            "value": "Preview window"
           }
         }
       }
@@ -3980,8 +3980,8 @@
         },
         "en": {
           "stringUnit": {
-            "state": "needs_review",
-            "value": "频率: \\(item.frequency)"
+            "state": "translated",
+            "value": "Frequency: \\(item.frequency)"
           }
         }
       }
@@ -3996,8 +3996,8 @@
         },
         "en": {
           "stringUnit": {
-            "state": "needs_review",
-            "value": "飞书"
+            "state": "translated",
+            "value": "Feishu"
           }
         }
       }
@@ -4044,8 +4044,8 @@
         },
         "en": {
           "stringUnit": {
-            "state": "needs_review",
-            "value": "麦克风"
+            "state": "translated",
+            "value": "Microphone"
           }
         }
       }

@@ -14,21 +14,21 @@ struct SettingsView: View {
     var body: some View {
         TabView {
             RecordingSettingsTab(settings: settings)
-                .tabItem { Label(String(localized: "录音"), systemImage: "mic.circle") }
+                .tabItem { Image(systemName: "mic.circle") }
 
             ASRSettingsTab(settings: settings)
-                .tabItem { Label(String(localized: "语音识别"), systemImage: "waveform") }
+                .tabItem { Image(systemName: "waveform") }
 
             LLMSettingsTab(settings: settings)
-                .tabItem { Label(String(localized: "文本润色"), systemImage: "sparkles") }
+                .tabItem { Image(systemName: "sparkles") }
 
             OutputSettingsTab(settings: settings)
-                .tabItem { Label(String(localized: "输出"), systemImage: "text.bubble") }
+                .tabItem { Image(systemName: "text.bubble") }
 
             AdvancedSettingsTab(settings: settings)
-                .tabItem { Label(String(localized: "高级"), systemImage: "gearshape.2") }
+                .tabItem { Image(systemName: "gearshape.2") }
         }
-        .frame(width: 680, height: 520)
+        .frame(width: 600, height: 520)
         .toast()
     }
 }
