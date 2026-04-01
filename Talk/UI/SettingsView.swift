@@ -83,7 +83,7 @@ private struct RecordingSettingsTab: View {
                     ))
                     .onChange(of: settings.recordingMaxDuration) { _ in ToastManager.shared.show(String(localized: "已保存")) }
                     if settings.recordingMaxDuration > 0 {
-                        Stepper(String(localized: "\(settings.recordingMaxDuration)秒"),
+                        Stepper("\(settings.recordingMaxDuration)s",
                                 value: $settings.recordingMaxDuration,
                                 in: 1...300)
                     }
@@ -234,7 +234,7 @@ private struct LLMSettingsTab: View {
                 HStack {
                     Text(String(localized: "对话历史轮数"))
                     Spacer()
-                    Stepper(String(localized: "\(settings.conversationHistoryRounds) 轮"),
+                    Stepper("\(settings.conversationHistoryRounds)",
                             value: $settings.conversationHistoryRounds,
                             in: 0...10)
                 }
@@ -517,7 +517,7 @@ private struct AdvancedSettingsTab: View {
 
                 if settings.enablePersonalVocabulary {
                     HStack {
-                        Text(String(localized: "已学习 \(VocabularyManager.shared.items.count) 个词汇"))
+                        Text("\(VocabularyManager.shared.items.count) \(String(localized: "词汇"))")
                             .foregroundColor(.secondary)
                         Spacer()
                         Button(String(localized: "管理词库")) {
@@ -550,10 +550,12 @@ private struct AdvancedSettingsTab: View {
                 ))
                 .onChange(of: settings.idleUnloadMinutes) { _ in ToastManager.shared.show(String(localized: "已保存")) }
                 if settings.idleUnloadMinutes > 0 {
-                    HStack {
-                        Text(String(localized: "空闲卸载模型"))
-                        Spacer()
-                        Stepper(String(localized: "\(settings.idleUnloadMinutes) 分钟"), value: $settings.idleUnloadMinutes, in: 1...60)
+                    Picker(String(localized: "空闲卸载模型"), selection: $settings.idleUnloadMinutes) {
+                        Text("5 min").tag(5)
+                        Text("10 min").tag(10)
+                        Text("15 min").tag(15)
+                        Text("30 min").tag(30)
+                        Text("60 min").tag(60)
                     }
                     .onChange(of: settings.idleUnloadMinutes) { _ in ToastManager.shared.show(String(localized: "已保存")) }
                 }
