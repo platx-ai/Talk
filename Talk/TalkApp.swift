@@ -79,9 +79,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     }
 
     private func unloadIdleModels() {
-        guard ASRService.shared.isModelLoaded || LLMService.shared.isModelLoaded else { return }
+        let settings = AppSettings.load()
+        let hasMLXModels = (settings.asrEngine == .mlxLocal && ASRService.shared.isModelLoaded) || LLMService.shared.isModelLoaded
+        guard hasMLXModels else { return }
         AppLogger.info("空闲超时，卸载模型以释放内存", category: .general)
-        ASRService.shared.unloadModel()
+        if settings.asrEngine == .mlxLocal {
+            ASRService.shared.unloadModel()
+        }
         LLMService.shared.unloadModel()
         isModelsReady = false
     }
@@ -106,16 +110,21 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
 
         let bundled = resolveBundledModelSources()
         let llmModelId = bundled.llmModelPath ?? settings.llmModelId
+        let needASRModel = settings.asrEngine == .mlxLocal
 
         Task {
             statusBar?.updateProcessingStatus(.loadingModel)
 
-            AppLogger.info("开始加载 ASR 模型...", category: .general)
-            do {
-                try await ASRService.shared.loadModel(modelId: settings.asrModelId, bundleResourcesURL: bundled.asrBundleResourcesURL)
-                AppLogger.info("ASR 模型加载完成", category: .general)
-            } catch {
-                AppLogger.error("ASR 模型加载失败: \(error.localizedDescription)", category: .general)
+            if needASRModel {
+                AppLogger.info("开始加载 ASR 模型...", category: .general)
+                do {
+                    try await ASRService.shared.loadModel(modelId: settings.asrModelId, bundleResourcesURL: bundled.asrBundleResourcesURL)
+                    AppLogger.info("ASR 模型加载完成", category: .general)
+                } catch {
+                    AppLogger.error("ASR 模型加载失败: \(error.localizedDescription)", category: .general)
+                }
+            } else {
+                AppLogger.info("ASR 引擎为 Apple Speech，跳过 MLX ASR 模型加载", category: .general)
             }
 
             AppLogger.info("开始加载 LLM 模型...", category: .general)
@@ -126,7 +135,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
                 AppLogger.error("LLM 模型加载失败: \(error.localizedDescription)", category: .general)
             }
 
-            isModelsReady = ASRService.shared.isModelLoaded && LLMService.shared.isModelLoaded
+            let asrReady = needASRModel ? ASRService.shared.isModelLoaded : true
+            isModelsReady = asrReady && LLMService.shared.isModelLoaded
             statusBar?.updateProcessingStatus(.idle)
 
             if isModelsReady {
@@ -308,20 +318,38 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
             break
         }
 
+        // Apple Speech 权限检查
+        let settings = AppSettings.load()
+        if settings.asrEngine == .appleSpeech {
+            let granted = await AppleSpeechService.ensurePermission()
+            if !granted {
+                AppLogger.warning("语音识别权限被拒绝，需要到系统设置中开启", category: .ui)
+                return false
+            }
+        }
+
         // 模型未就绪时，边录音边加载（不拒绝录音）
-        if !isModelsReady && !ASRService.shared.isModelLoaded {
-            AppLogger.info("\(trigger)触发：模型未加载，启动并行加载", category: .ui)
-            let settings = AppSettings.load()
-            let bundled = resolveBundledModelSources()
-            let llmModelId = bundled.llmModelPath ?? settings.llmModelId
-            Task {
-                do {
-                    try await ASRService.shared.loadModel(modelId: settings.asrModelId, bundleResourcesURL: bundled.asrBundleResourcesURL)
-                    try await LLMService.shared.loadModel(modelId: llmModelId)
-                    isModelsReady = true
-                    AppLogger.info("并行模型加载完成", category: .general)
-                } catch {
-                    AppLogger.error("并行模型加载失败: \(error.localizedDescription)", category: .general)
+        // Apple Speech 不需要加载 ASR 模型，但仍需 LLM 模型用于润色
+        if !isModelsReady {
+            let needASRModel = settings.asrEngine == .mlxLocal && !ASRService.shared.isModelLoaded
+            let needLLMModel = !LLMService.shared.isModelLoaded
+            if needASRModel || needLLMModel {
+                AppLogger.info("\(trigger)触发：模型未加载，启动并行加载", category: .ui)
+                let bundled = resolveBundledModelSources()
+                let llmModelId = bundled.llmModelPath ?? settings.llmModelId
+                Task {
+                    do {
+                        if needASRModel {
+                            try await ASRService.shared.loadModel(modelId: settings.asrModelId, bundleResourcesURL: bundled.asrBundleResourcesURL)
+                        }
+                        if needLLMModel {
+                            try await LLMService.shared.loadModel(modelId: llmModelId)
+                        }
+                        isModelsReady = true
+                        AppLogger.info("并行模型加载完成", category: .general)
+                    } catch {
+                        AppLogger.error("并行模型加载失败: \(error.localizedDescription)", category: .general)
+                    }
                 }
             }
         }
@@ -338,7 +366,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
             if let sel = selectedTextBeforeRecording {
                 AppLogger.info("捕获到选中文本: \(sel.prefix(50))...", category: .ui)
             }
-            let settings = AppSettings.load()
             AudioRecorder.shared.selectedDeviceUID = settings.selectedAudioDeviceUID
             AudioRecorder.shared.onAudioLevel = { [weak statusBar] level in
                 statusBar?.updateFloatingAudioLevel(level)
@@ -347,7 +374,39 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
             streamingFullText = nil
             cumulativeConfirmedText = ""  // 重置累积文本
             recordingStartTime = Date()  // 记录录音开始时间
-            if settings.enableStreamingInference {
+
+            if settings.asrEngine == .appleSpeech {
+                // Apple Speech：天然流式，始终启用
+                // 跳过 3 秒延迟（Apple Speech 自己处理填充词）
+                AudioRecorder.shared.skipStreamingDelay = true
+                do {
+                    try AppleSpeechService.shared.startStreaming(
+                        locale: settings.appleSpeechLocale.locale,
+                        onDevice: settings.appleSpeechOnDevice
+                    )
+                    AppleSpeechService.shared.onTranscriptionUpdate = { [weak self, weak statusBar] (confirmed, provisional) in
+                        Task { @MainActor in
+                            guard let self, settings.appleSpeechShowRealtime else { return }
+                            let displayText = confirmed + provisional
+                            statusBar?.updateFloatingRealtimeText(displayText)
+                        }
+                    }
+                    AppleSpeechService.shared.onTranscriptionComplete = { [weak self] fullText in
+                        Task { @MainActor in
+                            self?.streamingFullText = fullText
+                        }
+                    }
+                    AudioRecorder.shared.onAudioData = { chunk in
+                        AppleSpeechService.shared.feedAudioSamples(chunk, sampleRate: 16000)
+                    }
+                    AppLogger.info("Apple Speech 流式识别已启动", category: .ui)
+                } catch {
+                    AppLogger.warning("Apple Speech 启动失败: \(error.localizedDescription)，降级为 MLX 批量识别", category: .ui)
+                    AppleSpeechService.shared.cancelStreaming()
+                    AudioRecorder.shared.onAudioData = nil
+                }
+            } else if settings.enableStreamingInference {
+                AudioRecorder.shared.skipStreamingDelay = false
                 do {
                     if !ASRService.shared.isModelLoaded {
                         let bundled = resolveBundledModelSources()
@@ -385,13 +444,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
                     AudioRecorder.shared.onAudioData = { [weak self] chunk in
                         self?.handleAudioChunk(chunk)
                     }
-                    AppLogger.info("流式识别已启动", category: .ui)
+                    AppLogger.info("MLX 流式识别已启动", category: .ui)
                 } catch {
                     AppLogger.warning("流式识别启动失败: \(error.localizedDescription)，降级为批量识别", category: .ui)
                     ASRService.shared.stopStreaming()
                     AudioRecorder.shared.onAudioData = nil
                 }
             } else {
+                AudioRecorder.shared.skipStreamingDelay = false
                 ASRService.shared.stopStreaming()
                 AudioRecorder.shared.onAudioData = nil
             }
@@ -431,21 +491,50 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
             statusBar.updateProcessingStatus(.idle)
             AppLogger.warning("录音为空，没有采集到有效音频", category: .audio)
             ASRService.shared.stopStreaming()
+            AppleSpeechService.shared.cancelStreaming()
             return false
+        }
+
+        let settings = AppSettings.load()
+
+        // Apple Speech：停止输入并等待最终结果
+        if settings.asrEngine == .appleSpeech && AppleSpeechService.shared.isRecognizing {
+            AppleSpeechService.shared.stopStreaming()
+            // 等待最终结果到达（最多 3 秒）
+            for _ in 0..<30 {
+                if streamingFullText != nil { break }
+                try? await Task.sleep(for: .milliseconds(100))
+            }
         }
 
         // 如果流式识别已完成，使用流式结果；否则降级为批量识别
         if let fullText = streamingFullText {
-            AppLogger.info("使用流式识别结果: \(fullText)", category: .ui)
-            AppLogger.info("本次已走流式识别完成路径，跳过批量 VAD 过滤", category: .audio)
+            let trimmed = fullText.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !trimmed.isEmpty else {
+                // 流式识别返回空结果（未检测到语音）
+                statusBar.updateProcessingStatus(.idle)
+                statusBar.showNotification(title: String(localized: "未检测到语音"), message: String(localized: "请重试并靠近麦克风"))
+                AppLogger.info("流式识别结果为空，跳过润色", category: .ui)
+                return false
+            }
+            let engineName = settings.asrEngine == .appleSpeech ? "Apple Speech" : "MLX"
+            AppLogger.info("使用\(engineName)流式识别结果: \(trimmed)", category: .ui)
             // 等待一小段时间确保流式识别完全结束
             try? await Task.sleep(for: .milliseconds(100))
-            ASRService.shared.stopStreaming()
-            await processTranscription(text: fullText, duration: duration)
+            if settings.asrEngine != .appleSpeech {
+                ASRService.shared.stopStreaming()
+            }
+            await processTranscription(text: trimmed, duration: duration)
+        } else if settings.asrEngine == .appleSpeech {
+            // Apple Speech 没返回结果 — 不回退到 MLX，直接提示
+            AppleSpeechService.shared.cancelStreaming()
+            statusBar.updateProcessingStatus(.idle)
+            statusBar.showNotification(title: String(localized: "未检测到语音"), message: String(localized: "请重试并靠近麦克风"))
+            AppLogger.warning("Apple Speech 未返回识别结果", category: .asr)
+            return false
         } else {
-            // 停止流式会话（如果已启动但未完成）
+            // MLX ASR 回退路径：停止流式 → VAD 过滤 → 批量识别
             ASRService.shared.stopStreaming()
-            let settings = AppSettings.load()
             let vadResult: VADFilterResult
             if settings.enableVADFilter {
                 AppLogger.info(
@@ -485,7 +574,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
                 )
             }
 
-            // 使用批量识别
+            // 使用 MLX 批量识别
             await processAudio(audio: vadResult.speechAudio, duration: duration, sampleRate: sampleRate)
         }
 
@@ -520,6 +609,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
                 } else {
                     effectivePrompt = settings.customSystemPrompt.isEmpty ? nil : settings.customSystemPrompt
                 }
+
+                // Apple Speech 模式：每次清除会话历史，避免 LLM 把上一轮输出混入当前结果
+                // （Apple Speech 每次给出完整独立的句子，不需要上下文关联）
+                if settings.asrEngine == .appleSpeech, let bid = self.targetApp?.bundleIdentifier {
+                    LLMService.shared.clearHistory(forApp: bid)
+                }
+
                 let polishedText = try await LLMService.shared.polish(
                     text: text,
                     intensity: settings.polishIntensity,
@@ -545,9 +641,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
                     try await TextInjector.shared.inject(polishedText)
                 }
 
+                let asrLabel = settings.asrEngine == .appleSpeech ? "Apple Speech" : settings.asrModelId
                 let historyItem = HistoryItem(
                     duration: duration, rawText: text, polishedText: polishedText,
-                    asrModel: settings.asrModelId, llmModel: llmModelId
+                    asrModel: asrLabel, llmModel: llmModelId
                 )
                 HistoryManager.shared.add(historyItem)
 
@@ -622,9 +719,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
                     try await TextInjector.shared.inject(polishedText)
                 }
 
+                let asrLabel = settings.asrEngine == .appleSpeech ? "Apple Speech" : settings.asrModelId
                 let historyItem = HistoryItem(
                     duration: duration, rawText: rawText, polishedText: polishedText,
-                    asrModel: settings.asrModelId, llmModel: llmModelId
+                    asrModel: asrLabel, llmModel: llmModelId
                 )
                 HistoryManager.shared.add(historyItem)
 

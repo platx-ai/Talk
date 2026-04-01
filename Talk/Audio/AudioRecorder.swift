@@ -39,6 +39,9 @@ final class AudioRecorder: NSObject, @unchecked Sendable {
     var onRecordingComplete: (([Float], TimeInterval) -> Void)?
     var onRecordingError: ((Error) -> Void)?
 
+    /// 跳过流式音频数据的 3 秒延迟（Apple Speech 自己处理填充词）
+    var skipStreamingDelay: Bool = false
+
     private let stateLock = NSLock()
 
     private func withStateLock<T>(_ body: () -> T) -> T {
@@ -143,7 +146,9 @@ final class AudioRecorder: NSObject, @unchecked Sendable {
             }
 
             // 流式识别延迟发送：录音开始后的前3秒不发送，避免开头填充词
+            // Apple Speech 模式跳过此延迟（Apple Speech 自己处理填充词）
             let shouldSendStreamingData = self.withStateLock { () -> Bool in
+                if self.skipStreamingDelay { return true }
                 guard let startTime = self.recordingStartTime else { return false }
                 let elapsed = Date().timeIntervalSince(startTime)
                 return elapsed >= 3.0

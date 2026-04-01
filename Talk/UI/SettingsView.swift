@@ -127,83 +127,140 @@ private struct ASRSettingsTab: View {
 
     var body: some View {
         Form {
+            // 引擎选择
             Section {
-                Picker(String(localized: "下载源"), selection: $settings.modelSource) {
-                    Text(String(localized: "HuggingFace（国际）")).tag(AppSettings.ModelSource.huggingface)
-                    Text(String(localized: "ModelScope（中国大陆）")).tag(AppSettings.ModelSource.modelscope)
+                Picker(String(localized: "识别引擎"), selection: $settings.asrEngine) {
+                    ForEach(AppSettings.ASREngine.allCases, id: \.self) { engine in
+                        VStack(alignment: .leading) {
+                            Text(engine.displayName)
+                        }.tag(engine)
+                    }
                 }
-                .onChange(of: settings.modelSource) { _ in ToastManager.shared.show(String(localized: "已保存")) }
-                Text(String(localized: "中国大陆用户建议选择 ModelScope，可避免网络问题。"))
+                .onChange(of: settings.asrEngine) { _ in ToastManager.shared.show(String(localized: "已保存")) }
+
+                Text(settings.asrEngine.subtitle)
                     .font(.caption)
                     .foregroundColor(.secondary)
             } header: {
-                Text(String(localized: "模型下载源"))
+                Text(String(localized: "语音识别引擎"))
             }
 
-            Section {
-                Picker(String(localized: "模型选择"), selection: $settings.asrModelId) {
-                    Text("Qwen3-ASR-0.6B-4bit").tag("mlx-community/Qwen3-ASR-0.6B-4bit")
-                }
-                .onChange(of: settings.asrModelId) { _ in ToastManager.shared.show(String(localized: "已保存")) }
-
-                Picker(String(localized: "识别语言"), selection: $settings.asrLanguage) {
-                    ForEach(AppSettings.ASRLanguage.allCases, id: \.self) { lang in
-                        Text(lang.displayName).tag(lang)
-                    }
-                }
-                .onChange(of: settings.asrLanguage) { _ in ToastManager.shared.show(String(localized: "已保存")) }
-
-                Toggle(String(localized: "启用流式识别（边录边出字）"), isOn: $settings.enableStreamingInference)
-                    .onChange(of: settings.enableStreamingInference) { _ in ToastManager.shared.show(String(localized: "已保存")) }
-
-                Toggle(String(localized: "显示实时识别文字（仅流式模式）"), isOn: $settings.showRealtimeRecognition)
-                    .disabled(!settings.enableStreamingInference)
-                    .onChange(of: settings.showRealtimeRecognition) { _ in ToastManager.shared.show(String(localized: "已保存")) }
-            } header: {
-                Text(String(localized: "语音识别设置"))
-            }
-
-            Section {
-                Toggle(String(localized: "启用静音过滤（Silero VAD）"), isOn: $settings.enableVADFilter)
-                    .onChange(of: settings.enableVADFilter) { _ in ToastManager.shared.show(String(localized: "已保存")) }
-
-                if settings.enableVADFilter {
-                    HStack {
-                        Text(String(localized: "语音阈值"))
-                        Spacer()
-                        Text(String(format: "%.2f", settings.vadThreshold))
-                            .foregroundColor(.secondary)
-                    }
-                    Slider(value: $settings.vadThreshold, in: 0.1...0.9, step: 0.05)
-                        .onChange(of: settings.vadThreshold) { _ in ToastManager.shared.show(String(localized: "已保存")) }
-
-                    HStack {
-                        Text(String(localized: "前后补偿帧"))
-                        Spacer()
-                        Stepper("\(settings.vadPaddingChunks)",
-                                value: $settings.vadPaddingChunks,
-                                in: 0...8)
-                    }
-                    .onChange(of: settings.vadPaddingChunks) { _ in ToastManager.shared.show(String(localized: "已保存")) }
-
-                    HStack {
-                        Text(String(localized: "最少语音帧"))
-                        Spacer()
-                        Stepper("\(settings.vadMinSpeechChunks)",
-                                value: $settings.vadMinSpeechChunks,
-                                in: 1...16)
-                    }
-                    .onChange(of: settings.vadMinSpeechChunks) { _ in ToastManager.shared.show(String(localized: "已保存")) }
-                }
-
-                Text(String(localized: "开启后会在批量识别前过滤静音，减少空白输入。阈值越高越严格。"))
-                    .font(.caption)
-                    .foregroundColor(.secondary)
-            } header: {
-                Text(String(localized: "静音检测（VAD）"))
+            // 引擎专属设置
+            switch settings.asrEngine {
+            case .mlxLocal:
+                mlxLocalSettings
+            case .appleSpeech:
+                appleSpeechSettings
             }
         }
         .formStyle(.grouped)
+    }
+
+    // MARK: - MLX 本地模型设置
+
+    @ViewBuilder
+    private var mlxLocalSettings: some View {
+        Section {
+            Picker(String(localized: "下载源"), selection: $settings.modelSource) {
+                Text(String(localized: "HuggingFace（国际）")).tag(AppSettings.ModelSource.huggingface)
+                Text(String(localized: "ModelScope（中国大陆）")).tag(AppSettings.ModelSource.modelscope)
+            }
+            .onChange(of: settings.modelSource) { _ in ToastManager.shared.show(String(localized: "已保存")) }
+            Text(String(localized: "中国大陆用户建议选择 ModelScope，可避免网络问题。"))
+                .font(.caption)
+                .foregroundColor(.secondary)
+        } header: {
+            Text(String(localized: "模型下载源"))
+        }
+
+        Section {
+            Picker(String(localized: "模型选择"), selection: $settings.asrModelId) {
+                Text("Qwen3-ASR-0.6B-4bit").tag("mlx-community/Qwen3-ASR-0.6B-4bit")
+            }
+            .onChange(of: settings.asrModelId) { _ in ToastManager.shared.show(String(localized: "已保存")) }
+
+            Picker(String(localized: "识别语言"), selection: $settings.asrLanguage) {
+                ForEach(AppSettings.ASRLanguage.allCases, id: \.self) { lang in
+                    Text(lang.displayName).tag(lang)
+                }
+            }
+            .onChange(of: settings.asrLanguage) { _ in ToastManager.shared.show(String(localized: "已保存")) }
+
+            Toggle(String(localized: "启用流式识别（边录边出字）"), isOn: $settings.enableStreamingInference)
+                .onChange(of: settings.enableStreamingInference) { _ in ToastManager.shared.show(String(localized: "已保存")) }
+
+            Toggle(String(localized: "显示实时识别文字（仅流式模式）"), isOn: $settings.showRealtimeRecognition)
+                .disabled(!settings.enableStreamingInference)
+                .onChange(of: settings.showRealtimeRecognition) { _ in ToastManager.shared.show(String(localized: "已保存")) }
+        } header: {
+            Text(String(localized: "语音识别设置"))
+        }
+
+        Section {
+            Toggle(String(localized: "启用静音过滤（Silero VAD）"), isOn: $settings.enableVADFilter)
+                .onChange(of: settings.enableVADFilter) { _ in ToastManager.shared.show(String(localized: "已保存")) }
+
+            if settings.enableVADFilter {
+                HStack {
+                    Text(String(localized: "语音阈值"))
+                    Spacer()
+                    Text(String(format: "%.2f", settings.vadThreshold))
+                        .foregroundColor(.secondary)
+                }
+                Slider(value: $settings.vadThreshold, in: 0.1...0.9, step: 0.05)
+                    .onChange(of: settings.vadThreshold) { _ in ToastManager.shared.show(String(localized: "已保存")) }
+
+                HStack {
+                    Text(String(localized: "前后补偿帧"))
+                    Spacer()
+                    Stepper("\(settings.vadPaddingChunks)",
+                            value: $settings.vadPaddingChunks,
+                            in: 0...8)
+                }
+                .onChange(of: settings.vadPaddingChunks) { _ in ToastManager.shared.show(String(localized: "已保存")) }
+
+                HStack {
+                    Text(String(localized: "最少语音帧"))
+                    Spacer()
+                    Stepper("\(settings.vadMinSpeechChunks)",
+                            value: $settings.vadMinSpeechChunks,
+                            in: 1...16)
+                }
+                .onChange(of: settings.vadMinSpeechChunks) { _ in ToastManager.shared.show(String(localized: "已保存")) }
+            }
+
+            Text(String(localized: "开启后会在批量识别前过滤静音，减少空白输入。阈值越高越严格。"))
+                .font(.caption)
+                .foregroundColor(.secondary)
+        } header: {
+            Text(String(localized: "静音检测（VAD）"))
+        }
+    }
+
+    // MARK: - Apple Speech 设置
+
+    @ViewBuilder
+    private var appleSpeechSettings: some View {
+        Section {
+            Picker(String(localized: "识别语言"), selection: $settings.appleSpeechLocale) {
+                ForEach(AppSettings.AppleSpeechLocale.allCases, id: \.self) { locale in
+                    Text(locale.displayName).tag(locale)
+                }
+            }
+            .onChange(of: settings.appleSpeechLocale) { _ in ToastManager.shared.show(String(localized: "已保存")) }
+
+            Toggle(String(localized: "仅设备端识别（离线）"), isOn: $settings.appleSpeechOnDevice)
+                .onChange(of: settings.appleSpeechOnDevice) { _ in ToastManager.shared.show(String(localized: "已保存")) }
+
+            Toggle(String(localized: "显示实时识别文字"), isOn: $settings.appleSpeechShowRealtime)
+                .onChange(of: settings.appleSpeechShowRealtime) { _ in ToastManager.shared.show(String(localized: "已保存")) }
+
+            Text(String(localized: "Apple 语音识别天然支持流式输出，无需额外配置。设备端识别可离线使用，但精度可能略低。"))
+                .font(.caption)
+                .foregroundColor(.secondary)
+        } header: {
+            Text(String(localized: "Apple 语音识别设置"))
+        }
     }
 }
 
@@ -763,6 +820,49 @@ extension AppSettings.ModelSource {
         switch self {
         case .huggingface: return String(localized: "HuggingFace（国际）")
         case .modelscope: return String(localized: "ModelScope（中国大陆）")
+        }
+    }
+}
+
+extension AppSettings.ASREngine {
+    var displayName: String {
+        switch self {
+        case .mlxLocal: return String(localized: "本地模型 (Qwen3-ASR)")
+        case .appleSpeech: return String(localized: "Apple 语音识别")
+        }
+    }
+
+    var subtitle: String {
+        switch self {
+        case .mlxLocal: return String(localized: "离线 · 高精度 · 需下载模型")
+        case .appleSpeech: return String(localized: "零配置 · 流式输出 · 系统内置")
+        }
+    }
+}
+
+extension AppSettings.AppleSpeechLocale {
+    var displayName: String {
+        switch self {
+        case .system: return String(localized: "跟随系统")
+        case .zhCN: return String(localized: "中文（简体）")
+        case .zhTW: return String(localized: "中文（繁体）")
+        case .enUS: return "English (US)"
+        case .enGB: return "English (UK)"
+        case .ja: return String(localized: "日语")
+        case .ko: return String(localized: "韩语")
+        }
+    }
+
+    /// Convert to Locale for SFSpeechRecognizer
+    var locale: Locale? {
+        switch self {
+        case .system: return nil
+        case .zhCN: return Locale(identifier: "zh-CN")
+        case .zhTW: return Locale(identifier: "zh-TW")
+        case .enUS: return Locale(identifier: "en-US")
+        case .enGB: return Locale(identifier: "en-GB")
+        case .ja: return Locale(identifier: "ja-JP")
+        case .ko: return Locale(identifier: "ko-KR")
         }
     }
 }

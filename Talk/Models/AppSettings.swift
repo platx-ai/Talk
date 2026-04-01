@@ -196,7 +196,16 @@ final class AppSettings {
 
     var modelSource: ModelSource = .huggingface { didSet { autoSave() } }
 
-    // MARK: - ASR 设置
+    // MARK: - ASR 引擎选择
+
+    enum ASREngine: String, Codable, CaseIterable {
+        case mlxLocal = "mlx_local"
+        case appleSpeech = "apple_speech"
+    }
+
+    var asrEngine: ASREngine = .mlxLocal { didSet { autoSave() } }
+
+    // MARK: - ASR 设置（MLX 本地模型）
 
     var asrModelId: String = "mlx-community/Qwen3-ASR-0.6B-4bit"
 
@@ -214,6 +223,22 @@ final class AppSettings {
     var vadThreshold: Double = 0.5 { didSet { autoSave() } }
     var vadPaddingChunks: Int = 1 { didSet { autoSave() } }
     var vadMinSpeechChunks: Int = 2 { didSet { autoSave() } }
+
+    // MARK: - ASR 设置（Apple Speech）
+
+    enum AppleSpeechLocale: String, Codable, CaseIterable {
+        case system = "system"
+        case zhCN = "zh-CN"
+        case zhTW = "zh-TW"
+        case enUS = "en-US"
+        case enGB = "en-GB"
+        case ja = "ja-JP"
+        case ko = "ko-KR"
+    }
+
+    var appleSpeechLocale: AppleSpeechLocale = .zhCN { didSet { autoSave() } }
+    var appleSpeechOnDevice: Bool = false { didSet { autoSave() } }
+    var appleSpeechShowRealtime: Bool = true { didSet { autoSave() } }
 
     // MARK: - LLM 设置
 
@@ -368,6 +393,10 @@ extension AppSettings {
             self.modelSource = modelSource
         }
 
+        if let engine = defaults.string(forKey: "asrEngine"),
+           let asrEngine = ASREngine(rawValue: engine) {
+            self.asrEngine = asrEngine
+        }
         self.asrModelId = defaults.string(forKey: "asrModelId") ?? "mlx-community/Qwen3-ASR-0.6B-4bit"
         if let lang = defaults.string(forKey: "asrLanguage"),
            let language = ASRLanguage(rawValue: lang) {
@@ -386,6 +415,14 @@ extension AppSettings {
         }
         self.vadPaddingChunks = defaults.integer(forKey: "vadPaddingChunks") != 0 ? defaults.integer(forKey: "vadPaddingChunks") : 1
         self.vadMinSpeechChunks = defaults.integer(forKey: "vadMinSpeechChunks") != 0 ? defaults.integer(forKey: "vadMinSpeechChunks") : 2
+
+        // Apple Speech settings
+        if let locale = defaults.string(forKey: "appleSpeechLocale"),
+           let speechLocale = AppleSpeechLocale(rawValue: locale) {
+            self.appleSpeechLocale = speechLocale
+        }
+        self.appleSpeechOnDevice = boolValue("appleSpeechOnDevice", default: false)
+        self.appleSpeechShowRealtime = boolValue("appleSpeechShowRealtime", default: true)
 
         self.llmModelId = defaults.string(forKey: "llmModelId") ?? "mlx-community/Qwen3-4B-Instruct-2507-4bit"
         if let intensity = defaults.string(forKey: "polishIntensity"),
@@ -463,6 +500,7 @@ extension AppSettings {
 
         defaults.set(modelSource.rawValue, forKey: "modelSource")
 
+        defaults.set(asrEngine.rawValue, forKey: "asrEngine")
         defaults.set(asrModelId, forKey: "asrModelId")
         defaults.set(asrLanguage.rawValue, forKey: "asrLanguage")
         defaults.set(enableStreamingInference, forKey: "enableStreamingInference")
@@ -471,6 +509,10 @@ extension AppSettings {
         defaults.set(vadThreshold, forKey: "vadThreshold")
         defaults.set(vadPaddingChunks, forKey: "vadPaddingChunks")
         defaults.set(vadMinSpeechChunks, forKey: "vadMinSpeechChunks")
+
+        defaults.set(appleSpeechLocale.rawValue, forKey: "appleSpeechLocale")
+        defaults.set(appleSpeechOnDevice, forKey: "appleSpeechOnDevice")
+        defaults.set(appleSpeechShowRealtime, forKey: "appleSpeechShowRealtime")
 
         defaults.set(llmModelId, forKey: "llmModelId")
         defaults.set(polishIntensity.rawValue, forKey: "polishIntensity")
