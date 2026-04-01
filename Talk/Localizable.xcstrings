@@ -4065,6 +4065,22 @@
           }
         }
       }
+    },
+    "词汇": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "词汇"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "words"
+          }
+        }
+      }
     }
   }
 }
