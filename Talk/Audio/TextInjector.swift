@@ -76,6 +76,9 @@ final class TextInjector {
         // 备份当前剪贴板内容
         let backup = backupPasteboard(pasteboard)
 
+        // 检测并临时切换输入法（CJK 输入法可能拦截 Cmd+V）
+        let savedInputSource = switchToASCIIIfCJK()
+
         // 写入要注入的文本
         pasteboard.clearContents()
         pasteboard.setString(text, forType: .string)
@@ -84,9 +87,13 @@ final class TextInjector {
 
         simulatePaste()
 
-        // 等粘贴完成后恢复剪贴板
+        // 等粘贴完成后恢复剪贴板和输入法
         try await Task.sleep(for: .milliseconds(300))
         restorePasteboard(pasteboard, from: backup)
+
+        if let saved = savedInputSource {
+            restoreInputSource(saved)
+        }
     }
 
     // MARK: - 剪贴板备份/恢复
@@ -133,6 +140,55 @@ final class TextInjector {
             AppLogger.warning("AppleScript 执行失败，回退到剪贴板方法", category: .ui)
             try await injectViaClipboard(text)
         }
+    }
+
+    // MARK: - 输入法切换
+
+    /// 检测当前输入法是否为 CJK，如果是则切换到 ASCII 输入源，返回原输入源以便恢复
+    private func switchToASCIIIfCJK() -> TISInputSource? {
+        guard let current = TISCopyCurrentKeyboardInputSource()?.takeRetainedValue() else {
+            return nil
+        }
+
+        // 检查是否 CJK 输入法
+        guard isCJKInputSource(current) else {
+            return nil
+        }
+
+        // 获取系统最近使用的 ASCII 输入源（通常是 ABC 或 US 键盘）
+        guard let asciiSource = TISCopyCurrentASCIICapableKeyboardInputSource()?.takeRetainedValue() else {
+            AppLogger.warning("找不到 ASCII 输入源，跳过输入法切换", category: .ui)
+            return nil
+        }
+
+        let status = TISSelectInputSource(asciiSource)
+        if status == noErr {
+            AppLogger.debug("已临时切换到 ASCII 输入源", category: .ui)
+            return current
+        } else {
+            AppLogger.warning("切换 ASCII 输入源失败: \(status)", category: .ui)
+            return nil
+        }
+    }
+
+    /// 恢复之前保存的输入法
+    private func restoreInputSource(_ source: TISInputSource) {
+        let status = TISSelectInputSource(source)
+        if status == noErr {
+            AppLogger.debug("已恢复原输入法", category: .ui)
+        } else {
+            AppLogger.warning("恢复输入法失败: \(status)", category: .ui)
+        }
+    }
+
+    /// 判断输入源是否为 CJK 输入法
+    private func isCJKInputSource(_ source: TISInputSource) -> Bool {
+        guard let langsPtr = TISGetInputSourceProperty(source, kTISPropertyInputSourceLanguages) else {
+            return false
+        }
+        let langs = Unmanaged<CFArray>.fromOpaque(langsPtr).takeUnretainedValue() as? [String] ?? []
+        guard let firstLang = langs.first else { return false }
+        return firstLang.hasPrefix("zh") || ["ja", "ko", "vi"].contains(firstLang)
     }
 
     // MARK: - 按键模拟

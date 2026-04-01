@@ -402,6 +402,7 @@
 				INFOPLIST_KEY_NSAccessibilityUsageDescription = "u9700u8981 Accessibility u6743u9650u4ee5u81eau52a8u7c98u8d34u6587u672c";
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
 				INFOPLIST_KEY_NSMicrophoneUsageDescription = u9700u8981u8bbfu95eeu9ea6u514bu98ceu4ee5u8fdbu884cu8bedu97f3u8bc6u522b;
+				INFOPLIST_KEY_NSSpeechRecognitionUsageDescription = "u9700u8981u8bedu97f3u8bc6u522bu6743u9650u4ee5u4f7fu7528 Apple u8bedu97f3u8bc6u522b";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/../Frameworks",
@@ -452,6 +453,7 @@
 				INFOPLIST_KEY_NSAccessibilityUsageDescription = "u9700u8981 Accessibility u6743u9650u4ee5u81eau52a8u7c98u8d34u6587u672c";
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
 				INFOPLIST_KEY_NSMicrophoneUsageDescription = u9700u8981u8bbfu95eeu9ea6u514bu98ceu4ee5u8fdbu884cu8bedu97f3u8bc6u522b;
+				INFOPLIST_KEY_NSSpeechRecognitionUsageDescription = "u9700u8981u8bedu97f3u8bc6u522bu6743u9650u4ee5u4f7fu7528 Apple u8bedu97f3u8bc6u522b";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/../Frameworks",

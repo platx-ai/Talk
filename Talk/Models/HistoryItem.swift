@@ -48,11 +48,11 @@ struct HistoryItem: Codable, Identifiable, Equatable {
     var formattedDuration: String {
         let seconds = Int(duration)
         if seconds < 60 {
-            return "\(seconds)秒"
+            return "\(seconds)s"
         } else {
             let minutes = seconds / 60
             let remainingSeconds = seconds % 60
-            return "\(minutes)分\(remainingSeconds)秒"
+            return "\(minutes)m\(remainingSeconds)s"
         }
     }
 
