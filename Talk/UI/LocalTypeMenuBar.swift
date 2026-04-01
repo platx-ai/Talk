@@ -115,7 +115,7 @@ final class LocalTypeMenuBar {
         if settingsWindow == nil {
             let settingsView = SettingsView()
             settingsWindow = NSWindow(
-                contentRect: NSRect(x: 0, y: 0, width: 680, height: 520),
+                contentRect: NSRect(x: 0, y: 0, width: 600, height: 520),
                 styleMask: [.titled, .closable, .miniaturizable],
                 backing: .buffered,
                 defer: false
