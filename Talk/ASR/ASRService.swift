@@ -152,7 +152,8 @@ final class ASRService {
             temperature: temperature,
             maxTokensPerPass: 20,
             minAgreementPasses: 2,
-            finalizeCompletedWindows: true
+            finalizeCompletedWindows: true,
+            initialPrompt: buildHotwordPrompt()
         )
 
         streamingSession = StreamingInferenceSession(model: model, config: config)
@@ -229,6 +230,25 @@ final class ASRService {
 
     // MARK: - 语音识别
 
+    /// 构建热词 initialPrompt（从词库中提取高频正确形式）
+    private func buildHotwordPrompt() -> String? {
+        let items = VocabularyManager.shared.getHighFrequencyItems(limit: 20)
+        let hotwords = items.compactMap { $0.correctedForm }
+        guard !hotwords.isEmpty else { return nil }
+        // 以逗号分隔的热词列表作为 decoder prefix hint
+        return hotwords.joined(separator: ", ") + ". "
+    }
+
+    /// 识别音频（指定 initialPrompt，用于测试和外部调用）
+    func transcribe(audio: [Float], sampleRate: Int, initialPrompt: String?) async throws -> String {
+        guard isModelLoaded else { throw ASRError.modelNotLoaded }
+        guard let model = model else { throw ASRError.modelNotLoaded }
+
+        let audioArray = MLXArray(audio)
+        let output = model.generate(audio: audioArray, initialPrompt: initialPrompt)
+        return output.text.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
     /// 识别音频
     func transcribe(audio: [Float], sampleRate: Int) async throws -> String {
         guard isModelLoaded else {
@@ -252,7 +272,11 @@ final class ASRService {
 
         do {
             let audioArray = MLXArray(audio)
-            let output = model.generate(audio: audioArray)
+            let hotwordPrompt = buildHotwordPrompt()
+            if let prompt = hotwordPrompt {
+                AppLogger.debug("ASR 热词 prefix: \(prompt)", category: .asr)
+            }
+            let output = model.generate(audio: audioArray, initialPrompt: hotwordPrompt)
             let text = output.text.trimmingCharacters(in: CharacterSet.whitespacesAndNewlines)
 
             AppLogger.debug("语音识别完成: \(text)", category: .asr)
