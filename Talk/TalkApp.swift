@@ -56,6 +56,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         initializeServices(settings: settings)
         setupMicrophonePermission()
         TextInjector.requestAccessibilityPermissionIfNeeded()
+        EditObserver.shared.startProcessingLoop()
 
         AppLogger.info("应用初始化完成", category: .general)
         AppLogger.info("========================================", category: .general)
@@ -299,6 +300,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
 
     private func startRecording(trigger: String) async -> Bool {
         guard let statusBar = statusBar else { return false }
+
+        // 停止上一次编辑观察
+        EditObserver.shared.stopObserving()
 
         // 麦克风权限检查
         let micStatus = AVCaptureDevice.authorizationStatus(for: .audio)
@@ -639,6 +643,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
                         try await Task.sleep(for: .milliseconds(400))
                     }
                     try await TextInjector.shared.inject(polishedText)
+
+                    // 启动编辑观察（启发式热词学习）
+                    if settings.enableAutoHotwordLearning, let target = self.targetApp {
+                        EditObserver.shared.startObserving(
+                            injectedText: polishedText,
+                            targetApp: target,
+                            prefixContext: nil
+                        )
+                    }
                 }
 
                 let asrLabel = settings.asrEngine == .appleSpeech ? "Apple Speech" : settings.asrModelId
@@ -717,6 +730,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
                         try await Task.sleep(for: .milliseconds(400))
                     }
                     try await TextInjector.shared.inject(polishedText)
+
+                    // 启动编辑观察（启发式热词学习）
+                    if settings.enableAutoHotwordLearning, let target = self.targetApp {
+                        EditObserver.shared.startObserving(
+                            injectedText: polishedText,
+                            targetApp: target,
+                            prefixContext: nil
+                        )
+                    }
                 }
 
                 let asrLabel = settings.asrEngine == .appleSpeech ? "Apple Speech" : settings.asrModelId

@@ -4369,6 +4369,36 @@
           }
         }
       }
+    },
+    "自动热词学习": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Auto Hotword Learning"
+          }
+        }
+      }
+    },
+    "注入文本后自动观察编辑，学习 ASR 常错的词汇。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Observe edits after text injection to learn commonly misrecognized words."
+          }
+        }
+      }
+    },
+    "已收录": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Learned"
+          }
+        }
+      }
     }
   }
 }
