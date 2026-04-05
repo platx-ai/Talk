@@ -234,15 +234,17 @@ final class ASRService {
     /// 实验验证：batch-only 场景下所有 prompt 格式均安全有效。
     /// 生产环境幻觉原因：VAD 裁剪后的短音频 + hotword 导致模型退化。
     /// 安全措施：音频 < 3s 不注入、去重、限制数量。
-    /// 构建热词 initialPrompt（仅用于 batch transcribe，不用于流式）
+    /// 构建热词 initialPrompt
     ///
-    /// 流式 StreamingConfig 不注入 hotword — 流式 decode pass 会污染模型状态，
-    /// 导致后续 batch generate 产生幻觉。batch 独立使用时已验证安全。
+    /// ⚠️ 已禁用 — Qwen3-ASR system prompt 注入方式不稳定：
+    /// - batch 单独测试偶尔通过，但生产环境不可靠
+    /// - 会导致输出 "."、数字递增循环（2020-3384）、热词重复循环
+    /// - 根因：Qwen3-ASR 训练时 system prompt 为空，注入内容破坏解码分布
+    ///
+    /// 热词修正改为完全依赖 LLM 润色阶段的词库上下文。
+    /// ASR 级热词注入需要等模型原生支持（如 Whisper 的 initial_prompt）。
     private func buildHotwordPrompt(audioSampleCount: Int = 0, sampleRate: Int = 16000) -> String? {
-        let items = VocabularyManager.shared.getHighFrequencyItems(limit: 5)
-        let hotwords = Array(Set(items.compactMap { $0.correctedForm })).prefix(5)
-        guard !hotwords.isEmpty else { return nil }
-        return "Vocabulary: \(hotwords.joined(separator: ", "))"
+        return nil
     }
 
     /// 识别音频（指定 initialPrompt，用于测试和外部调用）
