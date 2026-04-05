@@ -590,6 +590,12 @@ private struct AdvancedSettingsTab: View {
                     Text(String(localized: "注入文本后自动观察编辑，学习 ASR 常错的词汇。"))
                         .font(.caption)
                         .foregroundColor(.secondary)
+
+                    Toggle(String(localized: "保存录音历史"), isOn: $settings.enableAudioHistory)
+                        .onChange(of: settings.enableAudioHistory) { _ in ToastManager.shared.show(String(localized: "已保存")) }
+                    Text(String(localized: "保存每次录音的音频和上下文，用于复盘调试和优化。"))
+                        .font(.caption)
+                        .foregroundColor(.secondary)
                 }
             } header: {
                 Text(String(localized: "个人词库"))

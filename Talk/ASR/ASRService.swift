@@ -152,8 +152,7 @@ final class ASRService {
             temperature: temperature,
             maxTokensPerPass: 20,
             minAgreementPasses: 2,
-            finalizeCompletedWindows: true,
-            initialPrompt: buildHotwordPrompt()
+            finalizeCompletedWindows: true
         )
 
         streamingSession = StreamingInferenceSession(model: model, config: config)
@@ -231,12 +230,19 @@ final class ASRService {
     // MARK: - 语音识别
 
     /// 构建热词 initialPrompt（从词库中提取高频正确形式）
-    private func buildHotwordPrompt() -> String? {
-        let items = VocabularyManager.shared.getHighFrequencyItems(limit: 20)
-        let hotwords = items.compactMap { $0.correctedForm }
+    ///
+    /// 实验验证：batch-only 场景下所有 prompt 格式均安全有效。
+    /// 生产环境幻觉原因：VAD 裁剪后的短音频 + hotword 导致模型退化。
+    /// 安全措施：音频 < 3s 不注入、去重、限制数量。
+    /// 构建热词 initialPrompt（仅用于 batch transcribe，不用于流式）
+    ///
+    /// 流式 StreamingConfig 不注入 hotword — 流式 decode pass 会污染模型状态，
+    /// 导致后续 batch generate 产生幻觉。batch 独立使用时已验证安全。
+    private func buildHotwordPrompt(audioSampleCount: Int = 0, sampleRate: Int = 16000) -> String? {
+        let items = VocabularyManager.shared.getHighFrequencyItems(limit: 5)
+        let hotwords = Array(Set(items.compactMap { $0.correctedForm })).prefix(5)
         guard !hotwords.isEmpty else { return nil }
-        // 以逗号分隔的热词列表作为 decoder prefix hint
-        return hotwords.joined(separator: ", ") + ". "
+        return "Vocabulary: \(hotwords.joined(separator: ", "))"
     }
 
     /// 识别音频（指定 initialPrompt，用于测试和外部调用）
@@ -244,6 +250,7 @@ final class ASRService {
         guard isModelLoaded else { throw ASRError.modelNotLoaded }
         guard let model = model else { throw ASRError.modelNotLoaded }
 
+        MLX.GPU.clearCache()
         let audioArray = MLXArray(audio)
         let output = model.generate(audio: audioArray, initialPrompt: initialPrompt)
         return output.text.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -271,8 +278,12 @@ final class ASRService {
         )
 
         do {
+            // 清理 MLX GPU 缓存 — 流式识别后可能有残留的计算图状态
+            // 不清理会导致后续 batch generate 产生幻觉或错误输出
+            MLX.GPU.clearCache()
+
             let audioArray = MLXArray(audio)
-            let hotwordPrompt = buildHotwordPrompt()
+            let hotwordPrompt = buildHotwordPrompt(audioSampleCount: audio.count, sampleRate: sampleRate)
             if let prompt = hotwordPrompt {
                 AppLogger.debug("ASR 热词 prefix: \(prompt)", category: .asr)
             }

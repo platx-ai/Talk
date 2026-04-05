@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(screencapture -x /tmp/talk-settings-asr.png)",
+      "Bash(gh issue:*)"
+    ]
+  }
+}
