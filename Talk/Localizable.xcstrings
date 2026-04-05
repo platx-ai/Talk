@@ -4399,6 +4399,26 @@
           }
         }
       }
+    },
+    "保存录音历史": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Save Audio History"
+          }
+        }
+      }
+    },
+    "保存每次录音的音频和上下文，用于复盘调试和优化。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Save audio and context for each recording to enable review and optimization."
+          }
+        }
+      }
     }
   }
 }
