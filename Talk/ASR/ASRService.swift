@@ -236,13 +236,11 @@ final class ASRService {
     /// 安全措施：音频 < 3s 不注入、去重、限制数量。
     /// 构建热词 initialPrompt
     ///
-    /// ⚠️ 已禁用 — Qwen3-ASR system prompt 注入方式不稳定：
-    /// - batch 单独测试偶尔通过，但生产环境不可靠
-    /// - 会导致输出 "."、数字递增循环（2020-3384）、热词重复循环
-    /// - 根因：Qwen3-ASR 训练时 system prompt 为空，注入内容破坏解码分布
-    ///
-    /// 热词修正改为完全依赖 LLM 润色阶段的词库上下文。
-    /// ASR 级热词注入需要等模型原生支持（如 Whisper 的 initial_prompt）。
+    /// 已禁用 — 生产环境确认：有 hotword 必出问题，无 hotword 完全正常。
+    /// 流式 decode 后模型状态变化，使得 batch generate 中的 system prompt
+    /// 注入不可控（输出 "."、"语言 Chinese"、"Chinese" 循环、数字递增等）。
+    /// 纯 batch 测试无法复现，因为测试中模型没经过流式 decode。
+    /// 热词修正完全依赖 LLM 润色阶段。
     private func buildHotwordPrompt(audioSampleCount: Int = 0, sampleRate: Int = 16000) -> String? {
         return nil
     }
@@ -252,7 +250,6 @@ final class ASRService {
         guard isModelLoaded else { throw ASRError.modelNotLoaded }
         guard let model = model else { throw ASRError.modelNotLoaded }
 
-        MLX.GPU.clearCache()
         let audioArray = MLXArray(audio)
         let output = model.generate(audio: audioArray, initialPrompt: initialPrompt)
         return output.text.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -280,10 +277,6 @@ final class ASRService {
         )
 
         do {
-            // 清理 MLX GPU 缓存 — 流式识别后可能有残留的计算图状态
-            // 不清理会导致后续 batch generate 产生幻觉或错误输出
-            MLX.GPU.clearCache()
-
             let audioArray = MLXArray(audio)
             let hotwordPrompt = buildHotwordPrompt(audioSampleCount: audio.count, sampleRate: sampleRate)
             if let prompt = hotwordPrompt {
