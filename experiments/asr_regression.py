@@ -89,12 +89,52 @@ def run_qwen3(audio_path: str, case: dict) -> tuple[str, float]:
     # For now, use the ground truth as baseline (Qwen3 IS the baseline)
     return case["ground_truth"], 0.1
 
+def _patch_gemma4_scaled_linear():
+    """Monkey-patch ScaledLinear to support quantization for Gemma4 4-bit models."""
+    import mlx.core as mx
+    import mlx.nn as nn
+    import math
+    from mlx.nn.layers.quantized import _defaults_for_mode
+    from mlx_vlm.models.gemma4.language import ScaledLinear
+
+    if hasattr(ScaledLinear, '_patched'):
+        return
+
+    class QuantizedScaledLinear(nn.Module):
+        def __init__(self, in_features, out_features, scalar, group_size, bits, mode):
+            super().__init__()
+            self.scalar = scalar
+            self.group_size = group_size
+            self.bits = bits
+            self.mode = mode
+            scale = math.sqrt(1 / in_features)
+            w = mx.random.uniform(low=-scale, high=scale, shape=(out_features, in_features))
+            self.weight, self.scales, *biases = mx.quantize(w, group_size, bits, mode=mode)
+            self.biases = biases[0] if biases else None
+            self.freeze()
+
+        def __call__(self, x):
+            result = mx.quantized_matmul(
+                x, self["weight"], scales=self["scales"], biases=self.get("biases"),
+                transpose=True, group_size=self.group_size, bits=self.bits, mode=self.mode,
+            )
+            return result * self.scalar
+
+    def _to_quantized(self, group_size=64, bits=4, mode="affine", **kwargs):
+        gs, b = _defaults_for_mode(mode, group_size, bits)
+        return QuantizedScaledLinear(
+            self.weight.shape[1], self.weight.shape[0], self.scalar, gs, b, mode
+        )
+
+    ScaledLinear.to_quantized = _to_quantized
+    ScaledLinear._patched = True
+
+
 def run_gemma4(audio_path: str, case: dict) -> tuple[str, float]:
-    """Run Gemma4 ASR via mlx-vlm."""
+    """Run Gemma4 ASR via mlx-vlm (non-quantized google/gemma-4-e2b-it)."""
     try:
         import subprocess
         wav_path = audio_path.replace(".m4a", ".wav")
-        # Convert M4A to WAV if needed
         if not os.path.exists(wav_path):
             subprocess.run(
                 ["ffmpeg", "-i", audio_path, "-ar", "16000", "-ac", "1", "-y", wav_path],
@@ -105,7 +145,6 @@ def run_gemma4(audio_path: str, case: dict) -> tuple[str, float]:
         from mlx_vlm import load, generate
         from mlx_vlm.prompt_utils import apply_chat_template
 
-        # Lazy load model (cached after first call)
         if not hasattr(run_gemma4, "_model"):
             run_gemma4._model, run_gemma4._processor = load("google/gemma-4-e2b-it")
 
@@ -131,9 +170,52 @@ def run_gemma4(audio_path: str, case: dict) -> tuple[str, float]:
     except Exception as e:
         return f"[ERROR: {e}]", 0.0
 
+
+def run_gemma4_4bit(audio_path: str, case: dict) -> tuple[str, float]:
+    """Run Gemma4 4-bit quantized ASR via mlx-vlm (mlx-community/gemma-4-e2b-it-4bit)."""
+    try:
+        import subprocess
+        wav_path = audio_path.replace(".m4a", ".wav")
+        if not os.path.exists(wav_path):
+            subprocess.run(
+                ["ffmpeg", "-i", audio_path, "-ar", "16000", "-ac", "1", "-y", wav_path],
+                capture_output=True, timeout=30
+            )
+
+        start = time.time()
+        from mlx_vlm import load, generate
+        from mlx_vlm.prompt_utils import apply_chat_template
+
+        if not hasattr(run_gemma4_4bit, "_model"):
+            _patch_gemma4_scaled_linear()
+            run_gemma4_4bit._model, run_gemma4_4bit._processor = load(
+                "mlx-community/gemma-4-e2b-it-4bit"
+            )
+
+        model = run_gemma4_4bit._model
+        processor = run_gemma4_4bit._processor
+
+        # Best prompt from evolution: Chinese prompt for all languages
+        # (English ASR is broken anyway, outputs Chinese)
+        prompt_text = "请逐字转录这段语音，使用简体中文。"
+
+        prompt = apply_chat_template(processor, model.config, prompt_text, num_audios=1)
+        result = generate(
+            model=model, processor=processor, prompt=prompt,
+            audio=[wav_path], max_tokens=500,
+            temperature=0.0,
+        )
+        elapsed = time.time() - start
+        text = result.strip() if isinstance(result, str) else result.text.strip()
+        return text, elapsed
+    except Exception as e:
+        return f"[ERROR: {e}]", 0.0
+
+
 ENGINES = {
     "qwen3": run_qwen3,
     "gemma4": run_gemma4,
+    "gemma4-4bit": run_gemma4_4bit,
 }
 
 # ============================================================
