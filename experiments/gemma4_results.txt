@@ -1,0 +1,172 @@
+========================================================================
+Gemma 4 ASR Experiment Results
+Model: google/gemma-4-e2b-it (2B, ~10GB on disk)
+Date: 2026-04-06
+mlx-vlm version: 0.4.4
+========================================================================
+
+EXPERIMENT A: TTS Test Audio Baseline
+========================================================================
+Gemma 4 does NOT transcribe -- it PARAPHRASES. Given TTS audio, it
+generates semantically related but different text.
+
+  en_claude_code.wav:
+    Expected:  "Claude Code is a command line tool for AI assisted coding"
+    Gemma4:    "I use Claude code every day for programming."
+    Verdict:   WRONG -- rephrased, not transcribed
+
+  en_anthropic.wav:
+    Expected:  "Anthropic is an AI safety company"
+    Gemma4:    "Anthropic released a new model called Claude"
+    Verdict:   WRONG -- hallucinated content
+
+  en_technical.wav:
+    Expected:  "The model uses metal GPU acceleration on Apple Silicon"
+    Gemma4:    "The LLM runs on Apple Silicon with MLX framework."
+    Verdict:   WRONG -- rephrased
+
+  zh_claude.wav:
+    Expected:  "Claude是一个人工智能助手"
+    Gemma4:    "Claude"
+    Verdict:   WRONG -- only one word
+
+CONCLUSION: Gemma 4 2B is not a transcription model. It is a multimodal
+LLM that understands audio content but generates FREE-FORM responses.
+The "Transcribe this audio" prompt does not reliably produce verbatim
+transcription. This is fundamentally different from Qwen3-ASR which is
+a dedicated ASR model.
+
+
+EXPERIMENT B: Real Recordings (M4A, Chinese)
+========================================================================
+Chinese real recordings work better than English TTS, but with issues:
+
+  A1481388 (4.8s):
+    Qwen3:   "问题和发现及时同步到对应的艺术。"
+    Gemma4:  "问题和发现即使同谱到对应的 issue"
+    Notes:   "艺术" vs "issue" -- Gemma4 actually got closer to truth
+             (speaker likely said "issue"), but "即使同谱" is wrong for "及时同步"
+
+  3EE1EB40 (9.1s):
+    Qwen3:   "这个进化不是特别成功。我觉得你在迭代三轮吧。"
+    Gemma4:  "这个计划不是特别成功，我觉得在细节上三伦了。"
+    Notes:   "进化"/"计划" both plausible; "迭代三轮"/"细节上三伦" -- Qwen3 better
+
+  61B4215E (10.4s):
+    Qwen3:   "这些危险的模式到最后也需要默认情况下关闭。通过阿拉多的环境变量打开。"
+    Gemma4:  "这些危险的模式到最后需要默認情況下關閉通過阿拉多環境變量打開"
+    Notes:   Mostly correct! But mixes simplified/traditional characters (繁简混排)
+             "阿拉多" correctly recognized by both (it's "Ala Duo")
+
+  F65A3E92 (20.7s):
+    Qwen3:   "你在深入分析和调研一下Codex的沙盒机制。..."
+    Gemma4:  "你在深入分析和掉源一下CodeX的沙盒机制..."
+    Notes:   "调研"→"掉源" wrong; "Codex"→"CodeX" close; 繁简混排 persists
+
+  60D15531 (30.5s):
+    Qwen3:   "...对于JMAP四的集成...单独起一个T Mate去做实验..."
+    Gemma4:  "...對於Zima4的及成...單獨起一個team去做實驗..."
+    Notes:   "JMAP四"→"Zima4" -- both wrong (speaker said "Gemma 4")
+             "T Mate"→"team" -- Gemma4 closer to actual intent
+             Content captured well despite 30s length
+
+  5CEEF1EE (47.7s, OVER LIMIT):
+    Qwen3:   "...Agent Start MD的软链接...Cloud X..."
+    Gemma4:  "...agent.md的軟件...codex..."
+    Notes:   48s audio still partially transcribed (no error)
+             Content truncated but first ~30s captured
+             "AGENTS.md"→"agent.md" close; "Cloud X"→"codex" -- Gemma4 better
+
+CONCLUSION: Chinese ASR quality is COMPARABLE to Qwen3-ASR for short/medium
+audio. Key differences:
+  (+) Faster: 0.2-1.3s vs 2-4s
+  (+) Better at understanding context (issue, codex, team)
+  (-) Mixes traditional/simplified Chinese (繁简混排)
+  (-) Not verbatim transcription -- sometimes rephrases
+  (-) No punctuation or inconsistent punctuation
+  (-) 3x model size (10GB vs 1.6GB)
+
+
+EXPERIMENT C: Prompt Impact on Transcription
+========================================================================
+Test file: 61B4215E (10.4s Chinese, "这些危险的模式...通过阿拉多的环境变量打开")
+
+  basic_en:     "這些危險的模式到最後也需要默認情況下關閉, 通過阿拉多的環境變量打開"
+  basic_zh:     "这些危险的模式最后需要默認情況下關閉通過阿拉多環境變量打開"
+  detailed_en:  "這些危險的模式到最後也需要默認情況下關閉, 通過阿拉多的環境變量打開"
+  detailed_zh:  "这些危险的模式到最后需要默認情況下關閉通過阿拉多環境變量打開"
+  hotword_en:   "這些危險的模式到最後也需要模任情要下關閉, 通過阿拉多的環境變量打開"
+  hotword_zh:   "这些危险的模式到最后需要模块合法下关比通过阿拉多的环境变亮打开"
+
+CONCLUSION: Hotword prompts DEGRADE quality! Adding hotwords to the prompt
+confuses the model. "默认情况下关闭" becomes "模任情要下關閉" (EN hotwords)
+or "模块合法下关比" (ZH hotwords). The model tries to incorporate hotword
+tokens into its output.
+
+English prompts produce traditional Chinese; Chinese prompts produce
+simplified (with some traditional mixed in). Best prompt is simple:
+"Transcribe this audio." or "请转录这段音频。"
+
+
+EXPERIMENT D: Duration Boundary (30s limit)
+========================================================================
+
+  21s audio:  Works well, 472 audio tokens, 0.75s latency
+  30s audio:  Works well, 709 audio tokens, 1.30s latency
+  48s audio:  Partially works, 780 audio tokens, 1.09s latency
+              Content is truncated around ~30s mark
+              No error raised -- silent truncation
+
+CONCLUSION: The 750-token / ~30s limit is real but soft. Audio beyond
+~30s is silently truncated. The model doesn't error out. For Talk's use
+case, most recordings are <30s, so this is acceptable. For longer audio,
+a chunked strategy with overlap would be needed.
+
+
+========================================================================
+OVERALL ASSESSMENT: Gemma 4 2B as Talk ASR Engine
+========================================================================
+
+VERDICT: NOT RECOMMENDED as primary ASR engine. Consider as supplementary.
+
+Strengths:
+  1. Speed: 2-5x faster than Qwen3-ASR (0.2-1.3s vs 2-4s)
+  2. Context understanding: Better at technical terms in context
+  3. Prompt-based: Can instruct output format
+  4. Multimodal: Same model can do ASR + text polish in one pass
+
+Weaknesses:
+  1. NOT a transcriber: Generates free-form responses, not verbatim text
+  2. 繁简混排: Mixes simplified and traditional Chinese characters
+  3. No punctuation control
+  4. 30s hard limit (silent truncation)
+  5. Hotword prompts degrade quality (opposite of intended effect)
+  6. 10GB model size vs 1.6GB for Qwen3-ASR
+  7. English transcription is essentially hallucination
+
+Potential hybrid approach:
+  - Use Qwen3-ASR for transcription (accurate, verbatim)
+  - Use Gemma4 for the LLM polish step (understands audio context)
+  - Or: Wait for Gemma4 4B which may have better ASR quality
+
+Key technical findings:
+  - mlx-vlm 0.4.4 supports Gemma4 audio but prompt MUST use
+    apply_chat_template() with num_audios=1 to include <|audio|> token
+  - Without <|audio|> token, audio is silently ignored (no error!)
+  - M4A files need ffmpeg conversion to WAV before processing
+  - Peak memory reporting is broken (shows 0.01 GB for all runs)
+  - Audio tokens: ~23 tokens/second of audio
+
+Comparison Table:
+  +-----------------+------------------+------------------+
+  | Metric          | Gemma4 2B        | Qwen3-ASR 0.6B  |
+  +-----------------+------------------+------------------+
+  | Model Size      | ~10 GB disk      | ~1.6 GB          |
+  | Avg Latency     | 0.54s            | ~2-4s            |
+  | Chinese Quality | Fair (繁简混排)   | Good             |
+  | English Quality | Poor (rephrases) | Good             |
+  | Verbatim        | No               | Yes              |
+  | Audio Limit     | ~30s             | Unlimited        |
+  | Hotword Support | Degrades quality | No effect        |
+  | Punctuation     | Inconsistent     | Yes              |
+  +-----------------+------------------+------------------+
