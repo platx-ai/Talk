@@ -64,6 +64,11 @@ final class ASREngineManager {
             return ASRService.shared
         case .appleSpeech:
             return AppleSpeechService.shared
+        case .gemma4:
+            // TODO: Gemma4ASREngine implementation
+            // For now, fallback to Qwen3 — Gemma4 engine requires mlx-vlm Swift integration
+            AppLogger.warning("Gemma4 ASR 引擎尚未实现，回退到 Qwen3", category: .asr)
+            return ASRService.shared
         }
     }
 
@@ -109,7 +114,7 @@ final class ASREngineManager {
     /// 是否支持批量识别
     var supportsBatchTranscription: Bool {
         switch engineType {
-        case .mlxLocal: return true
+        case .mlxLocal, .gemma4: return true
         case .appleSpeech: return false
         }
     }
