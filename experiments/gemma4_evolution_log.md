@@ -264,7 +264,7 @@ Per-case results:
 - Best kw: 0.469 (vs 2B SOTA: +0.125)
 - Avg Latency: 0.485s
 
-## Updated Comparison Table
+## Updated Comparison Table (pre-GT-update)
 
 | Metric | Qwen3-ASR | Gemma4 2B 4bit | Gemma4 4B 4bit (best) |
 |--------|-----------|----------------|----------------------|
@@ -273,3 +273,122 @@ Per-case results:
 | Avg Similarity | 1.000 | 0.569 | 0.581 |
 | Keyword Accuracy | 1.000 | 0.344 | 0.469 |
 | Avg Latency | ~2-4s | ~0.28s | 0.485s |
+
+---
+
+## Generation 3: Post-processing & Sampling Experiments
+
+Date: 2026-04-06 22:11
+Model: mlx-community/gemma-4-e4b-it-4bit
+Ground Truth: Human-annotated (regression_cases.json updated 2026-04-06)
+
+> **Note:** Starting from Gen 3, ground truth is human-annotated, not Qwen3 output.
+> This means scores are NOT directly comparable to Gen 0-2 numbers.
+> Re-ran baselines for fair comparison.
+
+### Re-baselined scores (human-annotated GT)
+
+| Engine | Avg Similarity | Keyword Accuracy | Avg Latency |
+|--------|---------------|-----------------|-------------|
+| Qwen3 (from history) | 0.792 | 0.750 | N/A |
+| Gemma4 4B baseline (temp=0.0) | 0.708 | 0.400 | 0.849s |
+
+### Experiment A: Traditional-to-Simplified Post-processing (gen3a_t2s)
+
+- Engine: gemma4-4b + OpenCC t2s conversion
+- Prompt: same as gen2a_precise
+- Score: **sim=0.736**, kw=0.450, hallucination=0/12
+- Avg Latency: 0.841s
+- vs Gemma4 4B baseline: **+0.028 sim**, +0.050 kw
+- vs Qwen3: gap=0.056
+- Decision: **NEW SOTA** (best Gemma4 result ever)
+
+Per-case improvements from t2s:
+- zh_long_01: 0.560 -> 0.784 (+0.224) -- biggest win, many traditional chars converted
+- zh_medium_03: 0.593 -> 0.704 (+0.111) -- "關鍵詞" -> "关键词" etc.
+- en_short_01: 0.923 -> 0.923 (no change, already simplified)
+- en_short_02: 0.727 -> 0.727 (no change)
+- zh_medium_04: 0.374 -> 0.374 (no improvement -- the core misrecognition is not t/s related)
+
+### Experiment B: Temperature & Sampling Parameters
+
+#### B1: temperature=0.1 (gen3b_temp01)
+- Score: sim=0.706, kw=0.400, hallucination=0/12
+- Avg Latency: 0.841s
+- vs baseline (temp=0.0, sim=0.708): **-0.002** (no improvement)
+- Decision: DISCARD
+
+#### B2: temperature=0.3 (gen3b_temp03)
+- Score: sim=0.690, kw=0.400, hallucination=0/12
+- Avg Latency: 0.883s
+- vs baseline (sim=0.708): **-0.018** (worse)
+- Decision: DISCARD
+
+#### B3: temperature=0.1 + top_p=0.9 (gen3b_temp01_top09)
+- Score: sim=0.723, kw=0.400, hallucination=0/12
+- Avg Latency: 0.847s
+- vs baseline (sim=0.708): **+0.015**
+- Decision: KEEP (but still worse than t2s)
+
+> Takeaway: Greedy decoding (temp=0.0) is near-optimal. top_p=0.9 gives minor improvement
+> but less than t2s post-processing. Temperature hurts more than it helps.
+
+### Experiment C: Ensemble Analysis (Qwen3 vs Gemma4-4B-t2s)
+
+Per-case comparison (human-annotated GT):
+
+| Case | Qwen3 sim | Gemma4-t2s sim | Winner | Delta |
+|------|-----------|---------------|--------|-------|
+| zh_short_01 | **1.000** | 0.500 | Qwen3 | +0.500 |
+| zh_short_02 | **0.900** | 0.900 | TIE | 0.000 |
+| zh_medium_01 | **0.895** | 0.712 | Qwen3 | +0.183 |
+| zh_medium_02 | **0.929** | 0.697 | Qwen3 | +0.232 |
+| zh_medium_03 | **1.000** | 0.704 | Qwen3 | +0.296 |
+| zh_medium_04 | **0.796** | 0.374 | Qwen3 | +0.422 |
+| zh_long_01 | **0.853** | 0.784 | Qwen3 | +0.069 |
+| zh_long_02 | **1.000** | 0.852 | Qwen3 | +0.148 |
+| en_short_01 | 0.000 | **0.923** | Gemma4 | +0.923 |
+| en_short_02 | 0.154 | **0.727** | Gemma4 | +0.573 |
+| mixed_medium_01 | **0.975** | 0.780 | Qwen3 | +0.195 |
+| mixed_long_01 | **1.000** | 0.874 | Qwen3 | +0.126 |
+
+**Ensemble winner counts:** Qwen3 wins 10/12, Gemma4 wins 2/12 (en_short_01, en_short_02)
+
+**Ideal ensemble score (best of each case):**
+- sim = (1.000+0.900+0.895+0.929+1.000+0.796+0.853+1.000+0.923+0.727+0.975+1.000) / 12
+- sim = **0.917**
+- vs Qwen3 alone (0.792): +0.125
+- vs Gemma4-t2s alone (0.736): +0.181
+
+**Key insight:** The ensemble's value comes almost entirely from Gemma4 correctly
+outputting Chinese for the two "en_short" cases where Qwen3 outputs English.
+These cases have Chinese ground truth (human-annotated: "我觉得可以用。" and
+"飞书的 chanel 怎么不工作了？") but Qwen3 transcribes them as English
+("I think it can be used." and "Fei said, ...").
+
+A simpler fix: force Qwen3 to output Chinese for all cases (via LLM post-processing
+or language detection). This would likely capture most of the ensemble benefit
+without needing to run two models.
+
+### Gen 3 Summary
+
+| Variant | Avg Sim | Kw Acc | vs Baseline |
+|---------|---------|--------|-------------|
+| Gemma4 4B baseline (temp=0.0) | 0.708 | 0.400 | -- |
+| **Gemma4 4B + t2s** | **0.736** | **0.450** | **+0.028** |
+| Gemma4 4B temp=0.1 | 0.706 | 0.400 | -0.002 |
+| Gemma4 4B temp=0.3 | 0.690 | 0.400 | -0.018 |
+| Gemma4 4B temp=0.1+top_p=0.9 | 0.723 | 0.400 | +0.015 |
+| Qwen3 (reference) | 0.792 | 0.750 | -- |
+| Ideal ensemble (Qwen3+Gemma4) | **0.917** | -- | -- |
+
+## Final Updated Comparison Table
+
+| Metric | Qwen3-ASR | Gemma4 4B + t2s (SOTA) | Ideal Ensemble |
+|--------|-----------|----------------------|----------------|
+| Avg Similarity | 0.792 | 0.736 | 0.917 |
+| Keyword Accuracy | 0.750 | 0.450 | -- |
+| Hallucinations | 0/12 | 0/12 | 0/12 |
+| Avg Latency | ~2-4s | ~0.85s | ~0.85+2-4s |
+| Gemma4 wins | -- | 2/12 cases | 12/12 cases |
+| Gap to Qwen3 | -- | -0.056 | +0.125 |

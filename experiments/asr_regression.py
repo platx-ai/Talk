@@ -264,11 +264,99 @@ def run_gemma4_4b(audio_path: str, case: dict) -> tuple[str, float]:
         return f"[ERROR: {e}]", 0.0
 
 
+def _t2s_convert(text: str) -> str:
+    """Convert traditional Chinese to simplified Chinese using OpenCC."""
+    try:
+        import opencc
+        if not hasattr(_t2s_convert, "_converter"):
+            _t2s_convert._converter = opencc.OpenCC('t2s')
+        return _t2s_convert._converter.convert(text)
+    except ImportError:
+        # Fallback: common traditional -> simplified mappings
+        t2s_map = str.maketrans(
+            "對實驗確認開這個們會議應該準備節點時間範圍處計劃書項區報導數據層東關聯結構題標點點發條執編輯預覽線單選擇圖標純號鍵園際異導軟體環結構學書紀錄項則組線標點準備計劃書項項號碼",
+            "对实验确认开这个们会议应该准备节点时间范围处计划书项区报导数据层东关联结构题标点点发条执编辑预览线单选择图标纯号键园际异导软体环结构学书纪录项则组线标点准备计划书项项号码",
+        )
+        return text.translate(t2s_map)
+
+
+def run_gemma4_4b_t2s(audio_path: str, case: dict) -> tuple[str, float]:
+    """Run Gemma4 4B 4-bit with traditional-to-simplified post-processing."""
+    text, latency = run_gemma4_4b(audio_path, case)
+    if text.startswith("[ERROR"):
+        return text, latency
+    return _t2s_convert(text), latency
+
+
+def _run_gemma4_4b_with_params(audio_path: str, case: dict, temperature: float = 0.0, top_p: float = 1.0) -> tuple[str, float]:
+    """Run Gemma4 4B with custom sampling parameters."""
+    try:
+        import subprocess
+        wav_path = audio_path.replace(".m4a", ".wav")
+        if not os.path.exists(wav_path):
+            subprocess.run(
+                ["ffmpeg", "-i", audio_path, "-ar", "16000", "-ac", "1", "-y", wav_path],
+                capture_output=True, timeout=30
+            )
+
+        start = time.time()
+        from mlx_vlm import load, generate
+        from mlx_vlm.prompt_utils import apply_chat_template
+
+        # Reuse model from run_gemma4_4b if already loaded
+        if not hasattr(run_gemma4_4b, "_model"):
+            _patch_gemma4_scaled_linear()
+            run_gemma4_4b._model, run_gemma4_4b._processor = load(
+                "mlx-community/gemma-4-e4b-it-4bit"
+            )
+
+        model = run_gemma4_4b._model
+        processor = run_gemma4_4b._processor
+
+        prompt_text = "请精确转录这段语音的每一个字，使用简体中文，保留所有英文单词的原始拼写。"
+
+        prompt = apply_chat_template(processor, model.config, prompt_text, num_audios=1)
+
+        gen_kwargs = dict(
+            model=model, processor=processor, prompt=prompt,
+            audio=[wav_path], max_tokens=500,
+            temperature=temperature,
+        )
+        if top_p < 1.0:
+            gen_kwargs["top_p"] = top_p
+
+        result = generate(**gen_kwargs)
+        elapsed = time.time() - start
+        text = result.strip() if isinstance(result, str) else result.text.strip()
+        return text, elapsed
+    except Exception as e:
+        return f"[ERROR: {e}]", 0.0
+
+
+def run_gemma4_4b_temp01(audio_path: str, case: dict) -> tuple[str, float]:
+    """Gemma4 4B with temperature=0.1."""
+    return _run_gemma4_4b_with_params(audio_path, case, temperature=0.1)
+
+
+def run_gemma4_4b_temp03(audio_path: str, case: dict) -> tuple[str, float]:
+    """Gemma4 4B with temperature=0.3."""
+    return _run_gemma4_4b_with_params(audio_path, case, temperature=0.3)
+
+
+def run_gemma4_4b_temp01_top09(audio_path: str, case: dict) -> tuple[str, float]:
+    """Gemma4 4B with temperature=0.1, top_p=0.9."""
+    return _run_gemma4_4b_with_params(audio_path, case, temperature=0.1, top_p=0.9)
+
+
 ENGINES = {
     "qwen3": run_qwen3,
     "gemma4": run_gemma4,
     "gemma4-4bit": run_gemma4_4bit,
     "gemma4-4b": run_gemma4_4b,
+    "gemma4-4b-t2s": run_gemma4_4b_t2s,
+    "gemma4-4b-temp01": run_gemma4_4b_temp01,
+    "gemma4-4b-temp03": run_gemma4_4b_temp03,
+    "gemma4-4b-temp01-top09": run_gemma4_4b_temp01_top09,
 }
 
 # ============================================================

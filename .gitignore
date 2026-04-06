@@ -30,3 +30,4 @@ dist/
 *.mobileprovision
 *.provisionprofile
 .vscode/
+__pycache__/
