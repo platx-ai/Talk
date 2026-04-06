@@ -85,9 +85,21 @@ def score_case(case: dict, output: str) -> dict:
 # ============================================================
 
 def run_qwen3(audio_path: str, case: dict) -> tuple[str, float]:
-    """Run Qwen3-ASR via subprocess calling Talk's test infrastructure."""
-    # For now, use the ground truth as baseline (Qwen3 IS the baseline)
-    return case["ground_truth"], 0.1
+    """Return Qwen3-ASR output from production history (actual recognition results)."""
+    if not hasattr(run_qwen3, "_cache"):
+        history_path = Path.home() / "Library" / "Application Support" / "Talk" / "history.json"
+        if history_path.exists():
+            with open(history_path) as f:
+                import json as _json
+                history = _json.load(f)
+            run_qwen3._cache = {
+                item.get("audioFilePath", ""): item.get("rawText", "")
+                for item in history if item.get("audioFilePath")
+            }
+        else:
+            run_qwen3._cache = {}
+    audio_file = os.path.basename(audio_path)
+    return run_qwen3._cache.get(audio_file, "[NOT FOUND]"), 0.1
 
 def _patch_gemma4_scaled_linear():
     """Monkey-patch ScaledLinear to support quantization for Gemma4 4-bit models."""
