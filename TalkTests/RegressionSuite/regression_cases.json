@@ -1,0 +1,105 @@
+{
+  "version": "1.0",
+  "description": "ASR regression test suite — ground truth from Qwen3-ASR v0.4.0 baseline",
+  "baseline_engine": "Qwen3-ASR-0.6B-4bit",
+  "baseline_version": "v0.4.0",
+  "note": "Ground truth is Qwen3 output, not human-verified. Some may be wrong (e.g. 搜塔→SOTA). A new engine that correctly outputs SOTA would score higher on human eval but lower on string match vs baseline.",
+  "cases": [
+    {
+      "id": "zh_short_01",
+      "file": "6114ED33-A5F1-43C4-B6CA-9F87B7068148.m4a",
+      "duration": 3.1,
+      "lang": "zh",
+      "ground_truth": "不可，如果不确定，就做实验。",
+      "keywords": ["不确定", "实验"]
+    },
+    {
+      "id": "zh_short_02",
+      "file": "7E9A42BA-8AD9-44D7-BED3-95BAEDA2B699.m4a",
+      "duration": 2.6,
+      "lang": "zh",
+      "ground_truth": "好的，我来更新一把。",
+      "keywords": ["更新"]
+    },
+    {
+      "id": "zh_medium_01",
+      "file": "8C91ADAE-F6E0-482D-8DA9-6BB0E10C77FD.m4a",
+      "duration": 9.7,
+      "lang": "zh",
+      "ground_truth": "对于日税表，结果你要有自己独立的判断，因为它的上下文肯定没有你的丰富。所以，你可以同意，也可以不同意。",
+      "keywords": ["独立", "判断", "上下文", "同意"]
+    },
+    {
+      "id": "zh_medium_02",
+      "file": "0EEF6F90-0931-413D-A015-9B724FFD5643.m4a",
+      "duration": 13.1,
+      "lang": "zh",
+      "ground_truth": "我们同步一下现在最新状态：目前的搜塔是一个什么样的水水准。然后，根据上一轮的迭代，下一轮的改进的方向是什么。",
+      "keywords": ["同步", "最新状态", "迭代", "改进"]
+    },
+    {
+      "id": "zh_medium_03",
+      "file": "CC01DE56-10F9-43EA-A142-9100F57A5196.m4a",
+      "duration": 13.7,
+      "lang": "zh",
+      "ground_truth": "有一个是hard line，绝对不能碰的，就是不能通过在提示词中注入具体的关键词和，然后来hack。",
+      "keywords": ["提示词", "注入", "关键词"]
+    },
+    {
+      "id": "zh_medium_04",
+      "file": "A18521A9-E5FE-4FF9-BEAA-2375148F1B97.m4a",
+      "duration": 10.9,
+      "lang": "zh",
+      "ground_truth": "例如，例如不能提宁德时代，不能提跟我们的半尺寸麦克相关的任何关键词。这样的是一个作弊的行为。",
+      "keywords": ["关键词", "作弊"]
+    },
+    {
+      "id": "zh_long_01",
+      "file": "60D15531-2FE6-44A8-996A-04A413C85495.m4a",
+      "duration": 30.5,
+      "lang": "zh",
+      "ground_truth": "开始实现。然后，对于JMAP四的集成，我建议你可以单独起一个T Mate去做实验，然后探索它的。呃，用我们已经录好的这些音频采集过的，包括现在我跟你说的这些音频都留下来了，可以去做实验。因为JMAP四有一个三十秒大概的一个上限，所以其这个要做特殊的处理。",
+      "keywords": ["实验", "音频", "三十秒", "上限"]
+    },
+    {
+      "id": "zh_long_02",
+      "file": "8BC75D2F-CDE3-45EA-BEFC-9BCD2CCEB26D.m4a",
+      "duration": 15.1,
+      "lang": "zh",
+      "ground_truth": "另外一个就是，你去反思：我们在程序上面有哪些假设或者是猜测，实际上是没有意义的。比如我们这些排序的依据是什么等等。",
+      "keywords": ["反思", "假设", "排序"]
+    },
+    {
+      "id": "en_short_01",
+      "file": "085C511D-EC6D-4090-9101-CED25A00FD5A.m4a",
+      "duration": 2.4,
+      "lang": "en",
+      "ground_truth": "I think it can be used.",
+      "keywords": ["think", "used"]
+    },
+    {
+      "id": "en_short_02",
+      "file": "4ECEECE8-B020-4DCD-B70F-E31A58732F7C.m4a",
+      "duration": 3.3,
+      "lang": "en",
+      "ground_truth": "Fei said, \"The car owner doesn't work anymore.\"",
+      "keywords": ["work"]
+    },
+    {
+      "id": "mixed_medium_01",
+      "file": "1E656A70-C1AF-44A0-9191-2B84DCAD800D.m4a",
+      "duration": 10.3,
+      "lang": "mixed",
+      "ground_truth": "Cloud Agent SDK的依赖，把它升级到最新版。然后做一个pre release，部署到Tracy Mini上。",
+      "keywords": ["Agent SDK", "升级", "release"]
+    },
+    {
+      "id": "mixed_long_01",
+      "file": "B83282FC-1BA9-44D8-96A5-B9EDF8856A8C.m4a",
+      "duration": 19.0,
+      "lang": "mixed",
+      "ground_truth": "现在这个CLI和入口是怎么设计的？我应该怎么使用？如果我想让以前使用Sub Agent的方式执行的，主Agent去调用这个CLI去find evidence。",
+      "keywords": ["CLI", "Agent", "find evidence"]
+    }
+  ]
+}
