@@ -2,15 +2,15 @@
 //  HistoryView.swift
 //  Talk
 //
-//  历史记录视图
+//  历史记录视图 — inline 编辑 + 播放 + 词库学习
 //
 
 import SwiftUI
+import AVFoundation
 import UniformTypeIdentifiers
 
 struct HistoryView: View {
     @State private var searchText = ""
-    @State private var selectedItem: HistoryItem?
     @State private var historyManager = HistoryManager.shared
 
     private var filteredItems: [HistoryItem] {
@@ -40,11 +40,8 @@ struct HistoryView: View {
                     }
                 }
             }
-            .sheet(item: $selectedItem) { item in
-                HistoryEditSheet(item: item)
-            }
         }
-        .frame(width: 700, height: 500)
+        .frame(width: 750, height: 550)
     }
 
     private var emptyView: some View {
@@ -68,11 +65,7 @@ struct HistoryView: View {
             ForEach(groupedItems.keys.sorted(by: >), id: \.self) { date in
                 Section(header: Text(dateFormatter.string(from: date))) {
                     ForEach(groupedItems[date] ?? []) { item in
-                        HistoryRow(item: item)
-                            .contentShape(Rectangle())
-                            .onTapGesture {
-                                selectedItem = item
-                            }
+                        InlineHistoryRow(item: item)
                     }
                 }
             }
@@ -135,156 +128,168 @@ private struct SearchBar: View {
     }
 }
 
-// MARK: - 历史记录行（和之前一样的列表样式）
+// MARK: - Inline 编辑行
 
-private struct HistoryRow: View {
+private struct InlineHistoryRow: View {
     let item: HistoryItem
 
+    @State private var editedText: String = ""
+    @State private var isEditing = false
+    @State private var showLearnConfirmation = false
+    @State private var isPlaying = false
+    @State private var audioPlayer: AVAudioPlayer?
+
+    /// 文本是否被修改过（相对于原始 polishedText）
+    private var hasChanges: Bool {
+        isEditing && editedText.trimmingCharacters(in: .whitespacesAndNewlines) != item.polishedText
+    }
+
     var body: some View {
-        HStack(alignment: .top, spacing: 12) {
-            VStack(alignment: .leading, spacing: 4) {
-                HStack(spacing: 8) {
-                    Text(item.formattedDuration)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                    Text(item.formattedTimestamp)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
+        VStack(alignment: .leading, spacing: 6) {
+            // 顶部：时间 + 时长 + 模型
+            HStack(spacing: 8) {
+                Text(item.formattedTimestamp)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                Text(item.formattedDuration)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .padding(.horizontal, 4)
+                    .background(Capsule().fill(.quaternary))
+
+                if showLearnConfirmation {
+                    Label(String(localized: "已学习"), systemImage: "checkmark.circle.fill")
+                        .font(.caption2)
+                        .foregroundStyle(.green)
+                        .transition(.opacity)
                 }
 
+                Spacer()
+
+                // 右侧按钮组
+                actionButtons
+            }
+
+            // 主体：inline 可编辑文本
+            if isEditing {
+                TextField("", text: $editedText, axis: .vertical)
+                    .textFieldStyle(.plain)
+                    .font(.body)
+                    .lineLimit(1...10)
+                    .padding(6)
+                    .background(RoundedRectangle(cornerRadius: 4).stroke(.blue.opacity(0.5)))
+                    .onSubmit { saveIfChanged() }
+            } else {
                 Text(item.polishedText)
                     .font(.body)
                     .lineLimit(3)
-
-                HStack(spacing: 12) {
-                    Text("ASR: \(modelShortName(item.asrModel))")
-                        .font(.caption2)
-                        .foregroundStyle(.secondary)
-                    Text("LLM: \(modelShortName(item.llmModel))")
-                        .font(.caption2)
-                        .foregroundStyle(.secondary)
-                }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .contentShape(Rectangle())
+                    .onTapGesture {
+                        editedText = item.polishedText
+                        isEditing = true
+                    }
             }
-            Spacer()
+
+            // 原始 ASR 文本（折叠显示，如果与润色不同）
+            if item.rawText != item.polishedText && !item.rawText.isEmpty {
+                Text("ASR: \(item.rawText)")
+                    .font(.caption)
+                    .foregroundStyle(.tertiary)
+                    .lineLimit(1)
+            }
         }
-        .padding(.vertical, 8)
+        .padding(.vertical, 4)
     }
 
-    private func modelShortName(_ modelId: String) -> String {
-        if modelId.contains("Qwen3-4B") { return "Qwen3-4B" }
-        if modelId.contains("Qwen3.5-2B") {return "Qwen3.5-2B"}
-        if modelId.contains("Qwen3-2B") { return "Qwen3-2B" }
-        if modelId.contains("ASR-0.6B") { return "Qwen3-ASR" }
-        return modelId
-    }
-}
+    // MARK: - 右侧按钮
 
-// MARK: - 编辑 Sheet（用 NSTextView 包装解决 sheet 内 TextEditor 不可编辑的问题）
+    private var actionButtons: some View {
+        HStack(spacing: 4) {
+            // 播放音频
+            if item.audioFilePath != nil, HistoryManager.shared.audioURL(for: item) != nil {
+                Button(action: togglePlayback) {
+                    Image(systemName: isPlaying ? "stop.circle.fill" : "play.circle")
+                        .font(.system(size: 16))
+                        .foregroundStyle(isPlaying ? .red : .blue)
+                }
+                .buttonStyle(.plain)
+                .help(String(localized: "播放录音"))
+            }
 
-struct HistoryEditSheet: View {
-    let item: HistoryItem
+            // Reset（编辑中才显示）
+            if isEditing {
+                Button(action: resetEdit) {
+                    Image(systemName: "arrow.uturn.backward.circle")
+                        .font(.system(size: 16))
+                        .foregroundStyle(.orange)
+                }
+                .buttonStyle(.plain)
+                .help(String(localized: "还原"))
+            }
 
-    @Environment(\.dismiss) private var dismiss
-    @State private var editedText: String = ""
-    @State private var displayText: String = ""  // 当前显示的文本（保存后立即更新）
-    @State private var isEditing = false
-    @State private var showLearnConfirmation = false
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            // Header
-            HStack {
-                Text(String(localized: "历史详情")).font(.headline)
-                Spacer()
-                if showLearnConfirmation {
-                    Label(String(localized: "已学习修正"), systemImage: "checkmark.circle.fill")
-                        .font(.caption)
+            // 保存 + 加入词库（有修改才亮起）
+            if hasChanges {
+                Button(action: saveAndLearn) {
+                    Image(systemName: "text.badge.checkmark")
+                        .font(.system(size: 16))
                         .foregroundStyle(.green)
                 }
-                Button(String(localized: "关闭")) { dismiss() }
+                .buttonStyle(.plain)
+                .help(String(localized: "保存并学习"))
             }
 
-            // 基本信息
-            GroupBox(String(localized: "基本信息")) {
-                Grid(alignment: .leading, horizontalSpacing: 16, verticalSpacing: 6) {
-                    GridRow {
-                        Text(String(localized: "录音时间")).foregroundStyle(.secondary)
-                        Text(item.formattedTimestamp)
-                    }
-                    GridRow {
-                        Text(String(localized: "录音时长")).foregroundStyle(.secondary)
-                        Text(item.formattedDuration)
-                    }
-                }
-                .font(.body)
-                .padding(.vertical, 4)
+            // 删除
+            Button(action: deleteItem) {
+                Image(systemName: "trash")
+                    .font(.system(size: 14))
+                    .foregroundStyle(.secondary)
             }
-
-            // 原始识别
-            GroupBox(String(localized: "原始识别文本")) {
-                Text(item.rawText)
-                    .font(.body)
-                    .textSelection(.enabled)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(4)
-            }
-
-            // 润色后文本（可编辑）
-            GroupBox(isEditing ? String(localized: "编辑润色文本") : String(localized: "润色后文本")) {
-                if isEditing {
-                    EditableTextView(text: $editedText)
-                        .frame(minHeight: 80)
-                } else {
-                    Text(displayText)
-                        .font(.body)
-                        .textSelection(.enabled)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .padding(4)
-                }
-            }
-
-            // 操作按钮
-            HStack(spacing: 12) {
-                Button(action: copyText) {
-                    Label(String(localized: "复制"), systemImage: "doc.on.doc")
-                }
-
-                if isEditing {
-                    Button(action: saveEdit) {
-                        Label(String(localized: "保存修正"), systemImage: "checkmark")
-                    }
-                    .buttonStyle(.borderedProminent)
-
-                    Button(String(localized: "取消")) {
-                        isEditing = false
-                        editedText = displayText
-                    }
-                } else {
-                    Button(action: {
-                        editedText = displayText
-                        isEditing = true
-                    }) {
-                        Label(String(localized: "编辑"), systemImage: "pencil")
-                    }
-                }
-
-                Spacer()
-
-                Button(role: .destructive, action: deleteItem) {
-                    Label(String(localized: "删除"), systemImage: "trash")
-                }
-            }
-        }
-        .padding(24)
-        .frame(width: 560, height: 480)
-        .onAppear {
-            displayText = item.polishedText
-            editedText = item.polishedText
+            .buttonStyle(.plain)
+            .help(String(localized: "删除"))
         }
     }
 
-    private func saveEdit() {
-        let originalText = displayText
+    // MARK: - Actions
+
+    private func togglePlayback() {
+        if isPlaying {
+            audioPlayer?.stop()
+            isPlaying = false
+            return
+        }
+
+        guard let url = HistoryManager.shared.audioURL(for: item) else { return }
+        do {
+            audioPlayer = try AVAudioPlayer(contentsOf: url)
+            audioPlayer?.play()
+            isPlaying = true
+
+            // 播放结束后重置状态
+            let duration = audioPlayer?.duration ?? 0
+            DispatchQueue.main.asyncAfter(deadline: .now() + duration + 0.1) {
+                isPlaying = false
+            }
+        } catch {
+            AppLogger.error("播放音频失败: \(error.localizedDescription)", category: .ui)
+        }
+    }
+
+    private func resetEdit() {
+        editedText = item.polishedText
+        isEditing = false
+    }
+
+    private func saveIfChanged() {
+        if hasChanges {
+            saveAndLearn()
+        } else {
+            isEditing = false
+        }
+    }
+
+    private func saveAndLearn() {
+        let originalText = item.polishedText
         let correctedText = editedText.trimmingCharacters(in: .whitespacesAndNewlines)
         guard correctedText != originalText, !correctedText.isEmpty else {
             isEditing = false
@@ -296,8 +301,6 @@ struct HistoryEditSheet: View {
         HistoryManager.shared.update(updatedItem)
         VocabularyManager.shared.learnCorrection(original: originalText, corrected: correctedText)
 
-        // 立即更新显示
-        displayText = correctedText
         isEditing = false
 
         withAnimation { showLearnConfirmation = true }
@@ -306,53 +309,7 @@ struct HistoryEditSheet: View {
         }
     }
 
-    private func copyText() {
-        NSPasteboard.general.clearContents()
-        NSPasteboard.general.setString(displayText, forType: .string)
-    }
-
     private func deleteItem() {
         HistoryManager.shared.delete(item)
-        dismiss()
-    }
-}
-
-// MARK: - NSTextView 包装（解决 SwiftUI TextEditor 在 sheet 中不可编辑的问题）
-
-struct EditableTextView: NSViewRepresentable {
-    @Binding var text: String
-
-    func makeNSView(context: Context) -> NSScrollView {
-        let scrollView = NSTextView.scrollableTextView()
-        let textView = scrollView.documentView as! NSTextView
-        textView.isEditable = true
-        textView.isSelectable = true
-        textView.isRichText = false
-        textView.font = .systemFont(ofSize: 13)
-        textView.textContainerInset = NSSize(width: 8, height: 8)
-        textView.delegate = context.coordinator
-        textView.string = text
-        return scrollView
-    }
-
-    func updateNSView(_ nsView: NSScrollView, context: Context) {
-        let textView = nsView.documentView as! NSTextView
-        if textView.string != text {
-            textView.string = text
-        }
-    }
-
-    func makeCoordinator() -> Coordinator {
-        Coordinator(self)
-    }
-
-    class Coordinator: NSObject, NSTextViewDelegate {
-        var parent: EditableTextView
-        init(_ parent: EditableTextView) { self.parent = parent }
-
-        func textDidChange(_ notification: Notification) {
-            guard let textView = notification.object as? NSTextView else { return }
-            parent.text = textView.string
-        }
     }
 }
