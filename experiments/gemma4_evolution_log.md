@@ -728,3 +728,413 @@ Per-case results:
 | polish_v5_precise | 0.783 | 0.750 | -0.009 | +0.202 | Beats G4 ASR |
 
 Best prompt: polish_v4_english (sim=0.870)
+
+---
+
+## Generation 4: End-to-End ASR+Polish (4B)
+
+Date: 2026-04-06 22:31:27
+Model: mlx-community/gemma-4-e4b-it-4bit
+Approach: Single model, one-pass ASR+polish (no Qwen3 dependency)
+Post-processing: OpenCC t2s on all outputs
+
+### Baselines (human-annotated GT)
+- Qwen3 raw: sim=0.792, kw=0.75
+- Gemma4 4B + t2s (prev SOTA): sim=0.736, kw=0.45
+
+### gen4a_clean_zh
+- Prompt: "请听这段音频，输出说话人说的完整内容。使用简体中文，英文单词保持原样。去除口语填充词（嗯、啊、呃），添加标点。"
+- Score: sim=0.787 (raw=0.747, t2s+0.040), kw=0.500, hallucination=0/12
+- Avg Latency: 0.525s
+- vs Qwen3 (sim=0.792): -0.005
+- vs prev SOTA (sim=0.736): +0.051
+- Verdict: New single-model SOTA
+
+Per-case results:
+- zh_short_01: sim=0.889 (raw=0.889) kw=2/2
+  output: 不过，如果不确定就做实验。
+- zh_short_02: sim=0.900 (raw=0.900) kw=1/1
+  output: 好的，我来更新一下。
+- zh_medium_01: sim=0.741 (raw=0.741) kw=4/5
+  output: 对于 review 结果你有有自己独立的判断，因为他的 standpoint 肯定没有你的丰富，所以你可以同意也可以不同啊。
+- zh_medium_02: sim=0.714 (raw=0.714) kw=2/5
+  output: 我们同步一下现在最近状况，目前的 Sotah 是一个什么样的衰衰准，然后根据上一轮的抵达下一轮的阶段的方向。
+- zh_medium_03: sim=0.704 (raw=0.593) kw=1/3
+  output: 一个是 hard life，也就是说能不能碰到呢，就是能不能在祭祀，进入具体的关键词和你要说的，然后后来 hack。
+- zh_medium_04: sim=0.449 (raw=0.306) kw=0/4
+  output: piropiro 不同期您这次还不能贴跟我们的粉丝码还相关的任何关于这样的是一个错误的行为。
+- zh_long_01: sim=0.803 (raw=0.572) kw=2/6
+  output: 凯斯实现,然后对于Gamma 4的集成,我建议你可以单独请一个teammate去做实验,然后探索他的呃用我们已经录讨的这些音频采集过的这个包括现在我跟你说的这些异面都落下来,还可以去做实验。 因为Gamma 4有一个30秒打开的一个上线,所
+- zh_long_02: sim=0.867 (raw=0.867) kw=2/3
+  output: 那么一个是你去反思，我们在程序上面有哪些假设或者是猜测猜测实际上是没有意义的，比如我们这些排系的依据是什么等等。
+- en_short_01: sim=1.000 (raw=1.000) kw=1/1
+  output: 我觉得可以用。
+- en_short_02: sim=0.727 (raw=0.727) kw=1/3
+  output: Facebook 的 channel 怎么不工作了？
+- mixed_medium_01: sim=0.780 (raw=0.780) kw=1/4
+  output: Cloud 的 Agent SDK 的一来，把它升级到最新版，然后做一个 pre-release部署到 QC mini 上。
+- mixed_long_01: sim=0.873 (raw=0.873) kw=3/3
+  output: 现在这个 CLI 和入口 是怎么设计的？我应该怎么使用？如果我想让以前使用 sub-agent 的方式的主 agent 去调用这个 CLI 去 find evidence。
+
+### gen4b_clean_en
+- Prompt: "Listen to this audio and produce a clean, accurate transcript. Use simplified Chinese for Chinese speech. Keep English words as-is. Remove filler word"
+- Score: sim=0.772 (raw=0.685, t2s+0.087), kw=0.425, hallucination=0/12
+- Avg Latency: 0.512s
+- vs Qwen3 (sim=0.792): -0.020
+- vs prev SOTA (sim=0.736): +0.036
+- Verdict: New single-model SOTA
+
+Per-case results:
+- zh_short_01: sim=0.720 (raw=0.560) kw=1/2
+  output: 不过如果不决定就做实验
+- zh_short_02: sim=0.900 (raw=0.900) kw=1/1
+  output: 好的，我来更新一下。
+- zh_medium_01: sim=0.804 (raw=0.654) kw=4/5
+  output: 对于 review 结果你有有自己独立的判断,因为他的上下了肯定没有里的丰富,所以你可以同意也可以不同啊。
+- zh_medium_02: sim=0.697 (raw=0.697) kw=1/5
+  output: 我们同步一下现在最近状况，目前的所在是一个什么样的阶段，水准，然后根据上一轮的抵达下一轮的阶段的方向。
+- zh_medium_03: sim=0.685 (raw=0.574) kw=1/3
+  output: 有一个是 hard life, 对后面碰到呢,就是不能通货,在提示须进入具体的关键词和你要说的,然后后来 hack.
+- zh_medium_04: sim=0.545 (raw=0.424) kw=0/4
+  output: 比如说，比如说这种批评您这次还不能批评跟我们的粉丝码还相关的任何问题。这样的是一个错误的行为。
+- zh_long_01: sim=0.784 (raw=0.560) kw=1/6
+  output: 凯斯实现,然后对于Gamma 4的其实我建议你可以单独请一个teammate去做实验,然后探索他的呃用我们已经录讨的这些音品采集过的这个包括现在我跟你说的这些异面都落下来,还可以去做实验。 因为Gamma 4有一个30秒打开的一个上线,所以
+- zh_long_02: sim=0.857 (raw=0.679) kw=2/3
+  output: 那么一个是你去反思，我们在程序上面有哪些假设或者是猜测实际上的没有意义的,比如说我们这些排系的依据是什么等等。
+- en_short_01: sim=1.000 (raw=1.000) kw=1/1
+  output: 我觉得可以用。
+- en_short_02: sim=0.682 (raw=0.636) kw=1/3
+  output: Facebook 的 channel 怎么不工作了?
+- mixed_medium_01: sim=0.699 (raw=0.650) kw=1/4
+  output: Cloud 的 ANS SDK 的一来, 把它升级到最新版, 然后做一个 pre-release部署到 QC mini 上。
+- mixed_long_01: sim=0.886 (raw=0.886) kw=3/3
+  output: 现在这个 CLI 和入口 是怎么设计的？我应该怎么使用？如果我想让以前使用 sub-agent 的方式执行的主 agent 去调用这个 CLI 去 find evidence。
+
+### gen4c_structured
+- Prompt: "你是一个语音转文字助手。请将音频内容转为文字，要求：
+1. 使用简体中文
+2. 英文单词和专业术语保持原样（如SDK, CLI, Agent, SOTA, Review）
+3. 添加标点符号
+4. 去除'嗯'、'啊'、'呃'等填充词
+5. 只输出转录文本，不要添加任何解释"
+- Score: sim=0.798 (raw=0.770, t2s+0.028), kw=0.525, hallucination=0/12
+- Avg Latency: 0.551s
+- vs Qwen3 (sim=0.792): +0.006
+- vs prev SOTA (sim=0.736): +0.062
+- Verdict: BEATS QWEN3!
+
+Per-case results:
+- zh_short_01: sim=0.846 (raw=0.846) kw=2/2
+  output: 不过如果不确定就做实验。
+- zh_short_02: sim=0.900 (raw=0.900) kw=1/1
+  output: 好的，我来更新一遍。
+- zh_medium_01: sim=0.841 (raw=0.841) kw=4/5
+  output: 对于 Review 结果你有有自己独立的判断，因为他的想下来肯定没有你的丰富，所以你可以同意也可以不同啊。
+- zh_medium_02: sim=0.807 (raw=0.807) kw=4/5
+  output: 我们同步一下现在最近现状，目前的SOTA是一个什么样的体垂直，然后根据上一轮的迭代下一轮的改进的方向是
+- zh_medium_03: sim=0.667 (raw=0.667) kw=0/3
+  output: 有一个是 hard life，也就是说能不能碰到呢，就是不能通货，在测试伺服，进入具体的关键死和你要说的，以后 hack。
+- zh_medium_04: sim=0.460 (raw=0.340) kw=1/4
+  output: piropiro 不同体您这次还不能贴跟我们的粉丝码还相关的任何档案似的这样的是一个作弊的行为。
+- zh_long_01: sim=0.766 (raw=0.550) kw=1/6
+  output: 实验,然后对于Gamma 4的集成,我建议你可以单独请一个teammate去做实验,然后探索他的用我们已经录讨的这些音品采集过的这个报告,还有现在我跟你说的这些异面都落下来,还可以去做实验。 因为Gamma 4有一个30秒打开的一个上线,所
+- zh_long_02: sim=0.852 (raw=0.852) kw=2/3
+  output: 这个我觉得就是你去反思，我们在程序上面有哪些假设或者是猜测猜测实际上是没有意义的，比如我们这些排系的依据是什么等等。
+- en_short_01: sim=1.000 (raw=1.000) kw=1/1
+  output: 我觉得可以用。
+- en_short_02: sim=0.727 (raw=0.727) kw=1/3
+  output: Facebook 的 channel 怎么不工作了？
+- mixed_medium_01: sim=0.780 (raw=0.780) kw=1/4
+  output: Cloud 的 Agent SDK 的一来，把它升级到最新版，然后做一个 pre-release部署到 QC mini 上。
+- mixed_long_01: sim=0.930 (raw=0.930) kw=3/3
+  output: 现在这个CLI和入口是怎么设计的？我们该怎么使用？如果我想让以前使用sub-agent的方式执行的主agent去调用这个CLI去find evidence。
+
+### gen4d_precise_bilingual
+- Prompt: "请精确转录这段语音的每一个字。规则：
+- 中文部分使用简体中文
+- 英文单词保持原始拼写，不要翻译成中文
+- 添加恰当的标点符号
+- 去除口头语和填充词
+只输出最终文本。"
+- Score: sim=0.766 (raw=0.766, t2s+0.000), kw=0.500, hallucination=0/12
+- Avg Latency: 0.528s
+- vs Qwen3 (sim=0.792): -0.026
+- vs prev SOTA (sim=0.736): +0.030
+- Verdict: New single-model SOTA
+
+Per-case results:
+- zh_short_01: sim=0.846 (raw=0.846) kw=2/2
+  output: 不过如果不确定就做实验。
+- zh_short_02: sim=0.900 (raw=0.900) kw=1/1
+  output: 好的，我来更新一遍。
+- zh_medium_01: sim=0.741 (raw=0.741) kw=4/5
+  output: 对于 review 结果你有有自己独立的判断，因为他的 standpoint 肯定没有你的丰富，所以你可以同意也可以不同啊。
+- zh_medium_02: sim=0.697 (raw=0.697) kw=1/5
+  output: 我们同步一下现在最近状况，目前的所在是一个什么样的阶段，水准，然后根据上一轮的抵达下一轮的阶段的方向是
+- zh_medium_03: sim=0.655 (raw=0.655) kw=1/3
+  output: 有一个是 hard life, 对后面碰到呢,就是不能通货,在提示需要输入具体的关键词或者你要说的,然后后来 hack.
+- zh_medium_04: sim=0.420 (raw=0.420) kw=1/4
+  output: 由于pyrrolo酮体凝的存在是无法体跟我们的反馈模式还相关的任何阶段，这样的是一个作弊的行为。
+- zh_long_01: sim=0.801 (raw=0.801) kw=2/6
+  output: besides 实现,然后对于Gamma 4的集成,我建议你可以单独找一个teammate去做实验,然后探索他的用我们已经录讨的这些音品采集过的包括现在我跟你说的这些이면都落下来,它可以去做实验。因为Gamma 4还有一个30秒大概的一个上
+- zh_long_02: sim=0.810 (raw=0.810) kw=2/3
+  output: 那么呢，也就是说你去反思，我们在程序上面拥有的这些假设或者是猜测实际上是没有意义的，比如我们这些排系的依据是什么等等。
+- en_short_01: sim=1.000 (raw=1.000) kw=1/1
+  output: 我觉得可以用。
+- en_short_02: sim=0.727 (raw=0.727) kw=1/3
+  output: Facebook 的 channel 怎么不工作了？
+- mixed_medium_01: sim=0.723 (raw=0.723) kw=1/4
+  output: Cloud 的 ANSDK 的一来，把它升级到最新版，然后做一个 pre-release部署到 QC mini 上。
+- mixed_long_01: sim=0.874 (raw=0.874) kw=3/3
+  output: 现在这个 CLI 和入口 是怎么设计的，我应该怎么使用？如果我想让以前使用 sub-agent 的方式执行的主 agent 去调用这个 CLI 去 find evidence。
+
+### gen4e_minimal_en
+- Prompt: "Transcribe this audio verbatim into simplified Chinese. Keep English words in English. Add punctuation."
+- Score: sim=0.753 (raw=0.663, t2s+0.090), kw=0.450, hallucination=0/12
+- Avg Latency: 0.508s
+- vs Qwen3 (sim=0.792): -0.039
+- vs prev SOTA (sim=0.736): +0.017
+- Verdict: New single-model SOTA
+
+Per-case results:
+- zh_short_01: sim=0.846 (raw=0.615) kw=2/2
+  output: 不过如果不确定就做实验。
+- zh_short_02: sim=0.900 (raw=0.900) kw=1/1
+  output: 好的，我来更新一下。
+- zh_medium_01: sim=0.815 (raw=0.667) kw=4/5
+  output: 对于 review 结果你有有自己独立的判断,因为他的上下了肯定没有你的丰富,所以 你可以同意也可以不同啊。
+- zh_medium_02: sim=0.692 (raw=0.692) kw=1/5
+  output: 我们同步一下现在最近状况，目前的所在是一个什么样的衰衰准，然后根据上一轮的抵达下一轮的阶段的方向是
+- zh_medium_03: sim=0.705 (raw=0.533) kw=1/3
+  output: 有一个是hard life,对后面碰到呢,就是不能通过,在体示积极进入具体的关键词和你要说的,然后后来hack
+- zh_medium_04: sim=0.102 (raw=0.102) kw=0/4
+  output: You, you cannot tie, you cannot tie. Any thing that cannot tie with our matchmaker is also. So, this is a habit of sacri
+- zh_long_01: sim=0.793 (raw=0.570) kw=1/6
+  output: 凯斯实现,然后对于Gamma 4 的其实我建议你可以单独请一个 teammate去做实验,然后探索他的呃用我们已经录讨的这些音品采集过的这个包括现在我跟你说的这些里面都落下来,还可以去做实验。 因为Gamma 4有一个30秒打开的一个上线,
+- zh_long_02: sim=0.893 (raw=0.679) kw=2/3
+  output: 的一个就是你去反思,我们在程序上面有哪些假设或者是猜测实际上是没有意义的,比如说我们这些排系的依据是什么等等。
+- en_short_01: sim=1.000 (raw=1.000) kw=1/1
+  output: 我觉得可以用。
+- en_short_02: sim=0.682 (raw=0.636) kw=1/3
+  output: Facebook 的 channel 怎么不工作了?
+- mixed_medium_01: sim=0.717 (raw=0.667) kw=1/4
+  output: Cloud的ANS SDK的一来,把它升级到最新版,然后做一个pre-release部署到staging mini上。
+- mixed_long_01: sim=0.893 (raw=0.893) kw=3/3
+  output: 现在这个CLI和入口是怎么设计的,我们应该怎么使用? 如果我想让以前使用 subagent的方式执行的主agent去调用这个CLI去find evidence.
+
+### gen4f_role
+- Prompt: "You are a professional bilingual transcriber. Transcribe the audio precisely. Output simplified Chinese for Chinese parts, keep English words as spell"
+- Score: sim=0.763 (raw=0.686, t2s+0.078), kw=0.425, hallucination=0/12
+- Avg Latency: 0.527s
+- vs Qwen3 (sim=0.792): -0.029
+- vs prev SOTA (sim=0.736): +0.027
+- Verdict: New single-model SOTA
+
+Per-case results:
+- zh_short_01: sim=0.720 (raw=0.560) kw=1/2
+  output: 不过如果不决定就做实验
+- zh_short_02: sim=0.900 (raw=0.900) kw=1/1
+  output: 好的，我来更新一遍。
+- zh_medium_01: sim=0.815 (raw=0.667) kw=4/5
+  output: 对于 review 结果你有有自己独立的判断,因为他的上下了肯定没有你的丰富,所以 你可以同意也可以不同啊。
+- zh_medium_02: sim=0.692 (raw=0.692) kw=1/5
+  output: 我们同步一下现在最近状况，目前的所在是一个什么样的衰衰准，然后根据上一轮的抵达下一轮的阶段的方向是
+- zh_medium_03: sim=0.606 (raw=0.606) kw=0/3
+  output: 有一个是 hard life,也就是说能不能碰到呢,就是不能通껏,在体制适应进入具体的关键死和你要说的,以后 hack
+- zh_medium_04: sim=0.458 (raw=0.333) kw=0/4
+  output: you you不能贴您这次爱不能贴跟我们的粉丝码还相关的任何问题 这样的是一个错误的行为
+- zh_long_01: sim=0.784 (raw=0.560) kw=1/6
+  output: 凯斯实现,然后对于Gamma 4的其实我建议你可以单独请一个teammate去做实验,然后探索他的呃用我们已经录讨的这些音品采集过的这个包括现在我跟你说的这些里面都落下来,还可以去做实验。 因为Gamma 4有一个30秒打开的一个上线,所以
+- zh_long_02: sim=0.877 (raw=0.702) kw=3/3
+  output: 那么一个是就是你去反思,我们在程序上面有哪些假设或者是猜测实际上的没有意义的,比如说我们这些排序的依据是什么等等。
+- en_short_01: sim=1.000 (raw=1.000) kw=1/1
+  output: 我觉得可以用。
+- en_short_02: sim=0.682 (raw=0.636) kw=1/3
+  output: Facebook 的 channel 怎么不工作了?
+- mixed_medium_01: sim=0.730 (raw=0.678) kw=1/4
+  output: Cloud的ANS SDK的一来,把它升级到最新版,然后做一个pre-release部署到QC mini上。
+- mixed_long_01: sim=0.893 (raw=0.893) kw=3/3
+  output: 现在这个CLI和入口是怎么设计的,我们应该怎么使用? 如果我想让以前使用 subagent的方式执行的主agent去调用这个CLI去find evidence.
+
+### gen4g_asr_plus_clean
+- Prompt: "请精确转录这段语音的每一个字，使用简体中文，保留所有英文单词的原始拼写。同时去除口语填充词，添加标点符号。"
+- Score: sim=0.762 (raw=0.761, t2s+0.001), kw=0.500, hallucination=0/12
+- Avg Latency: 0.561s
+- vs Qwen3 (sim=0.792): -0.030
+- vs prev SOTA (sim=0.736): +0.026
+- Verdict: New single-model SOTA
+
+Per-case results:
+- zh_short_01: sim=0.741 (raw=0.741) kw=1/2
+  output: 不过，如果不曲就去做实验。
+- zh_short_02: sim=0.900 (raw=0.900) kw=1/1
+  output: 好的，我来更新一遍。
+- zh_medium_01: sim=0.741 (raw=0.741) kw=4/5
+  output: 对于 review 结果你有有自己独立的判断，因为他的 standpoint 肯定没有你的丰富，所以你可以同意也可以不同啊。
+- zh_medium_02: sim=0.696 (raw=0.696) kw=2/5
+  output: 我们同步一下现在最近状况，目前的 Sotah 是一个什么样的衰衰准，然后根据上一轮的抵达下一轮的阶段的走向是
+- zh_medium_03: sim=0.685 (raw=0.685) kw=1/3
+  output: 有一个是 hard life，也就是说能不能碰到呢，就是能不能通货，在这次出现进入具体的关键词和你要说的，以后 hack。
+- zh_medium_04: sim=0.420 (raw=0.420) kw=1/4
+  output: 由于pyrrolo酮体凝的存在是无法体跟我们的反馈模式还相关的任何阶段，这样的是一个作弊的行为。
+- zh_long_01: sim=0.773 (raw=0.758) kw=2/6
+  output: besides 实现,然后对于Gamma 4的集成我建议你可以单独找一个teammate去做实验,然后探索他的呃用我们已经 lục 到的这些音品材质过的包括现在我跟你说的这些이면都落下来,它可以去做实验。 因为Gamma 4还有一个30秒大
+- zh_long_02: sim=0.810 (raw=0.810) kw=2/3
+  output: 那么呢，也就是说你去反思，我们在程序上面拥有的这些假设或者是猜测实际上是没有意义的，比如我们这些排系的依据是什么等等。
+- en_short_01: sim=1.000 (raw=1.000) kw=1/1
+  output: 我觉得可以用。
+- en_short_02: sim=0.727 (raw=0.727) kw=1/3
+  output: Facebook 的 channel 怎么不工作了？
+- mixed_medium_01: sim=0.780 (raw=0.780) kw=1/4
+  output: Cloud 的 Agent SDK 的一来，把它升级到最新版，然后做一个 pre-release部署到 QC mini 上。
+- mixed_long_01: sim=0.874 (raw=0.874) kw=3/3
+  output: 现在这个 CLI 和入口 是怎么设计的？我们该怎么使用？如果我想让以前使用 sub-agent 的方式执行的主 agent 去调用这个 CLI 去 find evidence。
+
+### Summary Table (4B)
+
+| Prompt | Avg Sim | Raw Sim | t2s+ | Kw Acc | vs Qwen3 | vs Prev SOTA | Verdict |
+|--------|---------|---------|------|--------|----------|--------------|---------|
+| gen4a_clean_zh | 0.787 | 0.747 | +0.040 | 0.500 | -0.005 | +0.051 | New SOTA |
+| gen4b_clean_en | 0.772 | 0.685 | +0.087 | 0.425 | -0.020 | +0.036 | New SOTA |
+| gen4c_structured | 0.798 | 0.770 | +0.028 | 0.525 | +0.006 | +0.062 | BEATS QWEN3 |
+| gen4d_precise_bilingual | 0.766 | 0.766 | +0.000 | 0.500 | -0.026 | +0.030 | New SOTA |
+| gen4e_minimal_en | 0.753 | 0.663 | +0.090 | 0.450 | -0.039 | +0.017 | New SOTA |
+| gen4f_role | 0.763 | 0.686 | +0.078 | 0.425 | -0.029 | +0.027 | New SOTA |
+| gen4g_asr_plus_clean | 0.762 | 0.761 | +0.001 | 0.500 | -0.030 | +0.026 | New SOTA |
+
+Best prompt: gen4c_structured (sim=0.798)
+
+---
+
+## Generation 5: End-to-End ASR+Polish (2B)
+
+Date: 2026-04-06 22:31:55
+Model: mlx-community/gemma-4-e2b-it-4bit
+Approach: Single model, one-pass ASR+polish (no Qwen3 dependency)
+Post-processing: OpenCC t2s on all outputs
+
+### Baselines (human-annotated GT)
+- Qwen3 raw: sim=0.792, kw=0.75
+- Gemma4 4B + t2s (prev SOTA): sim=0.736, kw=0.45
+
+### gen4a_clean_zh
+- Prompt: "请听这段音频，输出说话人说的完整内容。使用简体中文，英文单词保持原样。去除口语填充词（嗯、啊、呃），添加标点。"
+- Score: sim=0.739 (raw=0.708, t2s+0.030), kw=0.375, hallucination=0/12
+- Avg Latency: 0.322s
+- vs Qwen3 (sim=0.792): -0.053
+- vs prev SOTA (sim=0.736): +0.003
+- Verdict: New single-model SOTA
+
+Per-case results:
+- zh_short_01: sim=0.435 (raw=0.435) kw=1/2
+  output: 如果可以通过做实验
+- zh_short_02: sim=1.000 (raw=1.000) kw=1/1
+  output: 好的，我来更新一版。
+- zh_medium_01: sim=0.816 (raw=0.816) kw=3/5
+  output: 对于结果，你要有自己独立的判断，因为它的上下文肯定没有你的风格，所以你可以同也可以不同。
+- zh_medium_02: sim=0.615 (raw=0.615) kw=0/5
+  output: 我们同时看一下现在装着,目前的土壤是一个什么样的水准,然后根据上一层的底下的再层的感的方向是
+- zh_medium_03: sim=0.712 (raw=0.712) kw=0/3
+  output: 有一个是hard life，对普通人碰的，就是不能通过在测试施工引入具体的观众时和要说的。然后后来hack。
+- zh_medium_04: sim=0.465 (raw=0.465) kw=1/4
+  output: 请听，不如听可以听。能够适配不能贴。跟我们的分析模块很相关，这很相关。这样的是一个作弊的行为。
+- zh_long_01: sim=0.730 (raw=0.540) kw=1/6
+  output: 嗨，实线。然后对于 Jama 4 的测试我建议你可以找一个 teammate去做实验, 然后探索他用我们已经录好的这些音品材料,包括现在我跟你说的这些影片都录下来,可以去做实验。因为 Jama 有一个三时秒打开的一个上线,所以其实这个要做特
+- zh_long_02: sim=0.754 (raw=0.579) kw=2/3
+  output: deveria就是你去反思我们在成就上面有哪些假设或者是猜测实际上没有意义的,比如说我们这些排续的意义是什么等等。
+- en_short_01: sim=1.000 (raw=1.000) kw=1/1
+  output: 我觉得可以用。
+- en_short_02: sim=0.727 (raw=0.727) kw=1/3
+  output: Facebook 的 channel 怎么不工作了？
+- mixed_medium_01: sim=0.767 (raw=0.767) kw=1/4
+  output: Cloud Agent SDK 的以来，把它升级到最新版，然后做一个 pre-release，部署到 CI/CD 上。
+- mixed_long_01: sim=0.845 (raw=0.845) kw=3/3
+  output: 现在这个 CLI 和 入口 是怎么设置的？我们应该怎么使用？如果我想让用户使用 subagent 的方式执行的主 agent 去调用这个 CLI 去 find evidence。
+
+### gen4c_structured
+- Prompt: "你是一个语音转文字助手。请将音频内容转为文字，要求：
+1. 使用简体中文
+2. 英文单词和专业术语保持原样（如SDK, CLI, Agent, SOTA, Review）
+3. 添加标点符号
+4. 去除'嗯'、'啊'、'呃'等填充词
+5. 只输出转录文本，不要添加任何解释"
+- Score: sim=0.753 (raw=0.643, t2s+0.109), kw=0.550, hallucination=0/12
+- Avg Latency: 0.326s
+- vs Qwen3 (sim=0.792): -0.039
+- vs prev SOTA (sim=0.736): +0.017
+- Verdict: New single-model SOTA
+
+Per-case results:
+- zh_short_01: sim=0.522 (raw=0.522) kw=1/2
+  output: 如果不支持就作实验
+- zh_short_02: sim=0.900 (raw=0.800) kw=1/1
+  output: 好的,我来更新一版。
+- zh_medium_01: sim=0.800 (raw=0.667) kw=5/5
+  output: 对于review结果,你会有自己独立的判断,因为它的上下文肯定没有你的风格,所以你可以同意见或不同意。
+- zh_medium_02: sim=0.710 (raw=0.561) kw=4/5
+  output: 我们同步一下现在最新状态,目前的SOTA是一个什么的突破,随著,然后根据上一版本的迭代下降的改善是
+- zh_medium_03: sim=0.660 (raw=0.524) kw=0/3
+  output: 有一个是hard life,对后面碰的,就是不能透过再测试施工,输入具体的观众词和说的。然后后来hack。
+- zh_medium_04: sim=0.535 (raw=0.372) kw=1/4
+  output: 不如不如可以适适跟我们的参数很相关的判定词。这样的是一个作弊的行为。
+- zh_long_01: sim=0.784 (raw=0.582) kw=2/6
+  output: 嗨，实线。然后对于 Gemma 4 的集成,我建议你可以单独找一个 teammate去做实验,然后测试他用我们已经录好的这些音品材料,包括现在我跟你说的这些样本都录下来,可以去做实验。因为 Gemma 有一个三四秒的大小的一个上升,所以其实
+- zh_long_02: sim=0.772 (raw=0.596) kw=2/3
+  output: deveria就是你去反思我们在程序上面有哪些假设或者是猜测实际上没有意义的,比如说我们这些假设的意义是什么等等。
+- en_short_01: sim=1.000 (raw=1.000) kw=1/1
+  output: 我觉得可以用。
+- en_short_02: sim=0.727 (raw=0.682) kw=1/3
+  output: Facebook 的 channel 怎么不工作了？
+- mixed_medium_01: sim=0.724 (raw=0.690) kw=1/4
+  output: Cloud Agent SDK 的迭代,把它升级到最新版,然后做一个 pre-release,部署到测试环境。
+- mixed_long_01: sim=0.900 (raw=0.725) kw=3/3
+  output: 现在这个CLI和入口是什么设计的？我们应该怎么使用？如果我想让GUI使用，sub-agent的方式执行的主Agent去调用这个CLI去find evidence。
+
+### gen4d_precise_bilingual
+- Prompt: "请精确转录这段语音的每一个字。规则：
+- 中文部分使用简体中文
+- 英文单词保持原始拼写，不要翻译成中文
+- 添加恰当的标点符号
+- 去除口头语和填充词
+只输出最终文本。"
+- Score: sim=0.735 (raw=0.668, t2s+0.067), kw=0.400, hallucination=0/12
+- Avg Latency: 0.316s
+- vs Qwen3 (sim=0.792): -0.057
+- vs prev SOTA (sim=0.736): -0.001
+- Verdict: Comparable to prev SOTA
+
+Per-case results:
+- zh_short_01: sim=0.609 (raw=0.609) kw=1/2
+  output: 如果不确定就试现。
+- zh_short_02: sim=1.000 (raw=1.000) kw=1/1
+  output: 好的，我来更新一版。
+- zh_medium_01: sim=0.716 (raw=0.716) kw=2/5
+  output: 对于结果，你有自己独立的判断，因为它的情感肯定没有你的风格，所以你可以同也非不同。
+- zh_medium_02: sim=0.623 (raw=0.472) kw=2/5
+  output: 我们同步一下现在最新状态,目前的土壤是一个什么的体,水润,然后根据上一层的底下的再下面的干放,是
+- zh_medium_03: sim=0.660 (raw=0.524) kw=0/3
+  output: 有一个是hard life,对后面碰的,就是不能透过在测试施工,进入剧体的观众词和要说的。然后来hack。
+- zh_medium_04: sim=0.449 (raw=0.306) kw=1/4
+  output: 不如不如可以适能适。跟我们的分析模式很相关的现象，这是一个适意的行为。这样是一个作弊的行为。
+- zh_long_01: sim=0.651 (raw=0.452) kw=1/6
+  output: 嗨,实线,然后对于Jam4的测试,我建议你可以找一个team去做实验,然后参考他用我们已经录好的这些音品材料,包括现在我跟你说的这些影片都录下来,可以去做实验,因为Jam4有一个三时秒打开的一个上线,所以其实这个要做特殊的处理。
+- zh_long_02: sim=0.754 (raw=0.579) kw=2/3
+  output: deveria就是你去反思我们在成就上面有哪些假设或者是猜测实际上没有意义的,比如说我们这些排蓄的意义是什么等等。
+- en_short_01: sim=1.000 (raw=1.000) kw=1/1
+  output: 我觉得可以用。
+- en_short_02: sim=0.727 (raw=0.727) kw=1/3
+  output: Facebook 的 channel 怎么不工作了？
+- mixed_medium_01: sim=0.724 (raw=0.724) kw=1/4
+  output: Cloud Agent SDK 的以来,把它升级到最新版,然后做一个 pre-release,部署到测试环境。
+- mixed_long_01: sim=0.904 (raw=0.904) kw=3/3
+  output: 现在这个CLI和入口是什么设置的？我应该怎么使用？如果我想让之前使用 subagent的方式执行的主agent去调用这个CLI去find evidence。
+
+### Summary Table (2B)
+
+| Prompt | Avg Sim | Raw Sim | t2s+ | Kw Acc | vs Qwen3 | vs Prev SOTA | Verdict |
+|--------|---------|---------|------|--------|----------|--------------|---------|
+| gen4a_clean_zh | 0.739 | 0.708 | +0.030 | 0.375 | -0.053 | +0.003 | New SOTA |
+| gen4c_structured | 0.753 | 0.643 | +0.109 | 0.550 | -0.039 | +0.017 | New SOTA |
+| gen4d_precise_bilingual | 0.735 | 0.668 | +0.067 | 0.400 | -0.057 | -0.001 | Below |
+
+Best prompt: gen4c_structured (sim=0.753)
