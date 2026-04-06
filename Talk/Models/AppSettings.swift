@@ -292,6 +292,8 @@ final class AppSettings {
 
     var enableVoiceCommands: Bool = true { didSet { autoSave() } }
     var enablePersonalVocabulary: Bool = true { didSet { autoSave() } }
+    var enableAutoHotwordLearning: Bool = true { didSet { autoSave() } }
+    var enableAudioHistory: Bool = true { didSet { autoSave() } }
 
     enum AppLanguage: String, Codable, CaseIterable {
         case system = "system"
@@ -455,6 +457,8 @@ extension AppSettings {
 
         self.enableVoiceCommands = boolValue("enableVoiceCommands", default: true)
         self.enablePersonalVocabulary = boolValue("enablePersonalVocabulary", default: true)
+        self.enableAutoHotwordLearning = boolValue("enableAutoHotwordLearning", default: true)
+        self.enableAudioHistory = boolValue("enableAudioHistory", default: true)
 
         if let lang = defaults.string(forKey: "appLanguage"),
            let language = AppLanguage(rawValue: lang) {
@@ -532,6 +536,8 @@ extension AppSettings {
 
         defaults.set(enableVoiceCommands, forKey: "enableVoiceCommands")
         defaults.set(enablePersonalVocabulary, forKey: "enablePersonalVocabulary")
+        defaults.set(enableAutoHotwordLearning, forKey: "enableAutoHotwordLearning")
+        defaults.set(enableAudioHistory, forKey: "enableAudioHistory")
 
         defaults.set(appLanguage.rawValue, forKey: "appLanguage")
 

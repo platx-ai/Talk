@@ -56,6 +56,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         initializeServices(settings: settings)
         setupMicrophonePermission()
         TextInjector.requestAccessibilityPermissionIfNeeded()
+        EditObserver.shared.startProcessingLoop()
 
         AppLogger.info("应用初始化完成", category: .general)
         AppLogger.info("========================================", category: .general)
@@ -300,6 +301,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     private func startRecording(trigger: String) async -> Bool {
         guard let statusBar = statusBar else { return false }
 
+        // 停止上一次编辑观察
+        EditObserver.shared.stopObserving()
+
         // 麦克风权限检查
         let micStatus = AVCaptureDevice.authorizationStatus(for: .audio)
         switch micStatus {
@@ -507,6 +511,20 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
             }
         }
 
+        // 音频保存推迟到各路径中（streaming 保存原始音频，batch 保存 VAD 过滤后的音频）
+        let audioItemId = UUID()
+
+        // 构建 ASR 上下文快照
+        let hotwords = VocabularyManager.shared.getHighFrequencyItems(limit: 10)
+        let hotwordList = Array(Set(hotwords.compactMap { $0.correctedForm })).joined(separator: ", ")
+        let asrCtx = ASRContext(
+            language: settings.asrLanguage.rawValue,
+            hotwordPrompt: hotwordList.isEmpty ? nil : hotwordList,
+            systemPrompt: settings.customSystemPrompt.isEmpty ? nil : settings.customSystemPrompt,
+            polishIntensity: settings.polishIntensity.rawValue,
+            targetApp: self.targetApp?.bundleIdentifier
+        )
+
         // 如果流式识别已完成，使用流式结果；否则降级为批量识别
         if let fullText = streamingFullText {
             let trimmed = fullText.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -524,7 +542,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
             if settings.asrEngine != .appleSpeech {
                 ASRService.shared.stopStreaming()
             }
-            await processTranscription(text: trimmed, duration: duration)
+            // 流式路径：保存原始音频
+            var savedAudioFilename: String?
+            if settings.enableAudioHistory {
+                savedAudioFilename = HistoryManager.shared.saveAudio(
+                    audioData, sampleRate: sampleRate, itemId: audioItemId
+                )
+            }
+            await processTranscription(
+                text: trimmed, duration: duration,
+                audioFilePath: savedAudioFilename, asrContext: asrCtx, itemId: audioItemId
+            )
         } else if settings.asrEngine == .appleSpeech {
             // Apple Speech 没返回结果 — 不回退到 MLX，直接提示
             AppleSpeechService.shared.cancelStreaming()
@@ -574,8 +602,19 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
                 )
             }
 
+            // Batch 路径：保存 VAD 过滤后的音频（ASR 实际处理的）
+            var savedAudioFilename: String?
+            if settings.enableAudioHistory {
+                savedAudioFilename = HistoryManager.shared.saveAudio(
+                    vadResult.speechAudio, sampleRate: sampleRate, itemId: audioItemId
+                )
+            }
+
             // 使用 MLX 批量识别
-            await processAudio(audio: vadResult.speechAudio, duration: duration, sampleRate: sampleRate)
+            await processAudio(
+                audio: vadResult.speechAudio, duration: duration, sampleRate: sampleRate,
+                audioFilePath: savedAudioFilename, asrContext: asrCtx, itemId: audioItemId
+            )
         }
 
         return true
@@ -584,7 +623,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     // MARK: - 音频处理
 
     @MainActor
-    private func processTranscription(text: String, duration: TimeInterval) {
+    private func processTranscription(text: String, duration: TimeInterval, audioFilePath: String? = nil, asrContext: ASRContext? = nil, itemId: UUID = UUID()) {
         Task {
             guard let statusBar = statusBar else { return }
             let settings = AppSettings.load()
@@ -639,12 +678,22 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
                         try await Task.sleep(for: .milliseconds(400))
                     }
                     try await TextInjector.shared.inject(polishedText)
+
+                    // 启动编辑观察（启发式热词学习）
+                    if settings.enableAutoHotwordLearning, let target = self.targetApp {
+                        EditObserver.shared.startObserving(
+                            injectedText: polishedText,
+                            targetApp: target,
+                            prefixContext: nil
+                        )
+                    }
                 }
 
                 let asrLabel = settings.asrEngine == .appleSpeech ? "Apple Speech" : settings.asrModelId
                 let historyItem = HistoryItem(
-                    duration: duration, rawText: text, polishedText: polishedText,
-                    asrModel: asrLabel, llmModel: llmModelId
+                    id: itemId, duration: duration, rawText: text, polishedText: polishedText,
+                    asrModel: asrLabel, llmModel: llmModelId,
+                    audioFilePath: audioFilePath, asrContext: asrContext
                 )
                 HistoryManager.shared.add(historyItem)
 
@@ -659,7 +708,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     }
 
     @MainActor
-    private func processAudio(audio: [Float], duration: TimeInterval, sampleRate: Int) {
+    private func processAudio(audio: [Float], duration: TimeInterval, sampleRate: Int, audioFilePath: String? = nil, asrContext: ASRContext? = nil, itemId: UUID = UUID()) {
         Task {
             guard let statusBar = statusBar else { return }
             let settings = AppSettings.load()
@@ -717,12 +766,22 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
                         try await Task.sleep(for: .milliseconds(400))
                     }
                     try await TextInjector.shared.inject(polishedText)
+
+                    // 启动编辑观察（启发式热词学习）
+                    if settings.enableAutoHotwordLearning, let target = self.targetApp {
+                        EditObserver.shared.startObserving(
+                            injectedText: polishedText,
+                            targetApp: target,
+                            prefixContext: nil
+                        )
+                    }
                 }
 
                 let asrLabel = settings.asrEngine == .appleSpeech ? "Apple Speech" : settings.asrModelId
                 let historyItem = HistoryItem(
-                    duration: duration, rawText: rawText, polishedText: polishedText,
-                    asrModel: asrLabel, llmModel: llmModelId
+                    id: itemId, duration: duration, rawText: rawText, polishedText: polishedText,
+                    asrModel: asrLabel, llmModel: llmModelId,
+                    audioFilePath: audioFilePath, asrContext: asrContext
                 )
                 HistoryManager.shared.add(historyItem)
 

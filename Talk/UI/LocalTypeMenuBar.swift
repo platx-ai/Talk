@@ -19,9 +19,12 @@ final class LocalTypeMenuBar {
     private var popover: NSPopover?
     private let viewModel = MenuViewModel()
     private let floatingIndicator = FloatingIndicatorWindow()
+    private var flashCapsulePanel: FloatingPanel?
+    private var flashCapsuleDismissWorkItem: DispatchWorkItem?
 
     private init() {
         setupMenuBar()
+        setupHotwordNotificationListener()
     }
 
     private func setupMenuBar() {
@@ -162,5 +165,111 @@ final class LocalTypeMenuBar {
         notification.informativeText = message
         // 不播放声音，避免打扰用户
         NSUserNotificationCenter.default.deliver(notification)
+    }
+
+    // MARK: - 闪电胶囊通知（热词学习反馈）
+
+    private func setupHotwordNotificationListener() {
+        NotificationCenter.default.addObserver(
+            forName: .hotwordLearned,
+            object: nil,
+            queue: .main
+        ) { [weak self] notification in
+            guard let corrections = notification.userInfo?["corrections"] as? [String],
+                  !corrections.isEmpty else { return }
+            Task { @MainActor in
+                self?.showFlashCapsule(corrections: corrections)
+            }
+        }
+    }
+
+    private func showFlashCapsule(corrections: [String]) {
+        // 取消上一次的自动消失
+        flashCapsuleDismissWorkItem?.cancel()
+
+        let message = corrections.joined(separator: "  ")
+        let capsuleView = FlashCapsuleView(message: message)
+        let hostingView = NSHostingView(rootView: capsuleView)
+
+        let panelWidth: CGFloat = min(CGFloat(message.count * 12 + 80), 500)
+        let panelHeight: CGFloat = 36
+
+        let screenFrame = NSScreen.main?.frame ?? .zero
+        let visibleFrame = NSScreen.main?.visibleFrame ?? screenFrame
+        let menuBarHeight = screenFrame.maxY - visibleFrame.maxY
+        let x = screenFrame.midX - panelWidth / 2
+        let y = screenFrame.maxY - menuBarHeight - panelHeight - 8
+
+        if flashCapsulePanel == nil {
+            let panel = FloatingPanel(
+                contentRect: NSRect(x: x, y: y, width: panelWidth, height: panelHeight),
+                styleMask: [.nonactivatingPanel, .borderless],
+                backing: .buffered,
+                defer: false
+            )
+            panel.level = .floating
+            panel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary, .stationary]
+            panel.isOpaque = false
+            panel.backgroundColor = .clear
+            panel.hasShadow = true
+            panel.titlebarAppearsTransparent = true
+            panel.titleVisibility = .hidden
+            panel.isMovableByWindowBackground = false
+            panel.hidesOnDeactivate = false
+            panel.ignoresMouseEvents = true
+            flashCapsulePanel = panel
+        }
+
+        flashCapsulePanel?.setFrame(
+            NSRect(x: x, y: y, width: panelWidth, height: panelHeight),
+            display: false
+        )
+        flashCapsulePanel?.contentView = hostingView
+        flashCapsulePanel?.alphaValue = 0
+        flashCapsulePanel?.orderFront(nil)
+
+        // 淡入
+        NSAnimationContext.runAnimationGroup { context in
+            context.duration = 0.3
+            flashCapsulePanel?.animator().alphaValue = 1
+        }
+
+        // 5 秒后淡出
+        let workItem = DispatchWorkItem { [weak self] in
+            guard let panel = self?.flashCapsulePanel else { return }
+            NSAnimationContext.runAnimationGroup({ context in
+                context.duration = 0.5
+                panel.animator().alphaValue = 0
+            }, completionHandler: {
+                panel.orderOut(nil)
+            })
+        }
+        flashCapsuleDismissWorkItem = workItem
+        DispatchQueue.main.asyncAfter(deadline: .now() + 5, execute: workItem)
+    }
+}
+
+// MARK: - 闪电胶囊视图
+
+struct FlashCapsuleView: View {
+    let message: String
+
+    var body: some View {
+        HStack(spacing: 6) {
+            Image(systemName: "bolt.fill")
+                .font(.system(size: 12, weight: .bold))
+                .foregroundStyle(.yellow)
+            Text(String(localized: "已收录"))
+                .font(.system(size: 12, weight: .semibold))
+                .foregroundStyle(.primary)
+            Text(message)
+                .font(.system(size: 12))
+                .foregroundStyle(.secondary)
+                .lineLimit(1)
+                .truncationMode(.tail)
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 6)
+        .background(.ultraThinMaterial, in: Capsule())
     }
 }
