@@ -33,6 +33,9 @@ final class ASRService {
     /// 加载进度（0-1）
     private(set) var loadingProgress: Double = 0
 
+    /// 是否正在流式识别
+    private(set) var isRecognizing = false
+
     /// 流式推理会话
     private var streamingSession: StreamingInferenceSession?
 
@@ -156,6 +159,7 @@ final class ASRService {
         )
 
         streamingSession = StreamingInferenceSession(model: model, config: config)
+        isRecognizing = true
 
         AppLogger.info("开始流式识别，延迟预设: \(delayPreset)", category: .asr)
 
@@ -223,6 +227,7 @@ final class ASRService {
 
         AppLogger.info("停止流式识别", category: .asr)
         streamingSession = nil
+        isRecognizing = false
         onTranscriptionUpdate = nil
         onTranscriptionComplete = nil
     }
@@ -321,6 +326,33 @@ final class ASRService {
                 }
             }
         }
+    }
+}
+
+// MARK: - ASREngineProtocol 适配
+
+extension ASRService: ASREngineProtocol {
+    var isReady: Bool { isModelLoaded }
+
+    func prepare() async throws {
+        let settings = AppSettings.shared
+        try await loadModel(modelId: settings.asrModelId)
+    }
+
+    func release() {
+        unloadModel()
+    }
+
+    func startStreaming(config: ASREngineConfig) async throws {
+        try await startStreaming(
+            delayPreset: .realtime,
+            language: config.language,
+            temperature: 0.0
+        )
+    }
+
+    func cancelStreaming() {
+        stopStreaming()
     }
 }
 
