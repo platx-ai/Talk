@@ -24,6 +24,8 @@ final class LLMService {
     private(set) var isModelLoaded = false
     private(set) var isLoading = false
     private(set) var loadingProgress: Double = 0
+    /// 是否正在执行润色（供 EditObserver 判断是否空闲）
+    private(set) var isPolishing = false
 
     /// Per-app ChatSession 缓存 — 复用 KV Cache 加速推理
     /// key = bundleId (nil 用 "__global__")
@@ -166,6 +168,8 @@ final class LLMService {
         }
 
         AppLogger.debug("开始文本润色: \(text)", category: .llm)
+        isPolishing = true
+        defer { isPolishing = false }
 
         var instructions: String
         let userMessage: String
@@ -253,6 +257,91 @@ final class LLMService {
         } catch {
             AppLogger.error("文本润色失败: \(error.localizedDescription)", category: .llm)
             throw LLMError.polishFailed(error)
+        }
+    }
+
+    // MARK: - 热词提取
+
+    /// 热词修正结构
+    struct HotwordCorrection: Codable {
+        let original: String
+        let corrected: String
+        let type: String  // "proper_noun" | "homophone" | "abbreviation"
+    }
+
+    private static let hotwordExtractionPrompt = """
+你是一个热词提取器。给定语音识别的原始输出和用户的修正版本，提取出属于 ASR 误识别导致的词语修正。
+
+只提取以下类型：
+1. 专有名词拼写错误（公司名、产品名、人名、技术术语）
+2. ASR 同音字/近音字错误
+3. 缩写/术语识别错误
+
+不要提取：
+- 语法润色、删减口语词、调整语序
+- 标点变化
+- 纯粹的措辞偏好改写
+
+返回 JSON 数组，无修正则返回 []。每个元素包含 original、corrected、type 三个字段。
+type 取值: proper_noun, homophone, abbreviation
+"""
+
+    /// 从用户编辑中提取热词修正（后台空闲时调用）
+    func extractHotwords(original: String, edited: String) async -> [HotwordCorrection] {
+        guard isModelLoaded, let modelContainer = modelContainer else {
+            return []
+        }
+
+        let sessionKey = "__hotword_extraction__"
+        let instructions = Self.hotwordExtractionPrompt
+        let userMessage = "【原始文本】\n\(original)\n\n【用户修改后】\n\(edited)"
+
+        do {
+            let maxTokens = 512
+            let params = GenerateParameters(maxTokens: maxTokens)
+
+            // 每次创建新 session（热词提取是独立任务，不需要历史上下文）
+            let session = ChatSession(modelContainer, instructions: instructions, generateParameters: params)
+
+            let startTime = CFAbsoluteTimeGetCurrent()
+            let response = try await session.respond(to: userMessage)
+            let elapsed = CFAbsoluteTimeGetCurrent() - startTime
+
+            AppLogger.info("热词提取完成: \(String(format: "%.2f", elapsed))s", category: .llm)
+
+            // 解析 JSON
+            let trimmed = response.trimmingCharacters(in: .whitespacesAndNewlines)
+            return parseHotwordJSON(trimmed)
+        } catch {
+            AppLogger.error("热词提取失败: \(error.localizedDescription)", category: .llm)
+            return []
+        }
+    }
+
+    /// 解析 LLM 返回的 JSON，容错处理
+    private func parseHotwordJSON(_ text: String) -> [HotwordCorrection] {
+        // 尝试从文本中提取 JSON 数组部分
+        var jsonString = text
+        if let start = text.firstIndex(of: "["),
+           let end = text.lastIndex(of: "]") {
+            jsonString = String(text[start...end])
+        }
+
+        guard let data = jsonString.data(using: .utf8) else { return [] }
+
+        do {
+            let corrections = try JSONDecoder().decode([HotwordCorrection].self, from: data)
+            // 过滤：长度合理、非空、不完全相同
+            return corrections.filter { c in
+                !c.original.isEmpty &&
+                !c.corrected.isEmpty &&
+                c.original != c.corrected &&
+                c.original.count <= 30 &&
+                c.corrected.count <= 30
+            }
+        } catch {
+            AppLogger.debug("热词 JSON 解析失败: \(error.localizedDescription), raw=\(text.prefix(100))", category: .llm)
+            return []
         }
     }
 

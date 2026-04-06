@@ -7,6 +7,29 @@
 
 import Foundation
 
+/// ASR 上下文快照，用于复盘和调试
+struct ASRContext: Codable, Equatable {
+    let language: String?
+    let hotwordPrompt: String?
+    let systemPrompt: String?
+    let polishIntensity: String?
+    let targetApp: String?
+
+    init(
+        language: String? = nil,
+        hotwordPrompt: String? = nil,
+        systemPrompt: String? = nil,
+        polishIntensity: String? = nil,
+        targetApp: String? = nil
+    ) {
+        self.language = language
+        self.hotwordPrompt = hotwordPrompt
+        self.systemPrompt = systemPrompt
+        self.polishIntensity = polishIntensity
+        self.targetApp = targetApp
+    }
+}
+
 struct HistoryItem: Codable, Identifiable, Equatable {
     let id: UUID
     let timestamp: Date
@@ -16,6 +39,7 @@ struct HistoryItem: Codable, Identifiable, Equatable {
     let asrModel: String
     let llmModel: String
     var audioFilePath: String?
+    var asrContext: ASRContext?
 
     init(
         id: UUID = UUID(),
@@ -25,7 +49,8 @@ struct HistoryItem: Codable, Identifiable, Equatable {
         polishedText: String,
         asrModel: String,
         llmModel: String,
-        audioFilePath: String? = nil
+        audioFilePath: String? = nil,
+        asrContext: ASRContext? = nil
     ) {
         self.id = id
         self.timestamp = timestamp
@@ -35,6 +60,7 @@ struct HistoryItem: Codable, Identifiable, Equatable {
         self.asrModel = asrModel
         self.llmModel = llmModel
         self.audioFilePath = audioFilePath
+        self.asrContext = asrContext
     }
 
     var formattedTimestamp: String {

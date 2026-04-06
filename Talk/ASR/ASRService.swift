@@ -229,6 +229,32 @@ final class ASRService {
 
     // MARK: - 语音识别
 
+    /// 构建热词 initialPrompt（从词库中提取高频正确形式）
+    ///
+    /// 实验验证：batch-only 场景下所有 prompt 格式均安全有效。
+    /// 生产环境幻觉原因：VAD 裁剪后的短音频 + hotword 导致模型退化。
+    /// 安全措施：音频 < 3s 不注入、去重、限制数量。
+    /// 构建热词 initialPrompt
+    ///
+    /// 已禁用 — 生产环境确认：有 hotword 必出问题，无 hotword 完全正常。
+    /// 流式 decode 后模型状态变化，使得 batch generate 中的 system prompt
+    /// 注入不可控（输出 "."、"语言 Chinese"、"Chinese" 循环、数字递增等）。
+    /// 纯 batch 测试无法复现，因为测试中模型没经过流式 decode。
+    /// 热词修正完全依赖 LLM 润色阶段。
+    private func buildHotwordPrompt(audioSampleCount: Int = 0, sampleRate: Int = 16000) -> String? {
+        return nil
+    }
+
+    /// 识别音频（指定 initialPrompt，用于测试和外部调用）
+    func transcribe(audio: [Float], sampleRate: Int, initialPrompt: String?) async throws -> String {
+        guard isModelLoaded else { throw ASRError.modelNotLoaded }
+        guard let model = model else { throw ASRError.modelNotLoaded }
+
+        let audioArray = MLXArray(audio)
+        let output = model.generate(audio: audioArray, initialPrompt: initialPrompt)
+        return output.text.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
     /// 识别音频
     func transcribe(audio: [Float], sampleRate: Int) async throws -> String {
         guard isModelLoaded else {
@@ -252,7 +278,11 @@ final class ASRService {
 
         do {
             let audioArray = MLXArray(audio)
-            let output = model.generate(audio: audioArray)
+            let hotwordPrompt = buildHotwordPrompt(audioSampleCount: audio.count, sampleRate: sampleRate)
+            if let prompt = hotwordPrompt {
+                AppLogger.debug("ASR 热词 prefix: \(prompt)", category: .asr)
+            }
+            let output = model.generate(audio: audioArray, initialPrompt: hotwordPrompt)
             let text = output.text.trimmingCharacters(in: CharacterSet.whitespacesAndNewlines)
 
             AppLogger.debug("语音识别完成: \(text)", category: .asr)
