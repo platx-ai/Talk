@@ -141,3 +141,135 @@ Potential use case:
 - Could be used as a FAST PREVIEW during recording (0.3s latency)
 - Then Qwen3 provides the accurate final transcription
 - Or as a fallback when Qwen3 model is still loading
+
+---
+
+## Generation 2: Gemma4 4B Experiments
+
+Date: 2026-04-06 20:31:44
+Model: mlx-community/gemma-4-e4b-it-4bit
+Model size: ~5.2 GB (4-bit quantized, vs ~1.5 GB for 2B 4-bit)
+
+### gen2_baseline
+- Model: mlx-community/gemma-4-e4b-it-4bit
+- Prompt: "请逐字转录这段语音，使用简体中文。"
+- Score: sim=0.579, kw=0.344, hallucination=0/12
+- Avg Latency: 0.501s
+- vs 2B SOTA (sim=0.569): +0.010
+- vs 2B SOTA (kw=0.344): +0.000
+- vs Qwen3 (1.000): gap=0.421
+- Decision: NEUTRAL (within margin of 2B SOTA)
+
+Per-case results:
+- zh_short_01: sim=0.640 kw=1/2
+  output: 不过如果不觉得就做实验
+- zh_short_02: sim=0.900 kw=1/1
+  output: 好的，我来更新一遍。
+- zh_medium_01: sim=0.594 kw=1/4
+  output: 對於レビュー結果你有有自己獨立的判斷,因為他的上下了肯定沒有裡的豐富,所以 你可以同意也可以不同啊。
+- zh_medium_02: sim=0.738 kw=1/4
+  output: 我们同步一下现在最近状况，目前的售塔是一个什么样的衰衰准，然后根据上一轮的抵达下一轮的阶段的方向是
+- zh_medium_03: sim=0.545 kw=0/3
+  output: 有一个是hard life,也就是说能不能碰到呢,就是能不能通過這在這些積極進入具體的關鍵詞和你要說的,然後後來hack
+- zh_medium_04: sim=0.473 kw=1/2
+  output: 由于pyrrolo酮体凝的存在是无法体跟我们的粉丝们还相关的任何阶段。这样的是一个作弊的行为。
+- zh_long_01: sim=0.434 kw=0/4
+  output: 凱斯實現,然後對於Gamma 4的其成果建議,你可以單獨請一個teammate去做實驗,然後探索他的呃用我們已經錄討的這些影片採集過的這個包括現在我跟你說的這些異面都落下來,還可以去做實驗。 因為Gamma 4有一個30秒打開的一個上線,所
+- zh_long_02: sim=0.702 kw=1/3
+  output: 另外一個就是你去反思,我們在程序上面有哪些假設或者是猜測實際上的是沒有意義的,比如說我們這些排系的依據是什麼等等。
+- en_short_01: sim=0.000 kw=0/2
+  output: 我觉得可以用。
+- en_short_02: sim=0.247 kw=0/1
+  output: Facebook 的 channel 怎麼不工作了?
+- mixed_medium_01: sim=0.738 kw=2/3
+  output: Cloud 的 Agent SDK 的一来,把它升級到最新版,然後做一個 pre-release部署到 QC mini 上。
+- mixed_long_01: sim=0.936 kw=3/3
+  output: 现在这个CLI和入口是怎么设计的，我应该怎么使用？如果我想让以前使用subagent的方式执行的主agent去调用这个CLI去find evidence。
+
+### gen2a_precise
+- Model: mlx-community/gemma-4-e4b-it-4bit
+- Prompt: "请精确转录这段语音的每一个字，使用简体中文，保留所有英文单词的原始拼写。"
+- Score: sim=0.581, kw=0.469, hallucination=0/12
+- Avg Latency: 0.485s
+- vs 2B SOTA (sim=0.569): +0.012
+- vs 2B SOTA (kw=0.344): +0.125
+- vs Qwen3 (1.000): gap=0.419
+- Decision: KEEP (beats 2B SOTA)
+
+Per-case results:
+- zh_short_01: sim=0.500 kw=1/2
+  output: book 如果不觉得就做实验
+- zh_short_02: sim=0.900 kw=1/1
+  output: 好的，我来更新一遍。
+- zh_medium_01: sim=0.643 kw=3/4
+  output: 对于 review 结果 你要有自己独立的判断，因为他的 standpoint 可能没有你的丰富，所以 你可以同意也可以不同啊。
+- zh_medium_02: sim=0.724 kw=1/4
+  output: 我们同步一下现在最近状况，目前的所在是一个什么样的阶段，水准，然后根据上一轮的抵达下一轮的阶段的方向是
+- zh_medium_03: sim=0.593 kw=0/3
+  output: 有一个是 hard life, 对后面碰到呢,就是不能通货,在提示須進入具體的關鍵詞和你要說的,然後後來 hack。
+- zh_medium_04: sim=0.396 kw=1/2
+  output: 由于pyrrolo compound 您对此没有任何对此跟我们的反馈或者相关的任何事情 这样的是一个作弊的行为
+- zh_long_01: sim=0.444 kw=0/4
+  output: 凱斯實現,然後對於Gamma 4的其層我建議你可以單獨請一個teammate去做實驗,然後探索他的呃用我們已經錄討的這些音品採集過的這個包括現在我跟你說的這些異面都落下來,還可以去做實驗。 因為Gamma 4有一個30秒打開的一個上線,所以
+- zh_long_02: sim=0.852 kw=2/3
+  output: 那么一个是你就你去反思，我们在程序上面有哪些假设或者是猜测猜測实际上是没有意义的，比如我们这些排系的依据是什么等等。
+- en_short_01: sim=0.000 kw=0/2
+  output: 我觉得可以用
+- en_short_02: sim=0.247 kw=0/1
+  output: Facebook 的 channel 怎么不工作了？
+- mixed_medium_01: sim=0.803 kw=3/3
+  output: Cloud 的 Agent SDK 的一来，把它升级到最新版，然后做一个 pre-release部署到 QC mini 上。
+- mixed_long_01: sim=0.874 kw=3/3
+  output: 现在这个 CLI 和入口 是怎么设计的，我应该怎么使用？如果我想让以前使用 sub-agent 的方式执行的主 agent 去调用这个 CLI 去 find evidence。
+
+### gen2b_bilingual
+- Model: mlx-community/gemma-4-e4b-it-4bit
+- Prompt: "Transcribe this audio exactly as spoken. Keep English words in English. Use simplified Chinese for Chinese parts."
+- Score: sim=0.517, kw=0.312, hallucination=0/12
+- Avg Latency: 0.490s
+- vs 2B SOTA (sim=0.569): -0.052
+- vs 2B SOTA (kw=0.344): -0.032
+- vs Qwen3 (1.000): gap=0.483
+- Decision: DISCARD (worse than 2B SOTA)
+
+Per-case results:
+- zh_short_01: sim=0.560 kw=0/2
+  output: 不過如果不確定就做實驗
+- zh_short_02: sim=0.900 kw=1/1
+  output: 好的，我来更新一下。
+- zh_medium_01: sim=0.614 kw=1/4
+  output: 對於レビュー結果你有有自己獨立的判斷,因為他的上下了肯定沒有你的豐富,所以 你可以同意也可以不同啊。
+- zh_medium_02: sim=0.514 kw=1/4
+  output: 我們同步一下現在最近狀態,目前的所在是一個什麼樣的飛垂直,然後根據上一輪的疊代下一輪的階段的這個方向是
+- zh_medium_03: sim=0.514 kw=0/3
+  output: 有一個是hard life,對後面碰到呢,就是不能通過,在體是積極進入具體的關鍵詞和你要說的,然後後來hack
+- zh_medium_04: sim=0.413 kw=1/2
+  output: 比如說,比如說這種貼凝的貼不能貼,跟我們的粉絲碼還相關的任何關鍵詞,這樣的是一個作弊的行為。
+- zh_long_01: sim=0.448 kw=0/4
+  output: 凱斯實現,然後對於Gamma 4 的其實我建議你可以單獨請一個 teammate去做實驗,然後探索他的呃用我們已經錄討的這些音品採集過的這個包括現在我跟你說的這些裡面都落下來,還可以去做實驗。 因為Gamma 4有一個30秒打開的一個上線,
+- zh_long_02: sim=0.732 kw=2/3
+  output: 另外一個就是你去反思我們在程序上面有哪些假設或者是猜測實際上是沒有意義的,比如說我們這些排序的依據是什麼等等。
+- en_short_01: sim=0.000 kw=0/2
+  output: 我觉得可以用
+- en_short_02: sim=0.143 kw=0/1
+  output: Facebook的channel怎麼不工作了?
+- mixed_medium_01: sim=0.684 kw=1/3
+  output: cloud的ANSDK的依賴,把它升級到最新版,然後做一個pre-release部署到staging mini上。
+- mixed_long_01: sim=0.684 kw=3/3
+  output: 現在這個CLI和入口是什麼設計的,我們該怎麼使用? 如果我想讓以前使用 subagent的方式執行的主agent去調用這個CLI去find evidence.
+
+### 4B Summary
+- Best prompt: gen2a_precise ("请精确转录这段语音的每一个字，使用简体中文，保留所有英文单词的原始拼写。")
+- Best sim: 0.581 (vs 2B SOTA: +0.012)
+- Best kw: 0.469 (vs 2B SOTA: +0.125)
+- Avg Latency: 0.485s
+
+## Updated Comparison Table
+
+| Metric | Qwen3-ASR | Gemma4 2B 4bit | Gemma4 4B 4bit (best) |
+|--------|-----------|----------------|----------------------|
+| Model | Qwen3-ASR-0.6B | mlx-community/gemma-4-e2b-it-4bit | mlx-community/gemma-4-e4b-it-4bit |
+| Size | ~1.6 GB | ~1.5 GB | ~5.2 GB |
+| Avg Similarity | 1.000 | 0.569 | 0.581 |
+| Keyword Accuracy | 1.000 | 0.344 | 0.469 |
+| Avg Latency | ~2-4s | ~0.28s | 0.485s |

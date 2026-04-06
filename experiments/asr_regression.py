@@ -212,10 +212,51 @@ def run_gemma4_4bit(audio_path: str, case: dict) -> tuple[str, float]:
         return f"[ERROR: {e}]", 0.0
 
 
+def run_gemma4_4b(audio_path: str, case: dict) -> tuple[str, float]:
+    """Run Gemma4 4B 4-bit quantized ASR via mlx-vlm (mlx-community/gemma-4-e4b-it-4bit)."""
+    try:
+        import subprocess
+        wav_path = audio_path.replace(".m4a", ".wav")
+        if not os.path.exists(wav_path):
+            subprocess.run(
+                ["ffmpeg", "-i", audio_path, "-ar", "16000", "-ac", "1", "-y", wav_path],
+                capture_output=True, timeout=30
+            )
+
+        start = time.time()
+        from mlx_vlm import load, generate
+        from mlx_vlm.prompt_utils import apply_chat_template
+
+        if not hasattr(run_gemma4_4b, "_model"):
+            _patch_gemma4_scaled_linear()
+            run_gemma4_4b._model, run_gemma4_4b._processor = load(
+                "mlx-community/gemma-4-e4b-it-4bit"
+            )
+
+        model = run_gemma4_4b._model
+        processor = run_gemma4_4b._processor
+
+        # Best prompt from 4B evolution: precise Chinese with English preservation
+        prompt_text = "请精确转录这段语音的每一个字，使用简体中文，保留所有英文单词的原始拼写。"
+
+        prompt = apply_chat_template(processor, model.config, prompt_text, num_audios=1)
+        result = generate(
+            model=model, processor=processor, prompt=prompt,
+            audio=[wav_path], max_tokens=500,
+            temperature=0.0,
+        )
+        elapsed = time.time() - start
+        text = result.strip() if isinstance(result, str) else result.text.strip()
+        return text, elapsed
+    except Exception as e:
+        return f"[ERROR: {e}]", 0.0
+
+
 ENGINES = {
     "qwen3": run_qwen3,
     "gemma4": run_gemma4,
     "gemma4-4bit": run_gemma4_4bit,
+    "gemma4-4b": run_gemma4_4b,
 }
 
 # ============================================================
