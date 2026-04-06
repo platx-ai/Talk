@@ -392,3 +392,339 @@ without needing to run two models.
 | Avg Latency | ~2-4s | ~0.85s | ~0.85+2-4s |
 | Gemma4 wins | -- | 2/12 cases | 12/12 cases |
 | Gap to Qwen3 | -- | -0.056 | +0.125 |
+
+---
+
+## Generation 4: Audio-Aware Polish Experiment (4B)
+
+Date: 2026-04-06 22:17:26
+Model: mlx-community/gemma-4-e4b-it-4bit
+Approach: Qwen3 ASR + Gemma4 audio-aware polish (audio + rough text -> corrected text)
+Post-processing: OpenCC t2s on all outputs
+
+### Baselines (human-annotated GT)
+- Qwen3 raw: sim=0.792, kw=0.75
+- Gemma4 4B ASR-only: sim=0.581, kw=0.469
+
+### polish_v1
+- Prompt: "以下是语音识别系统的粗转录结果，可能有错字、同音字错误或英文词识别错误。
+请根据音频内容修正转录文本。只输出修正后的文本，不要解释。
+
+粗转录：{qwen3_output}"
+- Score: sim=0.754, kw=0.700, hallucination=0/12
+- Avg Latency: 0.586s
+- vs Qwen3 raw (sim=0.792): -0.038
+- vs Gemma4 ASR (sim=0.581): +0.173
+- Verdict: Beats Gemma4 ASR, but not Qwen3
+
+Per-case results:
+- zh_short_01: sim=1.000 (qwen3=1.000 +0.000 SAME) kw=2/2
+  qwen3_raw: 不可，如果不确定，就做实验。
+  polished:  不可，如果不确定，就做实验。
+- zh_short_02: sim=0.900 (qwen3=0.900 +0.000 SAME) kw=1/1
+  qwen3_raw: 好的，我来更新一把。
+  polished:  好的，我来更新一下。
+- zh_medium_01: sim=0.846 (qwen3=0.895 -0.049 WORSE) kw=4/5
+  qwen3_raw: 对于日税表，结果你要有自己独立的判断，因为它的上下文肯定没有你的丰富。所以，你可以同意，也可以不同意。
+  polished:  对于レビュー结果，你要有自己独立的判断，因为它的上下文肯定没有你的丰富，所以你可以同意也可以不同意。
+- zh_medium_02: sim=0.946 (qwen3=0.929 +0.018 BETTER) kw=5/5
+  qwen3_raw: 我们同步一下现在最新状态：目前的搜塔是一个什么样的水水准。然后，根据上一轮的迭代，下一轮的改进的方向是什么。
+  polished:  我们同步一下现在最新状态：目前的SOTA是一个什么样的水准，然后根据上一轮的迭代，下一轮的改进的方向是什么。
+- zh_medium_03: sim=0.667 (qwen3=1.000 -0.333 WORSE) kw=3/3
+  qwen3_raw: 有一个是hard line，绝对不能碰的，就是不能通过在提示词中注入具体的关键词和，然后来hack。
+  polished:  有一个是hard line，绝对不能碰的，就是不能通过在提示词中注入具体的关键词和，然后来hack。有一个是hard line，绝对不能碰的，就是不能通过在提示词中注入具体的关键词和，然后来hack。
+- zh_medium_04: sim=0.796 (qwen3=0.796 +0.000 SAME) kw=3/4
+  qwen3_raw: 例如，例如不能提宁德时代，不能提跟我们的半尺寸麦克相关的任何关键词。这样的是一个作弊的行为。
+  polished:  例如，例如不能提宁德时代，不能提跟我们的半尺寸麦克相关的任何关键词。这样的是一个作弊的行为。
+- zh_long_01: sim=0.844 (qwen3=0.853 -0.009 SAME) kw=2/6
+  qwen3_raw: 开始实现。然后，对于JMAP四的集成，我建议你可以单独起一个T Mate去做实验，然后探索它的。呃，用我们已经录好的这些音频采集过的，包括现在我跟你说的这些音频都留下来了，可以去做实验。因为JMAP四
+  polished:  实现。然后对于JMAP 4的集成，我建议你可以单独起一个Tmate去做实验，然后探索它的呃用我们已经录好的这些音品材料采集过的，包括现在我跟你说的这些影片都留下来了，可以去做实验。因为JMAP 4有一
+- zh_long_02: sim=0.956 (qwen3=1.000 -0.044 WORSE) kw=3/3
+  qwen3_raw: 另外一个就是，你去反思：我们在程序上面有哪些假设或者是猜测，实际上是没有意义的。比如我们这些排序的依据是什么等等。
+  polished:  另外一个就是你去反思，我们在程序上面有哪些假设或者是猜测，实际上是没有意义的，比如我们这些排序的依据是什么等等。
+- en_short_01: sim=0.000 (qwen3=0.000 +0.000 SAME) kw=0/1
+  qwen3_raw: I think it can be used.
+  polished:  I think it can be used.
+- en_short_02: sim=0.154 (qwen3=0.154 +0.000 SAME) kw=0/3
+  qwen3_raw: Fei said, "The car owner doesn't work anymore."
+  polished:  Fei said, "The car owner doesn't work anymore."
+- mixed_medium_01: sim=0.942 (qwen3=0.975 -0.033 WORSE) kw=2/4
+  qwen3_raw: Cloud Agent SDK的依赖，把它升级到最新版。然后做一个pre release，部署到Tracy Mini上。
+  polished:  Cloud Agent SDK的依赖，把它升级到最新版，然后做一个pre release，部署到Trace Mini上。
+- mixed_long_01: sim=0.994 (qwen3=1.000 -0.006 SAME) kw=3/3
+  qwen3_raw: 现在这个CLI和入口是怎么设计的？我应该怎么使用？如果我想让以前使用Sub Agent的方式执行的，主Agent去调用这个CLI去find evidence。
+  polished:  现在这个CLI和入口是怎么设计的？我应该怎么使用？如果我想让以前使用Sub Agent的方式执行的主Agent去调用这个CLI去find evidence。
+
+### Polish Experiment Summary (4B)
+
+| Prompt | Avg Sim | Kw Acc | vs Qwen3 | vs Gemma4 ASR | Verdict |
+|--------|---------|--------|----------|---------------|---------|
+| polish_v1 | 0.754 | 0.700 | -0.038 | +0.173 | Beats G4 ASR |
+
+Best prompt: polish_v1 (sim=0.754)
+
+---
+
+## Generation 4: Audio-Aware Polish Experiment (4B)
+
+Date: 2026-04-06 22:18:32
+Model: mlx-community/gemma-4-e4b-it-4bit
+Approach: Qwen3 ASR + Gemma4 audio-aware polish (audio + rough text -> corrected text)
+Post-processing: OpenCC t2s on all outputs
+
+### Baselines (human-annotated GT)
+- Qwen3 raw: sim=0.792, kw=0.75
+- Gemma4 4B ASR-only: sim=0.581, kw=0.469
+
+### polish_v1
+- Prompt: "以下是语音识别系统的粗转录结果，可能有错字、同音字错误或英文词识别错误。
+请根据音频内容修正转录文本。只输出修正后的文本，不要解释。
+
+粗转录：{qwen3_output}"
+- Score: sim=0.754, kw=0.700, hallucination=0/12
+- Avg Latency: 0.573s
+- vs Qwen3 raw (sim=0.792): -0.038
+- vs Gemma4 ASR (sim=0.581): +0.173
+- Verdict: Beats Gemma4 ASR, but not Qwen3
+
+Per-case results:
+- zh_short_01: sim=1.000 (qwen3=1.000 +0.000 SAME) kw=2/2
+  qwen3_raw: 不可，如果不确定，就做实验。
+  polished:  不可，如果不确定，就做实验。
+- zh_short_02: sim=0.900 (qwen3=0.900 +0.000 SAME) kw=1/1
+  qwen3_raw: 好的，我来更新一把。
+  polished:  好的，我来更新一下。
+- zh_medium_01: sim=0.846 (qwen3=0.895 -0.049 WORSE) kw=4/5
+  qwen3_raw: 对于日税表，结果你要有自己独立的判断，因为它的上下文肯定没有你的丰富。所以，你可以同意，也可以不同意。
+  polished:  对于レビュー结果，你要有自己独立的判断，因为它的上下文肯定没有你的丰富，所以你可以同意也可以不同意。
+- zh_medium_02: sim=0.946 (qwen3=0.929 +0.018 BETTER) kw=5/5
+  qwen3_raw: 我们同步一下现在最新状态：目前的搜塔是一个什么样的水水准。然后，根据上一轮的迭代，下一轮的改进的方向是什么。
+  polished:  我们同步一下现在最新状态：目前的SOTA是一个什么样的水准，然后根据上一轮的迭代，下一轮的改进的方向是什么。
+- zh_medium_03: sim=0.667 (qwen3=1.000 -0.333 WORSE) kw=3/3
+  qwen3_raw: 有一个是hard line，绝对不能碰的，就是不能通过在提示词中注入具体的关键词和，然后来hack。
+  polished:  有一个是hard line，绝对不能碰的，就是不能通过在提示词中注入具体的关键词和，然后来hack。有一个是hard line，绝对不能碰的，就是不能通过在提示词中注入具体的关键词和，然后来hack。
+- zh_medium_04: sim=0.796 (qwen3=0.796 +0.000 SAME) kw=3/4
+  qwen3_raw: 例如，例如不能提宁德时代，不能提跟我们的半尺寸麦克相关的任何关键词。这样的是一个作弊的行为。
+  polished:  例如，例如不能提宁德时代，不能提跟我们的半尺寸麦克相关的任何关键词。这样的是一个作弊的行为。
+- zh_long_01: sim=0.844 (qwen3=0.853 -0.009 SAME) kw=2/6
+  qwen3_raw: 开始实现。然后，对于JMAP四的集成，我建议你可以单独起一个T Mate去做实验，然后探索它的。呃，用我们已经录好的这些音频采集过的，包括现在我跟你说的这些音频都留下来了，可以去做实验。因为JMAP四
+  polished:  实现。然后对于JMAP 4的集成，我建议你可以单独起一个Tmate去做实验，然后探索它的呃用我们已经录好的这些音品材料采集过的，包括现在我跟你说的这些影片都留下来了，可以去做实验。因为JMAP 4有一
+- zh_long_02: sim=0.956 (qwen3=1.000 -0.044 WORSE) kw=3/3
+  qwen3_raw: 另外一个就是，你去反思：我们在程序上面有哪些假设或者是猜测，实际上是没有意义的。比如我们这些排序的依据是什么等等。
+  polished:  另外一个就是你去反思，我们在程序上面有哪些假设或者是猜测，实际上是没有意义的，比如我们这些排序的依据是什么等等。
+- en_short_01: sim=0.000 (qwen3=0.000 +0.000 SAME) kw=0/1
+  qwen3_raw: I think it can be used.
+  polished:  I think it can be used.
+- en_short_02: sim=0.154 (qwen3=0.154 +0.000 SAME) kw=0/3
+  qwen3_raw: Fei said, "The car owner doesn't work anymore."
+  polished:  Fei said, "The car owner doesn't work anymore."
+- mixed_medium_01: sim=0.942 (qwen3=0.975 -0.033 WORSE) kw=2/4
+  qwen3_raw: Cloud Agent SDK的依赖，把它升级到最新版。然后做一个pre release，部署到Tracy Mini上。
+  polished:  Cloud Agent SDK的依赖，把它升级到最新版，然后做一个pre release，部署到Trace Mini上。
+- mixed_long_01: sim=0.994 (qwen3=1.000 -0.006 SAME) kw=3/3
+  qwen3_raw: 现在这个CLI和入口是怎么设计的？我应该怎么使用？如果我想让以前使用Sub Agent的方式执行的，主Agent去调用这个CLI去find evidence。
+  polished:  现在这个CLI和入口是怎么设计的？我应该怎么使用？如果我想让以前使用Sub Agent的方式执行的主Agent去调用这个CLI去find evidence。
+
+### polish_v2_concise
+- Prompt: "修正以下语音转录中的错误：{qwen3_output}"
+- Score: sim=0.749, kw=0.750, hallucination=0/12
+- Avg Latency: 0.546s
+- vs Qwen3 raw (sim=0.792): -0.043
+- vs Gemma4 ASR (sim=0.581): +0.168
+- Verdict: Beats Gemma4 ASR, but not Qwen3
+
+Per-case results:
+- zh_short_01: sim=1.000 (qwen3=1.000 +0.000 SAME) kw=2/2
+  qwen3_raw: 不可，如果不确定，就做实验。
+  polished:  不可，如果不确定，就做实验。
+- zh_short_02: sim=0.900 (qwen3=0.900 +0.000 SAME) kw=1/1
+  qwen3_raw: 好的，我来更新一把。
+  polished:  好的，我来更新一把。
+- zh_medium_01: sim=0.854 (qwen3=0.895 -0.041 WORSE) kw=4/5
+  qwen3_raw: 对于日税表，结果你要有自己独立的判断，因为它的上下文肯定没有你的丰富。所以，你可以同意，也可以不同意。
+  polished:  对于日检表，结果你要有自己独立的判断，因为它的上下文肯定没有你的丰富，所以你可以同意也可以不同意。
+- zh_medium_02: sim=0.883 (qwen3=0.929 -0.046 WORSE) kw=4/5
+  qwen3_raw: 我们同步一下现在最新状态：目前的搜塔是一个什么样的水水准。然后，根据上一轮的迭代，下一轮的改进的方向是什么。
+  polished:  我们同步一下现在最新状态：目前的搜塔是一个什么样的水准？然后，根据上一轮的迭代，下一轮的改进的方向是什么？
+- zh_medium_03: sim=1.000 (qwen3=1.000 +0.000 SAME) kw=3/3
+  qwen3_raw: 有一个是hard line，绝对不能碰的，就是不能通过在提示词中注入具体的关键词和，然后来hack。
+  polished:  有一个是hard line，绝对不能碰的，就是不能通过在提示词中注入具体的关键词和，然后来hack。
+- zh_medium_04: sim=0.718 (qwen3=0.796 -0.077 WORSE) kw=3/4
+  qwen3_raw: 例如，例如不能提宁德时代，不能提跟我们的半尺寸麦克相关的任何关键词。这样的是一个作弊的行为。
+  polished:  由于，pyrrolo不能提宁德时代，不能提跟我们的半尺寸麦克相关的任何关键词。这样的是一个作弊的行为。
+- zh_long_01: sim=0.856 (qwen3=0.853 +0.003 SAME) kw=4/6
+  qwen3_raw: 开始实现。然后，对于JMAP四的集成，我建议你可以单独起一个T Mate去做实验，然后探索它的。呃，用我们已经录好的这些音频采集过的，包括现在我跟你说的这些音频都留下来了，可以去做实验。因为JMAP四
+  polished:  开始实现。然后，对于JMAP四的集成，我建议你可以单独起一个Tmate去做实验，然后探索它的。呃，用我们已经录好的这些音频采集过的，包括现在我跟你说的这些音频都留下来了，可以去做实验。因为JMAP四有
+- zh_long_02: sim=0.659 (qwen3=1.000 -0.341 WORSE) kw=3/3
+  qwen3_raw: 另外一个就是，你去反思：我们在程序上面有哪些假设或者是猜测，实际上是没有意义的。比如我们这些排序的依据是什么等等。
+  polished:  另外一个就是，你去反思：我们在程序上面有哪些假设或者是猜测，实际上是没有意义的。比如我们这些排序的依据是什么等等。另外一个就是，你去反思，我们在程序上面有哪些假设或者是猜测，猜测实际上是没有意义的。比
+- en_short_01: sim=0.000 (qwen3=0.000 +0.000 SAME) kw=0/1
+  qwen3_raw: I think it can be used.
+  polished:  I think it can be used.
+- en_short_02: sim=0.154 (qwen3=0.154 +0.000 SAME) kw=0/3
+  qwen3_raw: Fei said, "The car owner doesn't work anymore."
+  polished:  Fei said, "The car owner doesn't work anymore."
+- mixed_medium_01: sim=0.975 (qwen3=0.975 +0.000 SAME) kw=3/4
+  qwen3_raw: Cloud Agent SDK的依赖，把它升级到最新版。然后做一个pre release，部署到Tracy Mini上。
+  polished:  Cloud Agent SDK的依赖，把它升级到最新版。然后做一个pre release，部署到Tracy Mini上。
+- mixed_long_01: sim=0.994 (qwen3=1.000 -0.006 SAME) kw=3/3
+  qwen3_raw: 现在这个CLI和入口是怎么设计的？我应该怎么使用？如果我想让以前使用Sub Agent的方式执行的，主Agent去调用这个CLI去find evidence。
+  polished:  现在这个CLI和入口是怎么设计的？我应该怎么使用？如果我想让以前使用Sub Agent的方式执行的主Agent去调用这个CLI去find evidence。
+
+### polish_v3_keywords
+- Prompt: "以下是语音识别系统的粗转录结果，可能包含同音字错误。请对照音频修正文本，可能包含的术语：Review, SOTA, benchmark, Gemma 4, Agent, CLI, SDK。
+只输出修正后的文本。
+
+粗转录：{qwen3_output}"
+- Score: sim=0.787, kw=0.725, hallucination=0/12
+- Avg Latency: 0.561s
+- vs Qwen3 raw (sim=0.792): -0.005
+- vs Gemma4 ASR (sim=0.581): +0.206
+- Verdict: Beats Gemma4 ASR, but not Qwen3
+
+Per-case results:
+- zh_short_01: sim=1.000 (qwen3=1.000 +0.000 SAME) kw=2/2
+  qwen3_raw: 不可，如果不确定，就做实验。
+  polished:  不可，如果不确定，就做实验。
+- zh_short_02: sim=0.900 (qwen3=0.900 +0.000 SAME) kw=1/1
+  qwen3_raw: 好的，我来更新一把。
+  polished:  好的，我来更新一下。
+- zh_medium_01: sim=0.926 (qwen3=0.895 +0.031 BETTER) kw=5/5
+  qwen3_raw: 对于日税表，结果你要有自己独立的判断，因为它的上下文肯定没有你的丰富。所以，你可以同意，也可以不同意。
+  polished:  对于 Review 结果，你要有自己独立的判断，因为它的上下文肯定没有你的丰富，所以你可以同意也可以不同意。
+- zh_medium_02: sim=0.973 (qwen3=0.929 +0.045 BETTER) kw=5/5
+  qwen3_raw: 我们同步一下现在最新状态：目前的搜塔是一个什么样的水水准。然后，根据上一轮的迭代，下一轮的改进的方向是什么。
+  polished:  我们同步一下现在最新状态：目前的SOTA是一个什么样的水准。然后，根据上一轮的迭代，下一轮的改进的方向是什么。
+- zh_medium_03: sim=0.980 (qwen3=1.000 -0.020 WORSE) kw=3/3
+  qwen3_raw: 有一个是hard line，绝对不能碰的，就是不能通过在提示词中注入具体的关键词和，然后来hack。
+  polished:  有一个是 hard line，绝对不能碰的，就是不能通过在提示词中注入具体的关键词和，然后来 hack。
+- zh_medium_04: sim=0.766 (qwen3=0.796 -0.030 WORSE) kw=3/4
+  qwen3_raw: 例如，例如不能提宁德时代，不能提跟我们的半尺寸麦克相关的任何关键词。这样的是一个作弊的行为。
+  polished:  您不能提宁德时代，不能提跟我们的半尺寸麦克相关的任何关键词。这样的是一个作弊的行为。
+- zh_long_01: sim=0.853 (qwen3=0.853 +0.000 SAME) kw=2/6
+  qwen3_raw: 开始实现。然后，对于JMAP四的集成，我建议你可以单独起一个T Mate去做实验，然后探索它的。呃，用我们已经录好的这些音频采集过的，包括现在我跟你说的这些音频都留下来了，可以去做实验。因为JMAP四
+  polished:  实现。然后对于JMAP 4的集成，我建议你可以单独起一个teammate去做实验，然后探索它的用我们已经录好的这些音品材料采集过的，包括现在我跟你说的这些影片都留下来了，可以去做实验。因为JMAP 4
+- zh_long_02: sim=0.982 (qwen3=1.000 -0.018 WORSE) kw=3/3
+  qwen3_raw: 另外一个就是，你去反思：我们在程序上面有哪些假设或者是猜测，实际上是没有意义的。比如我们这些排序的依据是什么等等。
+  polished:  另外一个就是，你去反思，我们在程序上面有哪些假设或者是猜测，实际上是没有意义的。比如我们这些排序的依据是什么等等。
+- en_short_01: sim=0.000 (qwen3=0.000 +0.000 SAME) kw=0/1
+  qwen3_raw: I think it can be used.
+  polished:  I think it can be used.
+- en_short_02: sim=0.154 (qwen3=0.154 +0.000 SAME) kw=0/3
+  qwen3_raw: Fei said, "The car owner doesn't work anymore."
+  polished:  Fei said, "The car owner doesn't work anymore."
+- mixed_medium_01: sim=0.912 (qwen3=0.975 -0.063 WORSE) kw=2/4
+  qwen3_raw: Cloud Agent SDK的依赖，把它升级到最新版。然后做一个pre release，部署到Tracy Mini上。
+  polished:  Cloud Agent SDK 的依赖，把它升级到最新版，然后做一个 pre-release，部署到 Tracy Mini 上。
+- mixed_long_01: sim=0.994 (qwen3=1.000 -0.006 SAME) kw=3/3
+  qwen3_raw: 现在这个CLI和入口是怎么设计的？我应该怎么使用？如果我想让以前使用Sub Agent的方式执行的，主Agent去调用这个CLI去find evidence。
+  polished:  现在这个CLI和入口是怎么设计的？我应该怎么使用？如果我想让以前使用Sub Agent的方式执行的主Agent去调用这个CLI去find evidence。
+
+### polish_v4_english
+- Prompt: "Correct the following speech transcription errors based on the audio. Fix homophone errors, preserve English words, and output simplified Chinese. Onl"
+- Score: sim=0.870, kw=0.725, hallucination=0/12
+- Avg Latency: 0.530s
+- vs Qwen3 raw (sim=0.792): +0.078
+- vs Gemma4 ASR (sim=0.581): +0.289
+- Verdict: BEATS QWEN3 -- this approach has value!
+
+Per-case results:
+- zh_short_01: sim=1.000 (qwen3=1.000 +0.000 SAME) kw=2/2
+  qwen3_raw: 不可，如果不确定，就做实验。
+  polished:  不可，如果不确定，就做实验。
+- zh_short_02: sim=0.900 (qwen3=0.900 +0.000 SAME) kw=1/1
+  qwen3_raw: 好的，我来更新一把。
+  polished:  好的，我来更新一下。
+- zh_medium_01: sim=0.846 (qwen3=0.895 -0.049 WORSE) kw=4/5
+  qwen3_raw: 对于日税表，结果你要有自己独立的判断，因为它的上下文肯定没有你的丰富。所以，你可以同意，也可以不同意。
+  polished:  对于レビュー结果，你要有自己独立的判断，因为它的上下文肯定没有你的丰富，所以你可以同意也可以不同意。
+- zh_medium_02: sim=0.919 (qwen3=0.929 -0.010 SAME) kw=4/5
+  qwen3_raw: 我们同步一下现在最新状态：目前的搜塔是一个什么样的水水准。然后，根据上一轮的迭代，下一轮的改进的方向是什么。
+  polished:  我们同步一下现在最新状态：目前的搜塔是一个什么样的水准。然后，根据上一轮的迭代，下一轮的改进的方向是什么。
+- zh_medium_03: sim=0.990 (qwen3=1.000 -0.010 SAME) kw=3/3
+  qwen3_raw: 有一个是hard line，绝对不能碰的，就是不能通过在提示词中注入具体的关键词和，然后来hack。
+  polished:  一个是hard line，绝对不能碰的，就是不能通过在提示词中注入具体的关键词和，然后来hack。
+- zh_medium_04: sim=0.784 (qwen3=0.796 -0.012 WORSE) kw=3/4
+  qwen3_raw: 例如，例如不能提宁德时代，不能提跟我们的半尺寸麦克相关的任何关键词。这样的是一个作弊的行为。
+  polished:  例如，不能提到宁德时代，不能提到跟我们的电池膜还相关的任何关键词。这样的是一个作弊的行为。
+- zh_long_01: sim=0.838 (qwen3=0.853 -0.014 WORSE) kw=2/6
+  qwen3_raw: 开始实现。然后，对于JMAP四的集成，我建议你可以单独起一个T Mate去做实验，然后探索它的。呃，用我们已经录好的这些音频采集过的，包括现在我跟你说的这些音频都留下来了，可以去做实验。因为JMAP四
+  polished:  实现。然后对于JMAP四的集成，我建议你可以单独起一个Tmate去做实验，然后探索它的呃，用我们已经录好的这些音品采集过的，包括现在我跟你说的这些音品都留下来了，可以去做实验。因为JMAP四有一个30
+- zh_long_02: sim=0.973 (qwen3=1.000 -0.027 WORSE) kw=3/3
+  qwen3_raw: 另外一个就是，你去反思：我们在程序上面有哪些假设或者是猜测，实际上是没有意义的。比如我们这些排序的依据是什么等等。
+  polished:  另外一个就是你去反思，我们在程序上面有哪些假设或者是猜测，实际上是没有意义的。比如我们这些排序的依据是什么等等。
+- en_short_01: sim=0.923 (qwen3=0.000 +0.923 BETTER) kw=1/1
+  qwen3_raw: I think it can be used.
+  polished:  我觉得可以用
+- en_short_02: sim=0.333 (qwen3=0.154 +0.179 BETTER) kw=1/3
+  qwen3_raw: Fei said, "The car owner doesn't work anymore."
+  polished:  费说的频道好像不工作了。
+- mixed_medium_01: sim=0.942 (qwen3=0.975 -0.033 WORSE) kw=2/4
+  qwen3_raw: Cloud Agent SDK的依赖，把它升级到最新版。然后做一个pre release，部署到Tracy Mini上。
+  polished:  Cloud Agent SDK的依赖，把它升级到最新版，然后做一个pre release，部署到Trace Mini上。
+- mixed_long_01: sim=0.994 (qwen3=1.000 -0.006 SAME) kw=3/3
+  qwen3_raw: 现在这个CLI和入口是怎么设计的？我应该怎么使用？如果我想让以前使用Sub Agent的方式执行的，主Agent去调用这个CLI去find evidence。
+  polished:  现在这个CLI和入口是怎么设计的？我应该怎么使用？如果我想让以前使用Sub Agent的方式执行的主Agent去调用这个CLI去find evidence。
+
+### polish_v5_precise
+- Prompt: "你是一个语音转录校对助手。下面是ASR系统的粗转录和原始音频。
+请根据音频修正转录中的错误，包括：
+1. 同音字错误（如'日税表'应为'Review'）
+2. 英文专有名词拼写（如SOTA, benchmark, Agent SDK）
+3. 多余或遗漏的字
+使用简体中文，保留英文原词。只输出修正后的"
+- Score: sim=0.783, kw=0.750, hallucination=0/12
+- Avg Latency: 0.599s
+- vs Qwen3 raw (sim=0.792): -0.009
+- vs Gemma4 ASR (sim=0.581): +0.202
+- Verdict: Beats Gemma4 ASR, but not Qwen3
+
+Per-case results:
+- zh_short_01: sim=1.000 (qwen3=1.000 +0.000 SAME) kw=2/2
+  qwen3_raw: 不可，如果不确定，就做实验。
+  polished:  不可，如果不确定，就做实验。
+- zh_short_02: sim=0.900 (qwen3=0.900 +0.000 SAME) kw=1/1
+  qwen3_raw: 好的，我来更新一把。
+  polished:  好的，我来更新一下。
+- zh_medium_01: sim=0.943 (qwen3=0.895 +0.048 BETTER) kw=5/5
+  qwen3_raw: 对于日税表，结果你要有自己独立的判断，因为它的上下文肯定没有你的丰富。所以，你可以同意，也可以不同意。
+  polished:  对于Review结果，你要有自己独立的判断，因为它的上下文肯定没有你的丰富，所以你可以同意也可以不同意。
+- zh_medium_02: sim=0.946 (qwen3=0.929 +0.018 BETTER) kw=5/5
+  qwen3_raw: 我们同步一下现在最新状态：目前的搜塔是一个什么样的水水准。然后，根据上一轮的迭代，下一轮的改进的方向是什么。
+  polished:  我们同步一下现在最新状态：目前的SOTA是一个什么样的水准，然后根据上一轮的迭代，下一轮的改进的方向是什么。
+- zh_medium_03: sim=0.949 (qwen3=1.000 -0.051 WORSE) kw=3/3
+  qwen3_raw: 有一个是hard line，绝对不能碰的，就是不能通过在提示词中注入具体的关键词和，然后来hack。
+  polished:  有一个是 hard line，绝对不能碰的，就是不能在提示词中注入具体的关键词，然后来 hack。
+- zh_medium_04: sim=0.742 (qwen3=0.796 -0.054 WORSE) kw=3/4
+  qwen3_raw: 例如，例如不能提宁德时代，不能提跟我们的半尺寸麦克相关的任何关键词。这样的是一个作弊的行为。
+  polished:  所以，除了不能提宁德时代，不能提跟我们的半尺寸麦相关的任何关键词，这样的是一个作弊的行为。
+- zh_long_01: sim=0.887 (qwen3=0.853 +0.034 BETTER) kw=3/6
+  qwen3_raw: 开始实现。然后，对于JMAP四的集成，我建议你可以单独起一个T Mate去做实验，然后探索它的。呃，用我们已经录好的这些音频采集过的，包括现在我跟你说的这些音频都留下来了，可以去做实验。因为JMAP四
+  polished:  实现。然后对于JMAP 4的集成，我建议你可以单独起一个teammate去做实验，然后探索它的，呃，用我们已经录好的这些音频采集过的，包括现在我跟你说的这些音频都留下来了，可以去做实验。因为JMAP 
+- zh_long_02: sim=0.973 (qwen3=1.000 -0.027 WORSE) kw=3/3
+  qwen3_raw: 另外一个就是，你去反思：我们在程序上面有哪些假设或者是猜测，实际上是没有意义的。比如我们这些排序的依据是什么等等。
+  polished:  另外一个就是你去反思，我们在程序上面有哪些假设或者是猜测，实际上是没有意义的。比如我们这些排序的依据是什么等等。
+- en_short_01: sim=0.000 (qwen3=0.000 +0.000 SAME) kw=0/1
+  qwen3_raw: I think it can be used.
+  polished:  I think it can be used.
+- en_short_02: sim=0.154 (qwen3=0.154 +0.000 SAME) kw=0/3
+  qwen3_raw: Fei said, "The car owner doesn't work anymore."
+  polished:  Fei said, "The car owner doesn't work anymore."
+- mixed_medium_01: sim=0.912 (qwen3=0.975 -0.063 WORSE) kw=2/4
+  qwen3_raw: Cloud Agent SDK的依赖，把它升级到最新版。然后做一个pre release，部署到Tracy Mini上。
+  polished:  Cloud Agent SDK 的依赖，把它升级到最新版，然后做一个 pre-release，部署到 Tracy Mini 上。
+- mixed_long_01: sim=0.994 (qwen3=1.000 -0.006 SAME) kw=3/3
+  qwen3_raw: 现在这个CLI和入口是怎么设计的？我应该怎么使用？如果我想让以前使用Sub Agent的方式执行的，主Agent去调用这个CLI去find evidence。
+  polished:  现在这个CLI和入口是怎么设计的？我应该怎么使用？如果我想让以前使用Sub Agent的方式执行的主Agent去调用这个CLI去find evidence。
+
+### Polish Experiment Summary (4B)
+
+| Prompt | Avg Sim | Kw Acc | vs Qwen3 | vs Gemma4 ASR | Verdict |
+|--------|---------|--------|----------|---------------|---------|
+| polish_v1 | 0.754 | 0.700 | -0.038 | +0.173 | Beats G4 ASR |
+| polish_v2_concise | 0.749 | 0.750 | -0.043 | +0.168 | Beats G4 ASR |
+| polish_v3_keywords | 0.787 | 0.725 | -0.005 | +0.206 | Beats G4 ASR |
+| polish_v4_english | 0.870 | 0.725 | +0.078 | +0.289 | BEATS QWEN3 |
+| polish_v5_precise | 0.783 | 0.750 | -0.009 | +0.202 | Beats G4 ASR |
+
+Best prompt: polish_v4_english (sim=0.870)
