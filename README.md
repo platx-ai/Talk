@@ -8,22 +8,24 @@
 
 A macOS menu bar voice input tool — hold a hotkey, speak, and your words are recognized, polished, and pasted into the active app. Your voice, straight to text. No cloud. No typing.
 
-[**Download Talk v0.2.5**](https://github.com/platx-ai/Talk/releases/latest) · [中文文档](README_zh.md)
+[**Download Talk v0.4.0**](https://github.com/platx-ai/Talk/releases/latest) · [中文文档](README_zh.md)
 
 > The original algorithm and code are based on the generous contribution of [@jiamingkong](https://github.com/jiamingkong). We just wanted to see if we could build a typeless in ten minutes.
 
 ## Features
 
 - **On-device inference** — Powered by Apple Silicon MLX, no cloud dependency, privacy-first
-- **Speech recognition** — Qwen3-ASR-0.6B-4bit, supports Chinese and English
+- **Dual ASR engines** — Local MLX (Qwen3-ASR-0.6B-4bit) or Apple Speech Recognition, switchable in settings
 - **Text polishing** — Qwen3-4B-Instruct, removes filler words, adds punctuation, smart formatting
-- **Customizable prompts** — 4 preset templates (strict/light/meeting/tech) or write your own system prompt
+- **Auto hotword learning** — Passively observes your edits after text injection, automatically learns ASR corrections (proper nouns, homophones, abbreviations) via LLM extraction
+- **Audio history** — Every recording saved as AAC/M4A with full ASR context snapshot for replay and debugging
+- **Customizable prompts** — Per-app prompt profiles, 3 polish intensity levels, or write your own system prompt
 - **Selection edit mode** — Select text, speak a command ("fix the typo", "make it casual"), and it's done
 - **Floating status indicator** — Always-on-top overlay showing recording/processing state with audio level meter
 - **Global hotkey** — Customizable key recorder, Push-to-Talk / Toggle modes
 - **Audio device selection** — Pick your input device, defaults to built-in microphone
-- **Auto-paste** — Injects text via Accessibility API (Cmd+V simulation)
-- **Vocabulary learning** — Edit polished text in history, system learns corrections for future use
+- **Auto-paste** — Injects text via Accessibility API with CJK input method auto-switching
+- **Vocabulary learning** — Automatic learning from edit history + manual entry, corrections injected into LLM context
 - **Idle memory management** — Auto-unload models after inactivity, reload on demand
 
 ## Performance
@@ -119,12 +121,12 @@ Record(AVAudioEngine) → ASR(Qwen3-ASR) → LLM Polish(Qwen3-4B) → Text Injec
 
 | Module | Responsibility |
 |--------|---------------|
-| `Audio/` | Recording engine, global hotkeys (Carbon API), audio device management, text injection |
-| `ASR/` | Speech recognition (MLXAudioSTT + Qwen3-ASR) |
-| `LLM/` | Text polishing (MLXLLM + Qwen3-4B-Instruct) |
-| `Models/` | Data models (AppSettings, HotKeyCombo, HistoryItem) |
-| `Data/` | History and vocabulary JSON persistence |
-| `UI/` | SwiftUI menu bar, settings panel, key recorder, floating indicator, history browser |
+| `Audio/` | Recording engine, global hotkeys (CGEventTap), audio device management, text injection |
+| `ASR/` | Speech recognition — MLX local (Qwen3-ASR) + Apple Speech |
+| `LLM/` | Text polishing + hotword extraction (MLXLLM + Qwen3-4B-Instruct) |
+| `Models/` | Data models (AppSettings, HotKeyCombo, HistoryItem, ASRContext) |
+| `Data/` | History (JSON + M4A audio), vocabulary, edit observer |
+| `UI/` | SwiftUI menu bar, settings panel, key recorder, floating indicator, history browser, flash capsule |
 | `Utils/` | Logging system, Metal runtime validation |
 
 ### Dependencies
@@ -149,18 +151,31 @@ All dependencies managed via Swift Package Manager, pinned to specific commits:
 
 Models are automatically downloaded from HuggingFace on first run to `~/.cache/huggingface/`. Pre-download with `make download-models`.
 
-## Vocabulary
+## Vocabulary & Auto Learning
 
-Talk learns from your corrections to improve future polishing.
+Talk learns from your corrections in two ways:
 
-**How it works**: When you edit polished text in the history view, the system records the mapping (original -> corrected). The top 20 learned corrections are injected into the LLM system prompt as learned corrections, so the model applies them automatically in future polishing.
+### Passive Edit Observation (v0.4.0)
+After text is injected into the target app, Talk passively monitors the text field via Accessibility API. If you edit the injected text (e.g., fix a misrecognized word), Talk detects the change, extracts hotword corrections using a background LLM pass, and adds them to the vocabulary. A flash ⚡ capsule in the menu bar confirms when new corrections are learned. This works automatically — no manual steps needed.
 
-**Usage**:
-- **Automatic learning** -- Edit any polished text in the history view. The system learns the correction automatically.
-- **Manual entry** -- Settings -> Advanced -> Personal Vocabulary -> Manage Vocabulary. Add original words and their corrected forms.
-- **Import/Export** -- JSON format. Use Manage Vocabulary to export for backup or import to share across machines.
+### Manual Correction
+- **History edit** — Edit polished text in the history view. The system learns the correction automatically.
+- **Manual entry** — Settings → Personal Vocabulary → Manage Vocabulary. Add original words and their corrected forms.
+- **Import/Export** — JSON format via Manage Vocabulary.
 
-**Example**: If ASR repeatedly outputs "la laam" but you correct it to "LLM", the system learns this mapping. Future polishing will automatically correct "la laam" to "LLM" without manual editing.
+The top learned corrections are injected into the LLM system prompt, so the model applies them automatically in future polishing.
+
+**Example**: If ASR outputs "la laam" but you correct it to "LLM", future polishing will automatically apply this correction.
+
+## Audio History (v0.4.0)
+
+Every voice input is saved as AAC/M4A (64kbps, ~80KB per 10s) alongside a context snapshot (hotword list, language, polish intensity, target app). This enables:
+
+- **Replay & debugging** — Reproduce ASR issues with the exact audio that was processed
+- **Regression testing** — Compare recognition quality across versions
+- **Automatic cleanup** — Audio files are deleted when history entries are removed or expired
+
+Toggle in Settings → Personal Vocabulary → "Save Audio History".
 
 ## Permissions
 
