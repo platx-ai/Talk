@@ -151,6 +151,19 @@ private struct ASRSettingsTab: View {
                 mlxLocalSettings
             case .appleSpeech:
                 appleSpeechSettings
+            case .gemma4:
+                gemma4Settings
+            }
+
+            // 一段式模式提示
+            if settings.isOnePassMode {
+                Section {
+                    Label(String(localized: "一段式模式：Gemma 4 直接输出润色文本，跳过独立的 LLM 润色步骤。"), systemImage: "bolt.fill")
+                        .font(.callout)
+                        .foregroundStyle(.blue)
+                } header: {
+                    Text(String(localized: "一段式模式"))
+                }
             }
         }
         .formStyle(.grouped)
@@ -262,6 +275,29 @@ private struct ASRSettingsTab: View {
             Text(String(localized: "Apple 语音识别设置"))
         }
     }
+
+    // MARK: - Gemma 4 设置
+
+    @ViewBuilder
+    private var gemma4Settings: some View {
+        Section {
+            Picker(String(localized: "模型大小"), selection: $settings.gemma4ModelSize) {
+                ForEach(AppSettings.Gemma4ModelSize.allCases, id: \.self) { size in
+                    Text(size.displayName).tag(size)
+                }
+            }
+            .onChange(of: settings.gemma4ModelSize) { _ in ToastManager.shared.show(String(localized: "已保存")) }
+
+            Toggle(String(localized: "繁→简转换"), isOn: $settings.gemma4EnableT2S)
+                .onChange(of: settings.gemma4EnableT2S) { _ in ToastManager.shared.show(String(localized: "已保存")) }
+
+            Text(String(localized: "Gemma 4 多模态模型，支持音频直接转文字。4B 精度更高，2B 更快更轻量。实验性功能。"))
+                .font(.caption)
+                .foregroundColor(.secondary)
+        } header: {
+            Text("Gemma 4")
+        }
+    }
 }
 
 // MARK: - LLM 设置标签页
@@ -274,12 +310,30 @@ private struct LLMSettingsTab: View {
     var body: some View {
         Form {
             Section {
+                Picker(String(localized: "LLM 引擎"), selection: $settings.llmEngine) {
+                    ForEach(AppSettings.LLMEngine.allCases, id: \.self) { engine in
+                        Text(engine.displayName).tag(engine)
+                    }
+                }
+                .onChange(of: settings.llmEngine) { _ in ToastManager.shared.show(String(localized: "已保存")) }
+
+                if settings.isOnePassMode {
+                    Label(String(localized: "一段式模式：ASR 和 LLM 共用 Gemma 4，直接输出润色文本。"), systemImage: "bolt.fill")
+                        .font(.callout)
+                        .foregroundStyle(.blue)
+                }
+            } header: {
+                Text(String(localized: "引擎"))
+            }
+
+            Section {
                 Picker(String(localized: "模型选择"), selection: $settings.llmModelId) {
                     Text("Qwen3-4B-Instruct (4-bit)").tag("mlx-community/Qwen3-4B-Instruct-2507-4bit")
                     Text("Qwen3.5-0.8B-Instruct (4-bit)").tag("mlx-community/Qwen3.5-0.8B-OptiQ-4bit")
                     Text("Qwen3.5-2B-Instruct (4-bit)").tag("mlx-community/Qwen3.5-2B-4bit")
                 }
                 .onChange(of: settings.llmModelId) { _ in ToastManager.shared.show(String(localized: "已保存")) }
+                .disabled(settings.llmEngine == .gemma4)
 
                 Picker(String(localized: "润色强度"), selection: $settings.polishIntensity) {
                     ForEach(AppSettings.PolishIntensity.allCases, id: \.self) { intensity in
@@ -841,6 +895,7 @@ extension AppSettings.ASREngine {
         switch self {
         case .mlxLocal: return String(localized: "本地模型 (Qwen3-ASR)")
         case .appleSpeech: return String(localized: "Apple 语音识别")
+        case .gemma4: return "Gemma 4"
         }
     }
 
@@ -848,6 +903,25 @@ extension AppSettings.ASREngine {
         switch self {
         case .mlxLocal: return String(localized: "离线 · 高精度 · 需下载模型")
         case .appleSpeech: return String(localized: "零配置 · 流式输出 · 系统内置")
+        case .gemma4: return String(localized: "多模态 · 端到端 · 实验性")
+        }
+    }
+}
+
+extension AppSettings.LLMEngine {
+    var displayName: String {
+        switch self {
+        case .qwen3: return "Qwen3-LLM"
+        case .gemma4: return "Gemma 4"
+        }
+    }
+}
+
+extension AppSettings.Gemma4ModelSize {
+    var displayName: String {
+        switch self {
+        case .e2b: return "2B (1.5 GB, 0.3s)"
+        case .e4b: return "4B (5.2 GB, 0.5s)"
         }
     }
 }

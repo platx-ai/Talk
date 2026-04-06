@@ -4419,6 +4419,96 @@
           }
         }
       }
+    },
+    "一段式模式：Gemma 4 直接输出润色文本，跳过独立的 LLM 润色步骤。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "One-pass mode: Gemma 4 outputs polished text directly, skipping the separate LLM polish step."
+          }
+        }
+      }
+    },
+    "一段式模式": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "One-Pass Mode"
+          }
+        }
+      }
+    },
+    "一段式模式：ASR 和 LLM 共用 Gemma 4，直接输出润色文本。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "One-pass mode: ASR and LLM share Gemma 4, outputting polished text directly."
+          }
+        }
+      }
+    },
+    "LLM 引擎": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "LLM Engine"
+          }
+        }
+      }
+    },
+    "引擎": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Engine"
+          }
+        }
+      }
+    },
+    "多模态 · 端到端 · 实验性": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Multimodal · End-to-end · Experimental"
+          }
+        }
+      }
+    },
+    "模型大小": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Model Size"
+          }
+        }
+      }
+    },
+    "繁→简转换": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Traditional → Simplified"
+          }
+        }
+      }
+    },
+    "Gemma 4 多模态模型，支持音频直接转文字。4B 精度更高，2B 更快更轻量。实验性功能。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Gemma 4 multimodal model with native audio-to-text. 4B is more accurate, 2B is faster and lighter. Experimental."
+          }
+        }
+      }
     }
   }
 }
