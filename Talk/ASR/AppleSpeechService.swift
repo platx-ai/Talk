@@ -251,6 +251,42 @@ final class AppleSpeechService {
     }
 }
 
+// MARK: - ASREngineProtocol 适配
+
+extension AppleSpeechService: ASREngineProtocol {
+    var isReady: Bool { true }  // Apple Speech 无需加载模型
+
+    func prepare() async throws {
+        let granted = await Self.ensurePermission()
+        if !granted {
+            throw AppleSpeechError.permissionDenied
+        }
+    }
+
+    func release() {
+        cancelStreaming()
+    }
+
+    func startStreaming(config: ASREngineConfig) async throws {
+        let settings = AppSettings.shared
+        let locale: Locale?
+        if settings.appleSpeechLocale == .system {
+            locale = nil
+        } else {
+            locale = Locale(identifier: settings.appleSpeechLocale.rawValue)
+        }
+        try startStreaming(locale: locale, onDevice: settings.appleSpeechOnDevice)
+    }
+
+    func feedAudio(samples: [Float], sampleRate: Int) {
+        feedAudioSamples(samples, sampleRate: sampleRate)
+    }
+
+    func transcribe(audio: [Float], sampleRate: Int) async throws -> String {
+        throw ASREngineError.batchNotSupported
+    }
+}
+
 // MARK: - 错误类型
 
 enum AppleSpeechError: LocalizedError {
