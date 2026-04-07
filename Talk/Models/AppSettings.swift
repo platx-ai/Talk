@@ -274,7 +274,7 @@ final class AppSettings {
 
     // MARK: - LLM 设置
 
-    var llmModelId: String = "mlx-community/Qwen3-4B-Instruct-2507-4bit" { didSet { autoSave() } }
+    var llmModelId: String = "mlx-community/Qwen3.5-2B-4bit" { didSet { autoSave() } }
 
     enum PolishIntensity: String, Codable, CaseIterable {
         case light = "light"
@@ -471,7 +471,7 @@ extension AppSettings {
             self.llmEngine = llmEngine
         }
 
-        self.llmModelId = defaults.string(forKey: "llmModelId") ?? "mlx-community/Qwen3-4B-Instruct-2507-4bit"
+        self.llmModelId = defaults.string(forKey: "llmModelId") ?? "mlx-community/Qwen3.5-2B-4bit"
         if let intensity = defaults.string(forKey: "polishIntensity"),
            let polishIntensity = PolishIntensity(rawValue: intensity) {
             self.polishIntensity = polishIntensity
