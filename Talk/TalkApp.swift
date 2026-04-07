@@ -111,12 +111,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
 
         let bundled = resolveBundledModelSources()
         let llmModelId = bundled.llmModelPath ?? settings.llmModelId
-        let needASRModel = settings.asrEngine == .mlxLocal
-
         Task {
             statusBar?.updateProcessingStatus(.loadingModel)
 
-            if needASRModel {
+            switch settings.asrEngine {
+            case .mlxLocal:
                 AppLogger.info("开始加载 ASR 模型...", category: .general)
                 do {
                     try await ASRService.shared.loadModel(modelId: settings.asrModelId, bundleResourcesURL: bundled.asrBundleResourcesURL)
@@ -124,20 +123,38 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
                 } catch {
                     AppLogger.error("ASR 模型加载失败: \(error.localizedDescription)", category: .general)
                 }
+            case .gemma4:
+                AppLogger.info("开始加载 Gemma4 模型...", category: .general)
+                do {
+                    try await Gemma4ASREngine.shared.loadModel(modelId: settings.gemma4ModelId)
+                    AppLogger.info("Gemma4 模型加载完成", category: .general)
+                } catch {
+                    AppLogger.error("Gemma4 模型加载失败: \(error.localizedDescription)", category: .general)
+                }
+            case .appleSpeech:
+                AppLogger.info("ASR 引擎为 Apple Speech，跳过模型加载", category: .general)
+            }
+
+            // 一段式模式不需要单独的 LLM
+            if settings.isOnePassMode {
+                AppLogger.info("一段式模式：跳过 LLM 模型加载", category: .general)
             } else {
-                AppLogger.info("ASR 引擎为 Apple Speech，跳过 MLX ASR 模型加载", category: .general)
+                AppLogger.info("开始加载 LLM 模型...", category: .general)
+                do {
+                    try await LLMService.shared.loadModel(modelId: llmModelId)
+                    AppLogger.info("LLM 模型加载完成", category: .general)
+                } catch {
+                    AppLogger.error("LLM 模型加载失败: \(error.localizedDescription)", category: .general)
+                }
             }
 
-            AppLogger.info("开始加载 LLM 模型...", category: .general)
-            do {
-                try await LLMService.shared.loadModel(modelId: llmModelId)
-                AppLogger.info("LLM 模型加载完成", category: .general)
-            } catch {
-                AppLogger.error("LLM 模型加载失败: \(error.localizedDescription)", category: .general)
+            let asrReady: Bool
+            switch settings.asrEngine {
+            case .mlxLocal: asrReady = ASRService.shared.isModelLoaded
+            case .gemma4: asrReady = Gemma4ASREngine.shared.isModelLoaded
+            case .appleSpeech: asrReady = true
             }
-
-            let asrReady = needASRModel ? ASRService.shared.isModelLoaded : true
-            isModelsReady = asrReady && LLMService.shared.isModelLoaded
+            isModelsReady = asrReady && (settings.isOnePassMode || LLMService.shared.isModelLoaded)
             statusBar?.updateProcessingStatus(.idle)
 
             if isModelsReady {
@@ -409,6 +426,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
                     AppleSpeechService.shared.cancelStreaming()
                     AudioRecorder.shared.onAudioData = nil
                 }
+            } else if settings.asrEngine == .gemma4 {
+                // Gemma4: 不支持流式，batch only
+                AudioRecorder.shared.skipStreamingDelay = false
+                AppLogger.info("Gemma4 引擎不支持流式识别，将在录音结束后批量处理", category: .ui)
             } else if settings.enableStreamingInference {
                 AudioRecorder.shared.skipStreamingDelay = false
                 do {
@@ -525,8 +546,40 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
             targetApp: self.targetApp?.bundleIdentifier
         )
 
-        // 如果流式识别已完成，使用流式结果；否则降级为批量识别
-        if let fullText = streamingFullText {
+        // Gemma4 不支持流式 — 忽略流式结果，直接走 batch
+        // 其他引擎：如果流式识别已完成，使用流式结果；否则降级为批量识别
+        if settings.asrEngine == .gemma4 {
+            // Gemma4: 停止任何正在运行的流式识别，直接走 batch
+            ASRService.shared.stopStreaming()
+            let vadResult: VADFilterResult
+            if settings.enableVADFilter {
+                vadResult = VADService.shared.filterSpeech(
+                    audio: audioData, sampleRate: sampleRate,
+                    threshold: Float(settings.vadThreshold),
+                    paddingChunks: settings.vadPaddingChunks,
+                    minSpeechChunks: settings.vadMinSpeechChunks
+                )
+            } else {
+                vadResult = VADFilterResult(speechAudio: audioData, speechDetected: true, maxProbability: 1)
+            }
+            guard vadResult.speechDetected else {
+                statusBar.updateProcessingStatus(.idle)
+                statusBar.showNotification(title: String(localized: "未检测到语音"), message: String(localized: "请重试并靠近麦克风"))
+                return false
+            }
+
+            var savedAudioFilename: String?
+            if settings.enableAudioHistory {
+                savedAudioFilename = HistoryManager.shared.saveAudio(
+                    vadResult.speechAudio, sampleRate: sampleRate, itemId: audioItemId
+                )
+            }
+
+            await processAudio(
+                audio: vadResult.speechAudio, duration: duration, sampleRate: sampleRate,
+                audioFilePath: savedAudioFilename, asrContext: asrCtx, itemId: audioItemId
+            )
+        } else if let fullText = streamingFullText {
             let trimmed = fullText.trimmingCharacters(in: .whitespacesAndNewlines)
             guard !trimmed.isEmpty else {
                 // 流式识别返回空结果（未检测到语音）
