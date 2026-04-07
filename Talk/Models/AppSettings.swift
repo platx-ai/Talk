@@ -382,6 +382,31 @@ final class AppSettings {
     var logLevel: LogLevel = .debug { didSet { autoSave() } }
 
     init() {}
+
+    /// 检测本地已缓存的最佳 LLM 模型
+    static func detectBestAvailableLLM() -> String {
+        let cacheDir = FileManager.default.homeDirectoryForCurrentUser
+            .appendingPathComponent(".cache/huggingface/hub")
+
+        // 按优先级排列：推荐 → 兼容
+        let candidates = [
+            "mlx-community/Qwen3.5-4B-OptiQ-4bit",
+            "mlx-community/Qwen3.5-4B-MLX-4bit",
+            "mlx-community/Qwen3.5-2B-4bit",
+            "mlx-community/Qwen3-4B-Instruct-2507-4bit",
+        ]
+
+        for modelId in candidates {
+            let dirName = "models--" + modelId.replacingOccurrences(of: "/", with: "--")
+            let modelDir = cacheDir.appendingPathComponent(dirName)
+            if FileManager.default.fileExists(atPath: modelDir.path) {
+                return modelId
+            }
+        }
+
+        // 没有缓存的模型，用推荐默认
+        return "mlx-community/Qwen3.5-4B-OptiQ-4bit"
+    }
 }
 
 // MARK: - 加载和保存
@@ -471,7 +496,12 @@ extension AppSettings {
             self.llmEngine = llmEngine
         }
 
-        self.llmModelId = defaults.string(forKey: "llmModelId") ?? "mlx-community/Qwen3.5-4B-OptiQ-4bit"
+        // 智能默认：如果用户没有手动设置过 LLM 模型，检测本地已有哪个，用已有的
+        if let savedModel = defaults.string(forKey: "llmModelId") {
+            self.llmModelId = savedModel
+        } else {
+            self.llmModelId = Self.detectBestAvailableLLM()
+        }
         if let intensity = defaults.string(forKey: "polishIntensity"),
            let polishIntensity = PolishIntensity(rawValue: intensity) {
             self.polishIntensity = polishIntensity
