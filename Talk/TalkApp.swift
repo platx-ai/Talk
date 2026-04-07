@@ -81,13 +81,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
 
     private func unloadIdleModels() {
         let settings = AppSettings.load()
-        let hasMLXModels = (settings.asrEngine == .mlxLocal && ASRService.shared.isModelLoaded) || LLMService.shared.isModelLoaded
-        guard hasMLXModels else { return }
+        let hasAnyModel = ASRService.shared.isModelLoaded
+            || LLMService.shared.isModelLoaded
+            || Gemma4ASREngine.shared.isModelLoaded
+        guard hasAnyModel else { return }
+
         AppLogger.info("空闲超时，卸载模型以释放内存", category: .general)
-        if settings.asrEngine == .mlxLocal {
-            ASRService.shared.unloadModel()
-        }
+        ASRService.shared.unloadModel()
         LLMService.shared.unloadModel()
+        Gemma4ASREngine.shared.unloadModel()
         isModelsReady = false
     }
 
@@ -96,6 +98,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         HotKeyManager.shared.unregisterHotKey()
         ASRService.shared.unloadModel()
         LLMService.shared.unloadModel()
+        Gemma4ASREngine.shared.unloadModel()
         AudioRecorder.shared.cancelRecording()
     }
 
@@ -779,17 +782,29 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
                         try await Gemma4ASREngine.shared.loadModel(modelId: settings.gemma4ModelId)
                     }
 
+                    // Build prompt with user settings (intensity, custom/per-app prompt)
+                    let effectiveAppPrompt: String? = {
+                        if let bid = self.targetApp?.bundleIdentifier,
+                           let p = settings.appPrompts[bid], !p.isEmpty { return p }
+                        return nil
+                    }()
+                    let prompt = Gemma4ASREngine.buildPrompt(
+                        intensity: settings.polishIntensity,
+                        customPrompt: settings.customSystemPrompt.isEmpty ? nil : settings.customSystemPrompt,
+                        appPrompt: effectiveAppPrompt
+                    )
+
                     statusBar.updateProcessingStatus(.asr)
                     let result = try await Gemma4ASREngine.shared.transcribe(
-                        audio: audio, sampleRate: sampleRate)
+                        audio: audio, sampleRate: sampleRate, prompt: prompt)
                     rawText = result
                     polishedText = result  // 一段式：ASR 输出即最终结果
                     AppLogger.info("Gemma4 一段式完成: \(polishedText)", category: .general)
                 } else {
                     // 两段式：ASR → LLM
-                    if !ASRService.shared.isModelLoaded || !LLMService.shared.isModelLoaded {
-                        statusBar.updateProcessingStatus(.loadingModel)
-                    }
+
+                    // 1. Load models
+                    statusBar.updateProcessingStatus(.loadingModel)
                     if settings.asrEngine == .gemma4 {
                         if !Gemma4ASREngine.shared.isModelLoaded {
                             try await Gemma4ASREngine.shared.loadModel(modelId: settings.gemma4ModelId)
@@ -800,10 +815,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
                             bundleResourcesURL: bundled.asrBundleResourcesURL
                         )
                     }
-                    if !LLMService.shared.isModelLoaded {
+                    if settings.llmEngine == .gemma4 {
+                        if !Gemma4ASREngine.shared.isModelLoaded {
+                            try await Gemma4ASREngine.shared.loadModel(modelId: settings.gemma4ModelId)
+                        }
+                    } else if !LLMService.shared.isModelLoaded {
                         try await LLMService.shared.loadModel(modelId: llmModelId)
                     }
 
+                    // 2. ASR
                     statusBar.updateProcessingStatus(.asr)
                     if settings.asrEngine == .gemma4 {
                         rawText = try await Gemma4ASREngine.shared.transcribe(
@@ -814,25 +834,34 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
                     }
                     AppLogger.info("ASR 识别完成: \(rawText)", category: .general)
 
+                    // 3. LLM Polish
                     statusBar.updateProcessingStatus(.polishing)
-                    let effectivePrompt: String?
-                    if let targetBundleId = self.targetApp?.bundleIdentifier,
-                       let appPrompt = settings.appPrompts[targetBundleId],
-                       !appPrompt.isEmpty {
-                        effectivePrompt = appPrompt
+                    if settings.llmEngine == .gemma4 {
+                        // Gemma4 音频感知润色：能听原始音频修正 ASR 错误
+                        polishedText = try await Gemma4ASREngine.shared.polish(
+                            audio: audio, sampleRate: sampleRate, asrText: rawText)
+                        AppLogger.info("Gemma4 润色完成: \(polishedText)", category: .general)
                     } else {
-                        effectivePrompt = settings.customSystemPrompt.isEmpty ? nil : settings.customSystemPrompt
+                        // Qwen3 LLM 纯文本润色
+                        let effectivePrompt: String?
+                        if let targetBundleId = self.targetApp?.bundleIdentifier,
+                           let appPrompt = settings.appPrompts[targetBundleId],
+                           !appPrompt.isEmpty {
+                            effectivePrompt = appPrompt
+                        } else {
+                            effectivePrompt = settings.customSystemPrompt.isEmpty ? nil : settings.customSystemPrompt
+                        }
+                        let editPrompt = settings.customEditPrompt.isEmpty ? nil : settings.customEditPrompt
+                        polishedText = try await LLMService.shared.polish(
+                            text: rawText,
+                            intensity: settings.polishIntensity,
+                            customPrompt: effectivePrompt,
+                            customEditPrompt: editPrompt,
+                            selectedText: self.selectedTextBeforeRecording,
+                            appBundleId: self.targetApp?.bundleIdentifier
+                        )
+                        AppLogger.info("LLM 润色完成: \(polishedText)", category: .general)
                     }
-                    let editPrompt = settings.customEditPrompt.isEmpty ? nil : settings.customEditPrompt
-                    polishedText = try await LLMService.shared.polish(
-                        text: rawText,
-                        intensity: settings.polishIntensity,
-                        customPrompt: effectivePrompt,
-                        customEditPrompt: editPrompt,
-                        selectedText: self.selectedTextBeforeRecording,
-                        appBundleId: self.targetApp?.bundleIdentifier
-                    )
-                    AppLogger.info("LLM 润色完成: \(polishedText)", category: .general)
                 }
 
                 statusBar.updateProcessingStatus(.outputting)
