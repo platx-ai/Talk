@@ -58,9 +58,7 @@ final class Gemma4ASREngine {
 
         do {
             let configuration = ModelConfiguration(id: modelId)
-            let context = try await Task.detached(priority: .userInitiated) {
-                try await VLMModelFactory.shared.load(configuration: configuration)
-            }.value
+            let context = try await VLMModelFactory.shared.load(configuration: configuration)
 
             modelContext = context
             isModelLoaded = true
@@ -104,15 +102,38 @@ final class Gemma4ASREngine {
             // prepare: 提取 mel → 构建 LMInput
             let lmInput = try await context.processor.prepare(input: input)
 
-            // generate
+            AppLogger.debug(
+                "Gemma4 LMInput: tokens=\(lmInput.text.tokens.shape), hasAudio=\(lmInput.audio != nil), audioShape=\(lmInput.audio?.features.shape.description ?? "nil")",
+                category: .asr
+            )
+
+            // Generate: use model.prepare for first step (handles audio embedding),
+            // then callAsFunction for subsequent tokens
+            let model = context.model
+            let cache = model.newCache(parameters: nil)
+            let prepareResult = try model.prepare(lmInput, cache: cache, windowSize: nil)
+
             var outputTokens = [Int]()
-            let _ = try MLXLMCommon.generate(
-                input: lmInput,
-                parameters: .init(maxTokens: 500, temperature: 0.0),
-                context: context
-            ) { token in
-                outputTokens.append(token)
-                return .more
+            var logits: MLXArray
+            switch prepareResult {
+            case .logits(let result):
+                logits = result.logits
+            case .tokens(let tokens):
+                logits = model.callAsFunction(tokens.tokens, cache: cache)
+            }
+
+            for _ in 0..<500 {
+                let lastLogits = logits[0..., -1, 0...]
+                let nextToken = lastLogits.argMax(axis: -1).item(Int.self)
+
+                // Stop on EOS tokens
+                if nextToken == 1 || nextToken == 107 { break }  // <eos>, <turn|>
+
+                outputTokens.append(nextToken)
+
+                let nextTokenArray = MLXArray([Int32(nextToken)]).expandedDimensions(axis: 0)
+                logits = model.callAsFunction(nextTokenArray, cache: cache)
+                eval(logits)
             }
 
             let text = context.tokenizer.decode(tokens: outputTokens)
