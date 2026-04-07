@@ -135,13 +135,19 @@ private struct InlineHistoryRow: View {
 
     @State private var editedText: String = ""
     @State private var isEditing = false
+    @State private var isSaved = false  // 编辑已保存（启用词库按钮）
     @State private var showLearnConfirmation = false
     @State private var isPlaying = false
     @State private var audioPlayer: AVAudioPlayer?
 
-    /// 文本是否被修改过（相对于原始 polishedText）
-    private var hasChanges: Bool {
+    /// 编辑中有未保存的修改
+    private var hasUnsavedChanges: Bool {
         isEditing && editedText.trimmingCharacters(in: .whitespacesAndNewlines) != item.polishedText
+    }
+
+    /// 当前文本和 ASR 原始输出不同（有可学习的修正）
+    private var hasCorrectionToLearn: Bool {
+        isSaved && item.polishedText != item.rawText && !item.rawText.isEmpty
     }
 
     var body: some View {
@@ -228,15 +234,26 @@ private struct InlineHistoryRow: View {
                 .help(String(localized: "还原"))
             }
 
-            // 保存 + 加入词库（有修改才亮起）
-            if hasChanges {
-                Button(action: saveAndLearn) {
-                    Image(systemName: "text.badge.checkmark")
+            // 保存编辑（只保存，不学习）
+            if hasUnsavedChanges {
+                Button(action: saveEdit) {
+                    Image(systemName: "checkmark.circle")
+                        .font(.system(size: 16))
+                        .foregroundStyle(.blue)
+                }
+                .buttonStyle(.plain)
+                .help(String(localized: "确认修改"))
+            }
+
+            // 加入词库（独立按钮，保存后才启用，对比 rawText）
+            if hasCorrectionToLearn {
+                Button(action: learnCorrection) {
+                    Image(systemName: "book.closed.circle")
                         .font(.system(size: 16))
                         .foregroundStyle(.green)
                 }
                 .buttonStyle(.plain)
-                .help(String(localized: "保存并学习"))
+                .help(String(localized: "加入词库"))
             }
 
             // 删除
@@ -281,17 +298,17 @@ private struct InlineHistoryRow: View {
     }
 
     private func saveIfChanged() {
-        if hasChanges {
-            saveAndLearn()
+        if hasUnsavedChanges {
+            saveEdit()
         } else {
             isEditing = false
         }
     }
 
-    private func saveAndLearn() {
-        let originalText = item.polishedText
+    /// 保存编辑（不学习到词库）
+    private func saveEdit() {
         let correctedText = editedText.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard correctedText != originalText, !correctedText.isEmpty else {
+        guard correctedText != item.polishedText, !correctedText.isEmpty else {
             isEditing = false
             return
         }
@@ -299,9 +316,18 @@ private struct InlineHistoryRow: View {
         var updatedItem = item
         updatedItem.polishedText = correctedText
         HistoryManager.shared.update(updatedItem)
-        VocabularyManager.shared.learnCorrection(original: originalText, corrected: correctedText)
-
         isEditing = false
+        isSaved = true  // 启用词库按钮
+    }
+
+    /// 加入词库：始终对比 rawText（ASR 原始输出）和当前 polishedText
+    private func learnCorrection() {
+        let asrOriginal = item.rawText
+        let userCorrected = item.polishedText
+        guard !asrOriginal.isEmpty, asrOriginal != userCorrected else { return }
+
+        VocabularyManager.shared.learnCorrection(original: asrOriginal, corrected: userCorrected)
+        isSaved = false  // 已学习，隐藏按钮
 
         withAnimation { showLearnConfirmation = true }
         DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
