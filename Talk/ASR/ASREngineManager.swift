@@ -65,10 +65,7 @@ final class ASREngineManager {
         case .appleSpeech:
             return AppleSpeechService.shared
         case .gemma4:
-            // TODO: Gemma4ASREngine implementation
-            // For now, fallback to Qwen3 — Gemma4 engine requires mlx-vlm Swift integration
-            AppLogger.warning("Gemma4 ASR 引擎尚未实现，回退到 Qwen3", category: .asr)
-            return ASRService.shared
+            return Gemma4ASREngine.shared
         }
     }
 

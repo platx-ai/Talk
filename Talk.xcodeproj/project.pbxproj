@@ -578,7 +578,7 @@
 			repositoryURL = "https://github.com/platx-ai/mlx-swift-lm.git";
 			requirement = {
 				kind = revision;
-				revision = 6f152c21cf32ff34a3c14e6e1fadfed867c563ee;
+				revision = 54776258fca6b7178da00ee817f474a337ef8bde;
 			};
 		};
 		AD9ECCF32F6C557100468229 /* XCRemoteSwiftPackageReference "mlx-audio-swift" */ = {
