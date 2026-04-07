@@ -10,6 +10,7 @@
 		AD1AC2C82F78260800C586CC /* SileroVAD in Frameworks */ = {isa = PBXBuildFile; productRef = AD1AC2C72F78260800C586CC /* SileroVAD */; };
 		AD9ECD012F6C557100468229 /* MLX in Frameworks */ = {isa = PBXBuildFile; productRef = AD9ECCF52F6C557100468229 /* MLX */; };
 		AD9ECD032F6C557100468229 /* MLXLLM in Frameworks */ = {isa = PBXBuildFile; productRef = AD9ECCF72F6C557100468229 /* MLXLLM */; };
+		ADGEMMA42F9000000000001 /* MLXVLM in Frameworks */ = {isa = PBXBuildFile; productRef = ADGEMMA42F9000000000002 /* MLXVLM */; };
 		AD9ECD042F6C557100468229 /* MLXLMCommon in Frameworks */ = {isa = PBXBuildFile; productRef = AD9ECCF82F6C557100468229 /* MLXLMCommon */; };
 		AD9ECD052F6C557100468229 /* MLXAudioSTT in Frameworks */ = {isa = PBXBuildFile; productRef = AD9ECCF92F6C557100468229 /* MLXAudioSTT */; };
 		AD9ECD062F6C557100468229 /* MLXAudioCore in Frameworks */ = {isa = PBXBuildFile; productRef = AD9ECCFA2F6C557100468229 /* MLXAudioCore */; };
@@ -51,6 +52,7 @@
 			files = (
 				AD9ECD012F6C557100468229 /* MLX in Frameworks */,
 				AD9ECD032F6C557100468229 /* MLXLLM in Frameworks */,
+				ADGEMMA42F9000000000001 /* MLXVLM in Frameworks */,
 				AD1AC2C82F78260800C586CC /* SileroVAD in Frameworks */,
 				AD9ECD042F6C557100468229 /* MLXLMCommon in Frameworks */,
 				AD9ECD052F6C557100468229 /* MLXAudioSTT in Frameworks */,
@@ -110,6 +112,7 @@
 			packageProductDependencies = (
 				AD9ECCF52F6C557100468229 /* MLX */,
 				AD9ECCF72F6C557100468229 /* MLXLLM */,
+				ADGEMMA42F9000000000002 /* MLXVLM */,
 				AD9ECCF82F6C557100468229 /* MLXLMCommon */,
 				AD9ECCF92F6C557100468229 /* MLXAudioSTT */,
 				AD9ECCFA2F6C557100468229 /* MLXAudioCore */,
@@ -572,10 +575,10 @@
 		};
 		AD9ECCF22F6C557100468229 /* XCRemoteSwiftPackageReference "mlx-swift-lm" */ = {
 			isa = XCRemoteSwiftPackageReference;
-			repositoryURL = "https://github.com/ml-explore/mlx-swift-lm.git";
+			repositoryURL = "https://github.com/platx-ai/mlx-swift-lm.git";
 			requirement = {
 				kind = revision;
-				revision = edd42fcd947eea0b19665248acf2975a28ddf58b;
+				revision = 6f152c21cf32ff34a3c14e6e1fadfed867c563ee;
 			};
 		};
 		AD9ECCF32F6C557100468229 /* XCRemoteSwiftPackageReference "mlx-audio-swift" */ = {
@@ -611,6 +614,11 @@
 			isa = XCSwiftPackageProductDependency;
 			package = AD9ECCF22F6C557100468229 /* XCRemoteSwiftPackageReference "mlx-swift-lm" */;
 			productName = MLXLLM;
+		};
+		ADGEMMA42F9000000000002 /* MLXVLM */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = AD9ECCF22F6C557100468229 /* XCRemoteSwiftPackageReference "mlx-swift-lm" */;
+			productName = MLXVLM;
 		};
 		AD9ECCF82F6C557100468229 /* MLXLMCommon */ = {
 			isa = XCSwiftPackageProductDependency;
