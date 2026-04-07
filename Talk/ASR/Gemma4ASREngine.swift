@@ -37,6 +37,34 @@ final class Gemma4ASREngine {
 
     static let defaultPrompt = "Transcribe this audio verbatim."
 
+    /// Build prompt for one-pass mode, incorporating user settings
+    static func buildPrompt(
+        intensity: AppSettings.PolishIntensity = .medium,
+        customPrompt: String? = nil,
+        appPrompt: String? = nil
+    ) -> String {
+        var prompt = defaultPrompt
+
+        // Polish intensity
+        switch intensity {
+        case .light:
+            break  // verbatim only
+        case .medium:
+            prompt += " Add proper punctuation."
+        case .strong:
+            prompt += " Clean up filler words (um, uh, 嗯, 啊), add punctuation, and format into clean paragraphs."
+        }
+
+        // Per-app prompt takes priority over global custom prompt
+        if let appPrompt, !appPrompt.isEmpty {
+            prompt += " Additional instructions: \(appPrompt)"
+        } else if let customPrompt, !customPrompt.isEmpty {
+            prompt += " Additional instructions: \(customPrompt)"
+        }
+
+        return prompt
+    }
+
     // MARK: - 模型管理
 
     func loadModel(modelId: String) async throws {

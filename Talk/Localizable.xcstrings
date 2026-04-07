@@ -4509,6 +4509,26 @@
           }
         }
       }
+    },
+    "一段式模式：ASR 和 LLM 共用 Gemma 4，润色强度和自定义提示词仍然生效。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "One-pass mode: ASR and LLM share Gemma 4. Polish intensity and custom prompts still apply."
+          }
+        }
+      }
+    },
+    "LLM 引擎设为 Gemma 4 时，ASR 引擎也需要选择 Gemma 4 才能使用。": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "When LLM engine is Gemma 4, ASR engine must also be Gemma 4."
+          }
+        }
+      }
     }
   }
 }

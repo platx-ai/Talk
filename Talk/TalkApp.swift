@@ -81,13 +81,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
 
     private func unloadIdleModels() {
         let settings = AppSettings.load()
-        let hasMLXModels = (settings.asrEngine == .mlxLocal && ASRService.shared.isModelLoaded) || LLMService.shared.isModelLoaded
-        guard hasMLXModels else { return }
+        let hasAnyModel = ASRService.shared.isModelLoaded
+            || LLMService.shared.isModelLoaded
+            || Gemma4ASREngine.shared.isModelLoaded
+        guard hasAnyModel else { return }
+
         AppLogger.info("空闲超时，卸载模型以释放内存", category: .general)
-        if settings.asrEngine == .mlxLocal {
-            ASRService.shared.unloadModel()
-        }
+        ASRService.shared.unloadModel()
         LLMService.shared.unloadModel()
+        Gemma4ASREngine.shared.unloadModel()
         isModelsReady = false
     }
 
@@ -96,6 +98,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         HotKeyManager.shared.unregisterHotKey()
         ASRService.shared.unloadModel()
         LLMService.shared.unloadModel()
+        Gemma4ASREngine.shared.unloadModel()
         AudioRecorder.shared.cancelRecording()
     }
 
@@ -779,9 +782,21 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
                         try await Gemma4ASREngine.shared.loadModel(modelId: settings.gemma4ModelId)
                     }
 
+                    // Build prompt with user settings (intensity, custom/per-app prompt)
+                    let effectiveAppPrompt: String? = {
+                        if let bid = self.targetApp?.bundleIdentifier,
+                           let p = settings.appPrompts[bid], !p.isEmpty { return p }
+                        return nil
+                    }()
+                    let prompt = Gemma4ASREngine.buildPrompt(
+                        intensity: settings.polishIntensity,
+                        customPrompt: settings.customSystemPrompt.isEmpty ? nil : settings.customSystemPrompt,
+                        appPrompt: effectiveAppPrompt
+                    )
+
                     statusBar.updateProcessingStatus(.asr)
                     let result = try await Gemma4ASREngine.shared.transcribe(
-                        audio: audio, sampleRate: sampleRate)
+                        audio: audio, sampleRate: sampleRate, prompt: prompt)
                     rawText = result
                     polishedText = result  // 一段式：ASR 输出即最终结果
                     AppLogger.info("Gemma4 一段式完成: \(polishedText)", category: .general)
