@@ -294,6 +294,12 @@ private struct ASRSettingsTab: View {
             Text(String(localized: "Gemma 4 多模态模型，支持音频直接转文字。4B 精度更高，2B 更快更轻量。实验性功能。"))
                 .font(.caption)
                 .foregroundColor(.secondary)
+
+            if settings.asrEngine == .gemma4 && settings.llmEngine != .gemma4 {
+                Label(String(localized: "Gemma 4 单独做 ASR 效果不如 Qwen3-ASR，建议搭配 Gemma 4 润色使用（LLM 引擎也选 Gemma 4）。音频上限 30 秒。"), systemImage: "exclamationmark.triangle.fill")
+                    .font(.caption)
+                    .foregroundStyle(.orange)
+            }
         } header: {
             Text("Gemma 4")
         }
@@ -321,10 +327,10 @@ private struct LLMSettingsTab: View {
                     Label(String(localized: "一段式模式：ASR 和 LLM 共用 Gemma 4，润色强度和自定义提示词仍然生效。"), systemImage: "bolt.fill")
                         .font(.callout)
                         .foregroundStyle(.blue)
-                } else if settings.llmEngine == .gemma4 && settings.asrEngine != .gemma4 {
-                    Label(String(localized: "LLM 引擎设为 Gemma 4 时，ASR 引擎也需要选择 Gemma 4 才能使用。"), systemImage: "exclamationmark.triangle.fill")
+                } else if settings.llmEngine == .gemma4 {
+                    Label(String(localized: "Gemma 4 润色模式：能听原始音频修正 ASR 错误，效果更好。"), systemImage: "waveform.circle.fill")
                         .font(.callout)
-                        .foregroundStyle(.orange)
+                        .foregroundStyle(.green)
                 }
             } header: {
                 Text(String(localized: "引擎"))

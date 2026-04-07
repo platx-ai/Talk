@@ -180,6 +180,65 @@ final class Gemma4ASREngine {
         }
     }
 
+    // MARK: - 音频感知润色（Gemma4 作为 LLM 引擎）
+
+    /// Audio-aware polish: Gemma4 receives both audio and ASR text, corrects errors
+    func polish(audio: [Float], sampleRate: Int, asrText: String, prompt: String? = nil) async throws -> String {
+        guard isModelLoaded, let context = modelContext else {
+            throw ASRError.modelNotLoaded
+        }
+
+        let polishPrompt = prompt ?? "以下是语音识别的粗转录结果，可能有错字和同音字错误。请根据音频修正转录文本，使用简体中文，保留英文单词原样。只输出修正后的文本。\n\n粗转录：\(asrText)"
+
+        AppLogger.debug("Gemma4 开始音频感知润色，ASR 文本: \(asrText.prefix(50))...", category: .llm)
+
+        var input = UserInput(prompt: polishPrompt)
+        input.audios = [audio]
+
+        do {
+            let startTime = CFAbsoluteTimeGetCurrent()
+            let lmInput = try await context.processor.prepare(input: input)
+            eval(lmInput.text.tokens)
+
+            let model = context.model
+            let cache = model.newCache(parameters: nil)
+            let prepareResult = try model.prepare(lmInput, cache: cache, windowSize: nil)
+
+            var outputTokens = [Int]()
+            var logits: MLXArray
+            switch prepareResult {
+            case .logits(let result):
+                logits = result.logits
+            case .tokens(let tokens):
+                logits = model.callAsFunction(tokens.tokens, cache: cache)
+            }
+
+            for _ in 0..<500 {
+                let lastLogits = logits[0..., -1, 0...]
+                let nextToken = lastLogits.argMax(axis: -1).item(Int.self)
+                if [1, 106, 105, 101, 100].contains(nextToken) { break }
+                outputTokens.append(nextToken)
+                let nextTokenArray = MLXArray([Int32(nextToken)]).expandedDimensions(axis: 0)
+                logits = model.callAsFunction(nextTokenArray, cache: cache)
+                eval(logits)
+            }
+
+            let text = context.tokenizer.decode(tokens: outputTokens)
+            let elapsed = CFAbsoluteTimeGetCurrent() - startTime
+            var result = text.trimmingCharacters(in: .whitespacesAndNewlines)
+
+            if AppSettings.shared.gemma4EnableT2S {
+                result = traditionalToSimplified(result)
+            }
+
+            AppLogger.info("Gemma4 润色完成: \(String(format: "%.2f", elapsed))s", category: .llm)
+            return result
+        } catch {
+            AppLogger.error("Gemma4 润色失败: \(error.localizedDescription)", category: .llm)
+            throw error
+        }
+    }
+
     // MARK: - 繁→简转换
 
     private func traditionalToSimplified(_ text: String) -> String {
