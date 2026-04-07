@@ -922,7 +922,7 @@ extension AppSettings.ASREngine {
 extension AppSettings.LLMEngine {
     var displayName: String {
         switch self {
-        case .qwen3: return "Qwen (本地)"
+        case .qwen3: return "Qwen 3.5"
         case .gemma4: return "Gemma 4"
         }
     }
