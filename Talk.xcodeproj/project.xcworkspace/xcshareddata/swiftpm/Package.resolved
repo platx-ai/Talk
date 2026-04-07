@@ -31,7 +31,7 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/platx-ai/mlx-swift-lm.git",
       "state" : {
-        "revision" : "f88fbf6a9bf5038dccbf6d0947301406dae4f855"
+        "revision" : "9b6141e6d4853860194e5a0ffa42f24b6e23891c"
       }
     },
     {

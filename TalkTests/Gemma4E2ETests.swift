@@ -41,19 +41,10 @@ struct Gemma4E2ETests {
         let engine = Gemma4ASREngine.shared
 
         // Load model
-        // Try loading via VLMModelFactory directly to get better error
         if !engine.isModelLoaded {
-            do {
-                let config = MLXLMCommon.ModelConfiguration(id: "mlx-community/gemma-4-e2b-it-4bit")
-                let context = try await VLMModelFactory.shared.load(configuration: config)
-                // If we got here, model loads fine — issue is in Gemma4ASREngine wrapper
-                _ = context
-                Issue.record("VLMModelFactory.load succeeded but Gemma4ASREngine.loadModel failed — check wrapper logic")
-            } catch {
-                Issue.record("Model load failed: \(error)")
-            }
-            return
+            try await engine.loadModel(modelId: "mlx-community/gemma-4-e2b-it-4bit")
         }
+        #expect(engine.isModelLoaded, "Model should be loaded")
 
         // Test cases from regression suite
         let audioDir = FileManager.default.urls(
@@ -73,14 +64,14 @@ struct Gemma4E2ETests {
         for tc in cases {
             let url = audioDir.appendingPathComponent(tc.file)
             guard let audio = loadM4A(url) else {
-                print("GEMMA4_E2E: SKIP \(tc.file) — not found")
+                Issue.record("GEMMA4_E2E: SKIP \(tc.file) — not found")
                 continue
             }
 
-            print("GEMMA4_E2E: Transcribing \(tc.file) (\(audio.count) samples)...")
+            Issue.record("GEMMA4_E2E: Transcribing \(tc.file) (\(audio.count) samples)...")
             let result = try await engine.transcribe(audio: audio, sampleRate: 16000)
-            print("GEMMA4_E2E: Output: \(result)")
-            print("GEMMA4_E2E: GT:     \(tc.gt)")
+            Issue.record("GEMMA4_E2E: Output: \(result)")
+            Issue.record("GEMMA4_E2E: GT:     \(tc.gt)")
 
             // Check not empty / not error
             #expect(!result.isEmpty, "Output should not be empty")
@@ -90,10 +81,10 @@ struct Gemma4E2ETests {
             let hits = tc.keywords.filter { result.localizedCaseInsensitiveContains($0) }.count
             totalKW += hits
             totalKWMax += tc.keywords.count
-            print("GEMMA4_E2E: Keywords: \(hits)/\(tc.keywords.count)")
+            Issue.record("GEMMA4_E2E: Keywords: \(hits)/\(tc.keywords.count)")
         }
 
-        print("GEMMA4_E2E: Total keyword hits: \(totalKW)/\(totalKWMax)")
+        Issue.record("GEMMA4_E2E: Total keyword hits: \(totalKW)/\(totalKWMax)")
         // At least some keywords should match
         #expect(totalKW > 0, "Should match at least some keywords")
     }
