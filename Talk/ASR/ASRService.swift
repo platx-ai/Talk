@@ -381,22 +381,34 @@ final class ASRService {
             return primaryText
         }
 
-        // 输出全英文 → 可能是真的英文，也可能是语言误判
-        // 用 English 重跑确认
+        // 输出全英文 → Qwen3 语言误判，尝试 Gemma4 fallback
         if looksLikeEnglishOutput(primaryText) {
-            AppLogger.info("语言验证: Chinese 模式输出全英文，用 English 重跑确认", category: .asr)
+            AppLogger.info("语言验证: Chinese 模式输出全英文，尝试 Gemma4 fallback", category: .asr)
 
+            // 如果 Gemma4 可用，用它做 fallback（多模态更准）
+            if Gemma4ASREngine.shared.isModelLoaded {
+                do {
+                    let audioFloats = audioArray.asArray(Float.self)
+                    let gemmaText = try await Gemma4ASREngine.shared.transcribe(
+                        audio: audioFloats, sampleRate: 16000)
+                    if !gemmaText.isEmpty && containsCJK(gemmaText) {
+                        AppLogger.info("语言验证: Gemma4 fallback 成功: \(gemmaText.prefix(50))", category: .asr)
+                        return gemmaText
+                    }
+                } catch {
+                    AppLogger.warning("语言验证: Gemma4 fallback 失败: \(error.localizedDescription)", category: .asr)
+                }
+            }
+
+            // Gemma4 不可用，用 Qwen3 English 模式重跑
             let retryOutput = model.generate(audio: audioArray, language: "English")
             let retryText = retryOutput.text.trimmingCharacters(in: CharacterSet.whitespacesAndNewlines)
 
-            // 两次都是英文 → 用户确实在说英文，返回 English 模式结果（更准确）
             if looksLikeEnglishOutput(retryText) && !containsCJK(retryText) {
-                AppLogger.info("语言验证: 确认用户说英文，使用 English 结果: \(retryText)", category: .asr)
+                AppLogger.info("语言验证: 确认用户说英文，使用 English 结果", category: .asr)
                 return retryText
             }
 
-            // English 重跑出了 CJK → 罕见情况，保守用 Chinese 结果
-            AppLogger.info("语言验证: English 重跑出 CJK，保留 Chinese 结果: \(primaryText)", category: .asr)
             return primaryText
         }
 
