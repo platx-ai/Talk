@@ -232,6 +232,56 @@ final class ASRService {
         onTranscriptionComplete = nil
     }
 
+    // MARK: - 语言参数解析
+
+    /// 将 AppSettings.ASRLanguage 转换为 Qwen3 ASR 模型所需的语言字符串
+    /// Qwen3 模型的 buildPrompt 接受 "Chinese", "English" 等语言名，大小写不敏感
+    private func resolveLanguageForModel(_ asrLanguage: AppSettings.ASRLanguage) -> String {
+        switch asrLanguage {
+        case .chinese, .mixed:
+            return "Chinese"
+        case .english:
+            return "English"
+        case .auto:
+            // auto 模式默认用 Chinese（用户主要中文场景），
+            // 后续由 transcribeWithLanguageRetry 检测并纠正
+            return "Chinese"
+        }
+    }
+
+    // MARK: - 语言检测启发式
+
+    /// 检测文本是否主要为英文输出（用于 auto 模式下语言误判检测）
+    /// 返回 true 表示文本主要是英文（ASCII 字母比例 > 80%）
+    private func looksLikeEnglishOutput(_ text: String) -> Bool {
+        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return false }
+
+        let asciiLetterCount = trimmed.unicodeScalars.filter {
+            ($0.value >= 0x41 && $0.value <= 0x5A) ||  // A-Z
+            ($0.value >= 0x61 && $0.value <= 0x7A)      // a-z
+        }.count
+
+        let totalNonSpace = trimmed.unicodeScalars.filter {
+            !CharacterSet.whitespacesAndNewlines.contains($0) &&
+            !CharacterSet.punctuationCharacters.contains($0)
+        }.count
+
+        guard totalNonSpace > 0 else { return false }
+
+        let asciiRatio = Double(asciiLetterCount) / Double(totalNonSpace)
+        return asciiRatio > 0.80
+    }
+
+    /// 检测文本是否包含 CJK 字符（中日韩统一表意文字）
+    private func containsCJK(_ text: String) -> Bool {
+        return text.unicodeScalars.contains { scalar in
+            (scalar.value >= 0x4E00 && scalar.value <= 0x9FFF) ||   // CJK Unified
+            (scalar.value >= 0x3400 && scalar.value <= 0x4DBF) ||   // CJK Extension A
+            (scalar.value >= 0x20000 && scalar.value <= 0x2A6DF)    // CJK Extension B
+        }
+    }
+
     // MARK: - 语音识别
 
     /// 构建热词 initialPrompt（从词库中提取高频正确形式）
@@ -256,9 +306,10 @@ final class ASRService {
         guard isModelLoaded else { throw ASRError.modelNotLoaded }
         guard let model = model else { throw ASRError.modelNotLoaded }
 
+        let language = resolveLanguageForModel(AppSettings.shared.asrLanguage)
         let audioArray = MLXArray(audio)
         // initialPrompt 参数不再传递给模型（已禁用）
-        let output = model.generate(audio: audioArray)
+        let output = model.generate(audio: audioArray, language: language)
         return output.text.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
@@ -278,15 +329,26 @@ final class ASRService {
             AppLogger.warning("ASR 输入采样率不是 16kHz: \(sampleRate)Hz", category: .asr)
         }
 
+        let settings = AppSettings.shared
+        let language = resolveLanguageForModel(settings.asrLanguage)
+
         AppLogger.debug(
-            "开始语音识别，音频长度: \(audio.count) 样点，采样率: \(sampleRate)Hz",
+            "开始语音识别，音频长度: \(audio.count) 样点，采样率: \(sampleRate)Hz，语言: \(language)",
             category: .asr
         )
 
         do {
             let audioArray = MLXArray(audio)
-            let output = model.generate(audio: audioArray)
-            let text = output.text.trimmingCharacters(in: CharacterSet.whitespacesAndNewlines)
+            let text: String
+
+            // auto 模式下使用语言验证重试
+            if settings.asrLanguage == .auto {
+                text = try await transcribeWithLanguageRetry(
+                    model: model, audioArray: audioArray, primaryLanguage: language)
+            } else {
+                let output = model.generate(audio: audioArray, language: language)
+                text = output.text.trimmingCharacters(in: CharacterSet.whitespacesAndNewlines)
+            }
 
             AppLogger.debug("语音识别完成: \(text)", category: .asr)
             return text
@@ -294,6 +356,52 @@ final class ASRService {
             AppLogger.error("语音识别失败: \(error.localizedDescription)", category: .asr)
             throw ASRError.transcriptionFailed(error)
         }
+    }
+
+    /// Post-ASR 语言验证 + 重跑
+    ///
+    /// auto 模式下，先用主语言（Chinese）识别。如果输出全是英文（无 CJK 字符，且 ASCII 比例 > 80%），
+    /// 说明可能误判语言，用 English 重跑一次，取两次结果中更合理的那个。
+    ///
+    /// 判断逻辑：
+    /// - 第一次用 Chinese，如果输出包含 CJK → 直接用（大概率正确）
+    /// - 第一次用 Chinese，输出全英文 → 用 English 重跑
+    ///   - 如果 English 结果也全英文 → 用户确实说的英文，返回 English 结果
+    ///   - 如果 English 结果包含 CJK → 不太可能，返回 Chinese 结果
+    private func transcribeWithLanguageRetry(
+        model: Qwen3ASRModel, audioArray: MLXArray, primaryLanguage: String
+    ) async throws -> String {
+        // 第一次：用主语言（Chinese）
+        let primaryOutput = model.generate(audio: audioArray, language: primaryLanguage)
+        let primaryText = primaryOutput.text.trimmingCharacters(in: CharacterSet.whitespacesAndNewlines)
+
+        // 如果输出包含 CJK 字符，大概率是中文，直接返回
+        if containsCJK(primaryText) {
+            AppLogger.debug("语言验证: 输出包含 CJK，无需重试", category: .asr)
+            return primaryText
+        }
+
+        // 输出全英文 → 可能是真的英文，也可能是语言误判
+        // 用 English 重跑确认
+        if looksLikeEnglishOutput(primaryText) {
+            AppLogger.info("语言验证: Chinese 模式输出全英文，用 English 重跑确认", category: .asr)
+
+            let retryOutput = model.generate(audio: audioArray, language: "English")
+            let retryText = retryOutput.text.trimmingCharacters(in: CharacterSet.whitespacesAndNewlines)
+
+            // 两次都是英文 → 用户确实在说英文，返回 English 模式结果（更准确）
+            if looksLikeEnglishOutput(retryText) && !containsCJK(retryText) {
+                AppLogger.info("语言验证: 确认用户说英文，使用 English 结果: \(retryText)", category: .asr)
+                return retryText
+            }
+
+            // English 重跑出了 CJK → 罕见情况，保守用 Chinese 结果
+            AppLogger.info("语言验证: English 重跑出 CJK，保留 Chinese 结果: \(primaryText)", category: .asr)
+            return primaryText
+        }
+
+        // 既不是 CJK 也不像英文（数字、标点等），直接返回
+        return primaryText
     }
 
     /// 流式识别音频
@@ -309,8 +417,9 @@ final class ASRService {
                         throw ASRError.modelNotLoaded
                     }
 
+                    let language = resolveLanguageForModel(AppSettings.shared.asrLanguage)
                     let audioArray = MLXArray(audio)
-                    let output = model.generate(audio: audioArray)
+                    let output = model.generate(audio: audioArray, language: language)
                     let text = output.text.trimmingCharacters(in: CharacterSet.whitespacesAndNewlines)
 
                     for character in text {
