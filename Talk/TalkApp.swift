@@ -111,12 +111,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
 
         let bundled = resolveBundledModelSources()
         let llmModelId = bundled.llmModelPath ?? settings.llmModelId
-        let needASRModel = settings.asrEngine == .mlxLocal
-
         Task {
             statusBar?.updateProcessingStatus(.loadingModel)
 
-            if needASRModel {
+            switch settings.asrEngine {
+            case .mlxLocal:
                 AppLogger.info("开始加载 ASR 模型...", category: .general)
                 do {
                     try await ASRService.shared.loadModel(modelId: settings.asrModelId, bundleResourcesURL: bundled.asrBundleResourcesURL)
@@ -124,20 +123,38 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
                 } catch {
                     AppLogger.error("ASR 模型加载失败: \(error.localizedDescription)", category: .general)
                 }
+            case .gemma4:
+                AppLogger.info("开始加载 Gemma4 模型...", category: .general)
+                do {
+                    try await Gemma4ASREngine.shared.loadModel(modelId: settings.gemma4ModelId)
+                    AppLogger.info("Gemma4 模型加载完成", category: .general)
+                } catch {
+                    AppLogger.error("Gemma4 模型加载失败: \(error.localizedDescription)", category: .general)
+                }
+            case .appleSpeech:
+                AppLogger.info("ASR 引擎为 Apple Speech，跳过模型加载", category: .general)
+            }
+
+            // 一段式模式不需要单独的 LLM
+            if settings.isOnePassMode {
+                AppLogger.info("一段式模式：跳过 LLM 模型加载", category: .general)
             } else {
-                AppLogger.info("ASR 引擎为 Apple Speech，跳过 MLX ASR 模型加载", category: .general)
+                AppLogger.info("开始加载 LLM 模型...", category: .general)
+                do {
+                    try await LLMService.shared.loadModel(modelId: llmModelId)
+                    AppLogger.info("LLM 模型加载完成", category: .general)
+                } catch {
+                    AppLogger.error("LLM 模型加载失败: \(error.localizedDescription)", category: .general)
+                }
             }
 
-            AppLogger.info("开始加载 LLM 模型...", category: .general)
-            do {
-                try await LLMService.shared.loadModel(modelId: llmModelId)
-                AppLogger.info("LLM 模型加载完成", category: .general)
-            } catch {
-                AppLogger.error("LLM 模型加载失败: \(error.localizedDescription)", category: .general)
+            let asrReady: Bool
+            switch settings.asrEngine {
+            case .mlxLocal: asrReady = ASRService.shared.isModelLoaded
+            case .gemma4: asrReady = Gemma4ASREngine.shared.isModelLoaded
+            case .appleSpeech: asrReady = true
             }
-
-            let asrReady = needASRModel ? ASRService.shared.isModelLoaded : true
-            isModelsReady = asrReady && LLMService.shared.isModelLoaded
+            isModelsReady = asrReady && (settings.isOnePassMode || LLMService.shared.isModelLoaded)
             statusBar?.updateProcessingStatus(.idle)
 
             if isModelsReady {
@@ -409,6 +426,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
                     AppleSpeechService.shared.cancelStreaming()
                     AudioRecorder.shared.onAudioData = nil
                 }
+            } else if settings.asrEngine == .gemma4 {
+                // Gemma4: 不支持流式，batch only
+                AudioRecorder.shared.skipStreamingDelay = false
+                AppLogger.info("Gemma4 引擎不支持流式识别，将在录音结束后批量处理", category: .ui)
             } else if settings.enableStreamingInference {
                 AudioRecorder.shared.skipStreamingDelay = false
                 do {
@@ -525,8 +546,40 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
             targetApp: self.targetApp?.bundleIdentifier
         )
 
-        // 如果流式识别已完成，使用流式结果；否则降级为批量识别
-        if let fullText = streamingFullText {
+        // Gemma4 不支持流式 — 忽略流式结果，直接走 batch
+        // 其他引擎：如果流式识别已完成，使用流式结果；否则降级为批量识别
+        if settings.asrEngine == .gemma4 {
+            // Gemma4: 停止任何正在运行的流式识别，直接走 batch
+            ASRService.shared.stopStreaming()
+            let vadResult: VADFilterResult
+            if settings.enableVADFilter {
+                vadResult = VADService.shared.filterSpeech(
+                    audio: audioData, sampleRate: sampleRate,
+                    threshold: Float(settings.vadThreshold),
+                    paddingChunks: settings.vadPaddingChunks,
+                    minSpeechChunks: settings.vadMinSpeechChunks
+                )
+            } else {
+                vadResult = VADFilterResult(speechAudio: audioData, speechDetected: true, maxProbability: 1)
+            }
+            guard vadResult.speechDetected else {
+                statusBar.updateProcessingStatus(.idle)
+                statusBar.showNotification(title: String(localized: "未检测到语音"), message: String(localized: "请重试并靠近麦克风"))
+                return false
+            }
+
+            var savedAudioFilename: String?
+            if settings.enableAudioHistory {
+                savedAudioFilename = HistoryManager.shared.saveAudio(
+                    vadResult.speechAudio, sampleRate: sampleRate, itemId: audioItemId
+                )
+            }
+
+            await processAudio(
+                audio: vadResult.speechAudio, duration: duration, sampleRate: sampleRate,
+                audioFilePath: savedAudioFilename, asrContext: asrCtx, itemId: audioItemId
+            )
+        } else if let fullText = streamingFullText {
             let trimmed = fullText.trimmingCharacters(in: .whitespacesAndNewlines)
             guard !trimmed.isEmpty else {
                 // 流式识别返回空结果（未检测到语音）
@@ -716,43 +769,71 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
             let llmModelId = bundled.llmModelPath ?? settings.llmModelId
 
             do {
-                if !ASRService.shared.isModelLoaded || !LLMService.shared.isModelLoaded {
-                    statusBar.updateProcessingStatus(.loadingModel)
-                }
-                if !ASRService.shared.isModelLoaded {
-                    try await ASRService.shared.loadModel(
-                        modelId: settings.asrModelId,
-                        bundleResourcesURL: bundled.asrBundleResourcesURL
-                    )
-                }
-                if !LLMService.shared.isModelLoaded {
-                    try await LLMService.shared.loadModel(modelId: llmModelId)
-                }
+                let rawText: String
+                let polishedText: String
 
-                statusBar.updateProcessingStatus(.asr)
-                let rawText = try await ASRService.shared.transcribe(audio: audio, sampleRate: sampleRate)
-                AppLogger.info("ASR 识别完成: \(rawText)", category: .general)
+                if settings.isOnePassMode {
+                    // 一段式：Gemma4 直接输出润色文本（ASR + LLM 合一）
+                    if !Gemma4ASREngine.shared.isModelLoaded {
+                        statusBar.updateProcessingStatus(.loadingModel)
+                        try await Gemma4ASREngine.shared.loadModel(modelId: settings.gemma4ModelId)
+                    }
 
-                statusBar.updateProcessingStatus(.polishing)
-                // Per-app prompt takes priority over global custom prompt
-                let effectivePrompt: String?
-                if let targetBundleId = self.targetApp?.bundleIdentifier,
-                   let appPrompt = settings.appPrompts[targetBundleId],
-                   !appPrompt.isEmpty {
-                    effectivePrompt = appPrompt
+                    statusBar.updateProcessingStatus(.asr)
+                    let result = try await Gemma4ASREngine.shared.transcribe(
+                        audio: audio, sampleRate: sampleRate)
+                    rawText = result
+                    polishedText = result  // 一段式：ASR 输出即最终结果
+                    AppLogger.info("Gemma4 一段式完成: \(polishedText)", category: .general)
                 } else {
-                    effectivePrompt = settings.customSystemPrompt.isEmpty ? nil : settings.customSystemPrompt
+                    // 两段式：ASR → LLM
+                    if !ASRService.shared.isModelLoaded || !LLMService.shared.isModelLoaded {
+                        statusBar.updateProcessingStatus(.loadingModel)
+                    }
+                    if settings.asrEngine == .gemma4 {
+                        if !Gemma4ASREngine.shared.isModelLoaded {
+                            try await Gemma4ASREngine.shared.loadModel(modelId: settings.gemma4ModelId)
+                        }
+                    } else if !ASRService.shared.isModelLoaded {
+                        try await ASRService.shared.loadModel(
+                            modelId: settings.asrModelId,
+                            bundleResourcesURL: bundled.asrBundleResourcesURL
+                        )
+                    }
+                    if !LLMService.shared.isModelLoaded {
+                        try await LLMService.shared.loadModel(modelId: llmModelId)
+                    }
+
+                    statusBar.updateProcessingStatus(.asr)
+                    if settings.asrEngine == .gemma4 {
+                        rawText = try await Gemma4ASREngine.shared.transcribe(
+                            audio: audio, sampleRate: sampleRate)
+                    } else {
+                        rawText = try await ASRService.shared.transcribe(
+                            audio: audio, sampleRate: sampleRate)
+                    }
+                    AppLogger.info("ASR 识别完成: \(rawText)", category: .general)
+
+                    statusBar.updateProcessingStatus(.polishing)
+                    let effectivePrompt: String?
+                    if let targetBundleId = self.targetApp?.bundleIdentifier,
+                       let appPrompt = settings.appPrompts[targetBundleId],
+                       !appPrompt.isEmpty {
+                        effectivePrompt = appPrompt
+                    } else {
+                        effectivePrompt = settings.customSystemPrompt.isEmpty ? nil : settings.customSystemPrompt
+                    }
+                    let editPrompt = settings.customEditPrompt.isEmpty ? nil : settings.customEditPrompt
+                    polishedText = try await LLMService.shared.polish(
+                        text: rawText,
+                        intensity: settings.polishIntensity,
+                        customPrompt: effectivePrompt,
+                        customEditPrompt: editPrompt,
+                        selectedText: self.selectedTextBeforeRecording,
+                        appBundleId: self.targetApp?.bundleIdentifier
+                    )
+                    AppLogger.info("LLM 润色完成: \(polishedText)", category: .general)
                 }
-                let editPrompt = settings.customEditPrompt.isEmpty ? nil : settings.customEditPrompt
-                let polishedText = try await LLMService.shared.polish(
-                    text: rawText,
-                    intensity: settings.polishIntensity,
-                    customPrompt: effectivePrompt,
-                    customEditPrompt: editPrompt,
-                    selectedText: self.selectedTextBeforeRecording,
-                    appBundleId: self.targetApp?.bundleIdentifier
-                )
-                AppLogger.info("LLM 润色完成: \(polishedText)", category: .general)
 
                 statusBar.updateProcessingStatus(.outputting)
 
@@ -777,10 +858,21 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
                     }
                 }
 
-                let asrLabel = settings.asrEngine == .appleSpeech ? "Apple Speech" : settings.asrModelId
+                let asrLabel: String
+                let llmLabel: String
+                if settings.isOnePassMode {
+                    asrLabel = "Gemma4 (one-pass)"
+                    llmLabel = settings.gemma4ModelId
+                } else if settings.asrEngine == .gemma4 {
+                    asrLabel = settings.gemma4ModelId
+                    llmLabel = llmModelId
+                } else {
+                    asrLabel = settings.asrEngine == .appleSpeech ? "Apple Speech" : settings.asrModelId
+                    llmLabel = llmModelId
+                }
                 let historyItem = HistoryItem(
                     id: itemId, duration: duration, rawText: rawText, polishedText: polishedText,
-                    asrModel: asrLabel, llmModel: llmModelId,
+                    asrModel: asrLabel, llmModel: llmLabel,
                     audioFilePath: audioFilePath, asrContext: asrContext
                 )
                 HistoryManager.shared.add(historyItem)

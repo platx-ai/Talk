@@ -201,6 +201,7 @@ final class AppSettings {
     enum ASREngine: String, Codable, CaseIterable {
         case mlxLocal = "mlx_local"
         case appleSpeech = "apple_speech"
+        case gemma4 = "gemma4"
     }
 
     var asrEngine: ASREngine = .mlxLocal { didSet { autoSave() } }
@@ -239,6 +240,37 @@ final class AppSettings {
     var appleSpeechLocale: AppleSpeechLocale = .zhCN { didSet { autoSave() } }
     var appleSpeechOnDevice: Bool = false { didSet { autoSave() } }
     var appleSpeechShowRealtime: Bool = true { didSet { autoSave() } }
+
+    // MARK: - Gemma4 设置
+
+    enum Gemma4ModelSize: String, Codable, CaseIterable {
+        case e2b = "2B"
+        case e4b = "4B"
+    }
+
+    var gemma4ModelSize: Gemma4ModelSize = .e4b { didSet { autoSave() } }
+    var gemma4EnableT2S: Bool = true { didSet { autoSave() } }  // 繁→简转换
+
+    var gemma4ModelId: String {
+        switch gemma4ModelSize {
+        case .e2b: return "mlx-community/gemma-4-e2b-it-4bit"
+        case .e4b: return "mlx-community/gemma-4-e4b-it-4bit"
+        }
+    }
+
+    // MARK: - LLM 引擎选择
+
+    enum LLMEngine: String, Codable, CaseIterable {
+        case qwen3 = "qwen3"
+        case gemma4 = "gemma4"
+    }
+
+    var llmEngine: LLMEngine = .qwen3 { didSet { autoSave() } }
+
+    /// ASR+LLM 都是 Gemma4 → 一段式模式（自动检测，无需开关）
+    var isOnePassMode: Bool {
+        asrEngine == .gemma4 && llmEngine == .gemma4
+    }
 
     // MARK: - LLM 设置
 
@@ -426,6 +458,19 @@ extension AppSettings {
         self.appleSpeechOnDevice = boolValue("appleSpeechOnDevice", default: false)
         self.appleSpeechShowRealtime = boolValue("appleSpeechShowRealtime", default: true)
 
+        // Gemma4 settings
+        if let size = defaults.string(forKey: "gemma4ModelSize"),
+           let modelSize = Gemma4ModelSize(rawValue: size) {
+            self.gemma4ModelSize = modelSize
+        }
+        self.gemma4EnableT2S = boolValue("gemma4EnableT2S", default: true)
+
+        // LLM engine
+        if let engine = defaults.string(forKey: "llmEngine"),
+           let llmEngine = LLMEngine(rawValue: engine) {
+            self.llmEngine = llmEngine
+        }
+
         self.llmModelId = defaults.string(forKey: "llmModelId") ?? "mlx-community/Qwen3-4B-Instruct-2507-4bit"
         if let intensity = defaults.string(forKey: "polishIntensity"),
            let polishIntensity = PolishIntensity(rawValue: intensity) {
@@ -518,6 +563,10 @@ extension AppSettings {
         defaults.set(appleSpeechOnDevice, forKey: "appleSpeechOnDevice")
         defaults.set(appleSpeechShowRealtime, forKey: "appleSpeechShowRealtime")
 
+        defaults.set(gemma4ModelSize.rawValue, forKey: "gemma4ModelSize")
+        defaults.set(gemma4EnableT2S, forKey: "gemma4EnableT2S")
+
+        defaults.set(llmEngine.rawValue, forKey: "llmEngine")
         defaults.set(llmModelId, forKey: "llmModelId")
         defaults.set(polishIntensity.rawValue, forKey: "polishIntensity")
         defaults.set(conversationHistoryRounds, forKey: "conversationHistoryRounds")

@@ -64,6 +64,8 @@ final class ASREngineManager {
             return ASRService.shared
         case .appleSpeech:
             return AppleSpeechService.shared
+        case .gemma4:
+            return Gemma4ASREngine.shared
         }
     }
 
@@ -109,7 +111,7 @@ final class ASREngineManager {
     /// 是否支持批量识别
     var supportsBatchTranscription: Bool {
         switch engineType {
-        case .mlxLocal: return true
+        case .mlxLocal, .gemma4: return true
         case .appleSpeech: return false
         }
     }

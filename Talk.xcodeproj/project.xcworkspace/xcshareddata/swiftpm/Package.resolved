@@ -1,5 +1,5 @@
 {
-  "originHash" : "4b26bc4e2e9cd95f128422f4f53b24656ed7a3dbde4d20d4d5f14026b17be455",
+  "originHash" : "caac281a09c7f79ffe3d536b5ef6900af880081c77e62199cf26c4702283dff1",
   "pins" : [
     {
       "identity" : "eventsource",
@@ -29,9 +29,9 @@
     {
       "identity" : "mlx-swift-lm",
       "kind" : "remoteSourceControl",
-      "location" : "https://github.com/ml-explore/mlx-swift-lm.git",
+      "location" : "https://github.com/platx-ai/mlx-swift-lm.git",
       "state" : {
-        "revision" : "edd42fcd947eea0b19665248acf2975a28ddf58b"
+        "revision" : "668347f89c0f7c5c818012fa49b71de10d8cf0e1"
       }
     },
     {
