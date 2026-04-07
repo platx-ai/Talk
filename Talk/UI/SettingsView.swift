@@ -318,9 +318,13 @@ private struct LLMSettingsTab: View {
                 .onChange(of: settings.llmEngine) { _ in ToastManager.shared.show(String(localized: "已保存")) }
 
                 if settings.isOnePassMode {
-                    Label(String(localized: "一段式模式：ASR 和 LLM 共用 Gemma 4，直接输出润色文本。"), systemImage: "bolt.fill")
+                    Label(String(localized: "一段式模式：ASR 和 LLM 共用 Gemma 4，润色强度和自定义提示词仍然生效。"), systemImage: "bolt.fill")
                         .font(.callout)
                         .foregroundStyle(.blue)
+                } else if settings.llmEngine == .gemma4 && settings.asrEngine != .gemma4 {
+                    Label(String(localized: "LLM 引擎设为 Gemma 4 时，ASR 引擎也需要选择 Gemma 4 才能使用。"), systemImage: "exclamationmark.triangle.fill")
+                        .font(.callout)
+                        .foregroundStyle(.orange)
                 }
             } header: {
                 Text(String(localized: "引擎"))
