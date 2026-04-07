@@ -154,9 +154,9 @@ final class Gemma4ASREngine {
                 let lastLogits = logits[0..., -1, 0...]
                 let nextToken = lastLogits.argMax(axis: -1).item(Int.self)
 
-                // Stop on EOS/special tokens
-                // <eos>=1, <turn|>=106, <|turn>=105, <channel|>=101, <|channel>=100
-                if [1, 106, 105, 101, 100].contains(nextToken) { break }
+                // Stop on EOS tokens (from model's generation_config.json)
+                // <eos>=1, <turn|>=106, <tool_call|>=50
+                if [1, 106, 50].contains(nextToken) { break }
 
                 outputTokens.append(nextToken)
 
@@ -223,7 +223,7 @@ final class Gemma4ASREngine {
             for _ in 0..<500 {
                 let lastLogits = logits[0..., -1, 0...]
                 let nextToken = lastLogits.argMax(axis: -1).item(Int.self)
-                if [1, 106, 105, 101, 100].contains(nextToken) { break }
+                if [1, 106, 50].contains(nextToken) { break }
                 outputTokens.append(nextToken)
                 let nextTokenArray = MLXArray([Int32(nextToken)]).expandedDimensions(axis: 0)
                 logits = model.callAsFunction(nextTokenArray, cache: cache)
