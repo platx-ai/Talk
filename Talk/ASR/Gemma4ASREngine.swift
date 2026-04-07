@@ -35,14 +35,7 @@ final class Gemma4ASREngine {
 
     // MARK: - 结构化 prompt（实验验证的最优 prompt）
 
-    static let defaultPrompt = """
-    你是一个语音转文字助手。请将音频内容转为文字，要求：
-    1. 使用简体中文
-    2. 英文单词和专业术语保持原样（如SDK, CLI, Agent, SOTA, Review）
-    3. 添加标点符号
-    4. 去除'嗯'、'啊'、'呃'等填充词
-    5. 只输出转录文本，不要添加任何解释
-    """
+    static let defaultPrompt = "Transcribe this audio verbatim."
 
     // MARK: - 模型管理
 
@@ -126,8 +119,9 @@ final class Gemma4ASREngine {
                 let lastLogits = logits[0..., -1, 0...]
                 let nextToken = lastLogits.argMax(axis: -1).item(Int.self)
 
-                // Stop on EOS tokens
-                if nextToken == 1 || nextToken == 107 { break }  // <eos>, <turn|>
+                // Stop on EOS/special tokens
+                // <eos>=1, <turn|>=106, <|turn>=105, <channel|>=101, <|channel>=100
+                if [1, 106, 105, 101, 100].contains(nextToken) { break }
 
                 outputTokens.append(nextToken)
 
