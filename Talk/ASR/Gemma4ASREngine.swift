@@ -37,7 +37,7 @@ final class Gemma4ASREngine {
 
     static let defaultPrompt = "Transcribe this audio verbatim."
 
-    /// Build prompt for one-pass mode, incorporating user settings
+    /// Build prompt for one-pass mode, incorporating user settings and vocabulary corrections
     static func buildPrompt(
         intensity: AppSettings.PolishIntensity = .medium,
         customPrompt: String? = nil,
@@ -60,6 +60,13 @@ final class Gemma4ASREngine {
             prompt += " Additional instructions: \(appPrompt)"
         } else if let customPrompt, !customPrompt.isEmpty {
             prompt += " Additional instructions: \(customPrompt)"
+        }
+
+        // Inject vocabulary corrections
+        let corrections = VocabularyManager.shared.getHighFrequencyItems(limit: 30)
+        if !corrections.isEmpty {
+            let correctionLines = corrections.map { "\($0.word) → \($0.correctedForm ?? $0.word)" }.joined(separator: ", ")
+            prompt += " IMPORTANT word corrections (must apply): \(correctionLines)"
         }
 
         return prompt

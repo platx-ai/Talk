@@ -175,11 +175,11 @@ final class LLMService {
         let userMessage: String
 
         // Get learned corrections for LLM context
-        let corrections = VocabularyManager.shared.getHighFrequencyItems(limit: 20)
+        let corrections = VocabularyManager.shared.getHighFrequencyItems(limit: 30)
         var correctionContext = ""
         if !corrections.isEmpty {
             let correctionLines = corrections.map { "\($0.word) → \($0.correctedForm ?? $0.word)" }.joined(separator: "\n")
-            correctionContext = "\n\n【已学习的纠正】\n" + correctionLines
+            correctionContext = "\n\n【强制替换规则】\n以下是语音识别常见错误的纠正。当识别文本中出现左侧词汇时，必须替换为右侧的正确形式：\n" + correctionLines + "\n注意：这些是用户反复确认的纠正，请务必执行替换。"
         }
 
         if let selectedText, !selectedText.isEmpty {
