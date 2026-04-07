@@ -251,12 +251,14 @@ final class ASRService {
     }
 
     /// 识别音频（指定 initialPrompt，用于测试和外部调用）
+    /// 注意：initialPrompt 已禁用（流式后 batch 不稳定），此方法保留供测试使用
     func transcribe(audio: [Float], sampleRate: Int, initialPrompt: String?) async throws -> String {
         guard isModelLoaded else { throw ASRError.modelNotLoaded }
         guard let model = model else { throw ASRError.modelNotLoaded }
 
         let audioArray = MLXArray(audio)
-        let output = model.generate(audio: audioArray, initialPrompt: initialPrompt)
+        // initialPrompt 参数不再传递给模型（已禁用）
+        let output = model.generate(audio: audioArray)
         return output.text.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
@@ -283,11 +285,7 @@ final class ASRService {
 
         do {
             let audioArray = MLXArray(audio)
-            let hotwordPrompt = buildHotwordPrompt(audioSampleCount: audio.count, sampleRate: sampleRate)
-            if let prompt = hotwordPrompt {
-                AppLogger.debug("ASR 热词 prefix: \(prompt)", category: .asr)
-            }
-            let output = model.generate(audio: audioArray, initialPrompt: hotwordPrompt)
+            let output = model.generate(audio: audioArray)
             let text = output.text.trimmingCharacters(in: CharacterSet.whitespacesAndNewlines)
 
             AppLogger.debug("语音识别完成: \(text)", category: .asr)
