@@ -38,3 +38,4 @@ experiments/
 TalkTests/RegressionSuite/
 TalkTests/TestAudio/
 TalkTests/Gemma4*
+.claude/worktrees/
