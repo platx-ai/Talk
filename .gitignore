@@ -31,3 +31,10 @@ dist/
 *.provisionprofile
 .vscode/
 __pycache__/
+
+# Local: evolution skill, experiment data, personal voice recordings
+.claude/skills/
+experiments/
+TalkTests/RegressionSuite/
+TalkTests/TestAudio/
+TalkTests/Gemma4*
