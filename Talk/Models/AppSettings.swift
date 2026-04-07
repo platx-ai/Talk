@@ -388,12 +388,12 @@ final class AppSettings {
         let cacheDir = FileManager.default.homeDirectoryForCurrentUser
             .appendingPathComponent(".cache/huggingface/hub")
 
-        // 按优先级排列：推荐 → 兼容
+        // 优先用已有的（兼容老用户），没有再推荐新的
         let candidates = [
-            "mlx-community/Qwen3.5-4B-OptiQ-4bit",
-            "mlx-community/Qwen3.5-4B-MLX-4bit",
-            "mlx-community/Qwen3.5-2B-4bit",
-            "mlx-community/Qwen3-4B-Instruct-2507-4bit",
+            "mlx-community/Qwen3-4B-Instruct-2507-4bit",   // 老用户最可能有
+            "mlx-community/Qwen3.5-4B-OptiQ-4bit",         // 推荐
+            "mlx-community/Qwen3.5-2B-4bit",               // 轻量
+            "mlx-community/Qwen3.5-4B-MLX-4bit",           // 备选
         ]
 
         for modelId in candidates {
