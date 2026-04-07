@@ -381,34 +381,33 @@ final class ASRService {
             return primaryText
         }
 
-        // 输出全英文 → Qwen3 语言误判，尝试 Gemma4 fallback
+        // 输出全英文 → Qwen3 语言误判
         if looksLikeEnglishOutput(primaryText) {
-            AppLogger.info("语言验证: Chinese 模式输出全英文，尝试 Gemma4 fallback", category: .asr)
-
-            // 如果 Gemma4 可用，用它做 fallback（多模态更准）
-            if Gemma4ASREngine.shared.isModelLoaded {
+            // 如果用户已选 Gemma4 作为 LLM 引擎（模型已在内存中），
+            // 利用它的多模态能力做 fallback（不额外加载模型）
+            if AppSettings.shared.llmEngine == .gemma4 && Gemma4ASREngine.shared.isModelLoaded {
+                AppLogger.info("语言验证: 输出全英文，用已加载的 Gemma4 做 fallback", category: .asr)
                 do {
                     let audioFloats = audioArray.asArray(Float.self)
                     let gemmaText = try await Gemma4ASREngine.shared.transcribe(
                         audio: audioFloats, sampleRate: 16000)
                     if !gemmaText.isEmpty && containsCJK(gemmaText) {
-                        AppLogger.info("语言验证: Gemma4 fallback 成功: \(gemmaText.prefix(50))", category: .asr)
+                        AppLogger.info("语言验证: Gemma4 fallback 成功", category: .asr)
                         return gemmaText
                     }
                 } catch {
-                    AppLogger.warning("语言验证: Gemma4 fallback 失败: \(error.localizedDescription)", category: .asr)
+                    AppLogger.warning("语言验证: Gemma4 fallback 失败", category: .asr)
                 }
             }
 
-            // Gemma4 不可用，用 Qwen3 English 模式重跑
+            // Qwen3 English 重跑确认
+            AppLogger.info("语言验证: 用 Qwen3 English 模式重跑", category: .asr)
             let retryOutput = model.generate(audio: audioArray, language: "English")
             let retryText = retryOutput.text.trimmingCharacters(in: CharacterSet.whitespacesAndNewlines)
 
             if looksLikeEnglishOutput(retryText) && !containsCJK(retryText) {
-                AppLogger.info("语言验证: 确认用户说英文，使用 English 结果", category: .asr)
                 return retryText
             }
-
             return primaryText
         }
 
