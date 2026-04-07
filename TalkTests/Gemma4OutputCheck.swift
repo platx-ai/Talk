@@ -48,7 +48,7 @@ struct Gemma4OutputCheck {
             return
         }
 
-        let result = try await engine.transcribe(audio: audio, sampleRate: 16000)
+        let result = try await engine.transcribe(audio: audio, sampleRate: 16000, prompt: "Transcribe this audio verbatim.")
 
         // Force print the output as a test failure so we can see it
         #expect(result.count < 5, "OUTPUT[\(result.count)]: \(result)")

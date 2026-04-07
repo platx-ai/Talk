@@ -2,9 +2,7 @@ import Testing
 import Foundation
 import AVFoundation
 import MLX
-import MLXLMCommon
 import MLXVLM
-import Tokenizers
 @testable import Talk
 
 @Suite("Gemma4 Direct Test")
@@ -31,59 +29,47 @@ struct Gemma4DirectTest {
         return Array(UnsafeBufferPointer(start: ptr, count: Int(outputBuffer.frameLength)))
     }
 
-    @Test @MainActor
-    func inspectAudioEncoderOutput() async throws {
-        let config = ModelConfiguration(id: "mlx-community/gemma-4-e2b-it-4bit")
-        let context = try await VLMModelFactory.shared.load(configuration: config)
-
+    @Test
+    func compareMelWithPythonRef() throws {
         let audioDir = FileManager.default.urls(
             for: .applicationSupportDirectory, in: .userDomainMask
         ).first!.appendingPathComponent("Talk/audio")
         let url = audioDir.appendingPathComponent("7E9A42BA-8AD9-44D7-BED3-95BAEDA2B699.m4a")
         guard let audio = loadM4A(url) else { Issue.record("No audio"); return }
 
+        Issue.record("Audio samples: \(audio.count)")
+
         let extractor = Gemma4AudioFeatureExtractor()
-        let (mel, melMask) = extractor.extract(audio: audio)
-        eval(mel, melMask)
-        Issue.record("mel=\(mel.shape) mask=\(melMask.shape)")
+        let (mel, mask) = extractor.extract(audio: audio)
+        eval(mel, mask)
 
-        // Use prepareWithAudio to see audio encoder output shape
-        let model = context.model as! Gemma4
+        let mean = mel.mean().item(Float.self)
+        let min_val = mel.min().item(Float.self)
+        let max_val = mel.max().item(Float.self)
 
-        // Manually call audioTower to see output shape
-        // Access via mirror
-        let mirror = Mirror(reflecting: model)
-        for child in mirror.children {
-            if child.label == "_audioTower" {
-                Issue.record("audioTower type: \(type(of: child.value))")
-            }
+        // Get frame 0 values
+        let frame0 = mel[0]
+        eval(frame0)
+        var frame0vals = [Float]()
+        for i in 0..<min(10, frame0.dim(0)) {
+            frame0vals.append(frame0[i].item(Float.self))
         }
 
-        // Build a minimal LMInput with 45 audio tokens and call prepare
-        let audioTokenId: Int32 = 258881
-        var tokenArray: [Int32] = [2] // BOS
-        for _ in 0..<45 { tokenArray.append(audioTokenId) }
-        tokenArray.append(3) // EOS
-        let tokens = MLXArray(tokenArray).expandedDimensions(axis: 0)
+        Issue.record("Swift mel: shape=\(mel.shape) mean=\(mean) min=\(min_val) max=\(max_val)")
+        Issue.record("Swift frame0[0:10]: \(frame0vals)")
 
-        let lmInput = LMInput(
-            text: .init(tokens: tokens),
-            audio: .init(features: mel.expandedDimensions(axis: 0), mask: melMask.expandedDimensions(axis: 0))
-        )
+        // Python reference (28900 samples):
+        // mean=-2.951809, min=-6.9078, max=1.3959
+        // frame0[0:10]: [-4.613, -4.013, -3.061, -2.486, -2.138, -1.942, -1.868, -1.895, -2.005, -2.173]
+        Issue.record("Python ref: mean=-2.952 min=-6.908 max=1.396")
+        Issue.record("Python frame0: [-4.613, -4.013, -3.061, -2.486, -2.138, -1.942, -1.868, -1.895, -2.005, -2.173]")
 
-        // Call prepare — this triggers audio encoder
-        let cache = model.newCache(parameters: nil)
-        let result = try model.prepare(lmInput, cache: cache, windowSize: nil)
+        let meanDiff = abs(mean - (-2.952))
+        Issue.record("Mean diff: \(meanDiff)")
+        #expect(meanDiff < 0.01, "Swift mel=\(mean) Python=-2.952 diff=\(meanDiff) frame0=\(frame0vals)")
 
-        // Generate one token to see if audio was used
-        switch result {
-        case .logits(let output):
-            let firstLogits = output.logits[0..., -1, 0...]
-            let topToken = firstLogits.argMax(axis: -1).item(Int.self)
-            let decoded = context.tokenizer.decode(tokens: [topToken])
-            Issue.record("First token from prepare: \(topToken) = '\(decoded)'")
-        case .tokens:
-            Issue.record("Got tokens instead of logits")
-        }
+        // Check frame 0 first value diff
+        let f0diff = abs(frame0vals[0] - (-4.613))
+        Issue.record("Frame0[0] diff: \(f0diff)")
     }
 }
