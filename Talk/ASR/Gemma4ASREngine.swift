@@ -7,6 +7,7 @@
 //
 
 import Foundation
+import Hub
 import MLX
 import MLXLMCommon
 import MLXVLM
@@ -86,7 +87,15 @@ final class Gemma4ASREngine {
 
         do {
             let configuration = ModelConfiguration(id: modelId)
-            let context = try await VLMModelFactory.shared.load(configuration: configuration)
+            // 先尝试离线加载（避免中国大陆用户 HuggingFace 超时）
+            let context: ModelContext
+            do {
+                let offlineHub = HubApi(useOfflineMode: true)
+                context = try await VLMModelFactory.shared.load(hub: offlineHub, configuration: configuration)
+            } catch {
+                // 离线失败（本地无缓存），联网下载
+                context = try await VLMModelFactory.shared.load(configuration: configuration)
+            }
 
             modelContext = context
             isModelLoaded = true

@@ -6,6 +6,7 @@
 //
 
 import Foundation
+import Hub
 import MLXLLM
 import MLXLMCommon
 
@@ -120,7 +121,7 @@ final class LLMService {
         }
 
         isLoading = true
-        loadingProgress = 0
+        loadingProgress = -1  // -1 = indeterminate (加载中，不确定是否需要下载)
 
         AppLogger.info("开始加载 LLM 模型: \(modelId)", category: .llm)
 
@@ -131,10 +132,22 @@ final class LLMService {
                     let config = ModelConfiguration(directory: URL(fileURLWithPath: modelId))
                     return try await LLMModelFactory.shared.loadContainer(configuration: config)
                 } else {
-                    return try await loadModelContainer(id: modelId) { progress in
-                        Task { @MainActor in
-                            LLMService.shared.loadingProgress = progress.fractionCompleted
+                    let progressHandler: @Sendable (Progress) -> Void = { progress in
+                        let fraction = progress.fractionCompleted
+                        // 只在真正下载时更新进度（跳过 1.0 — 本地加载会直接报 100%）
+                        if fraction > 0 && fraction < 1.0 {
+                            Task { @MainActor in
+                                LLMService.shared.loadingProgress = fraction
+                            }
                         }
+                    }
+                    // 先尝试离线加载（避免中国大陆用户 HuggingFace 超时）
+                    do {
+                        let offlineHub = HubApi(useOfflineMode: true)
+                        return try await loadModelContainer(hub: offlineHub, id: modelId, progressHandler: progressHandler)
+                    } catch {
+                        // 离线失败（本地无缓存），联网下载
+                        return try await loadModelContainer(id: modelId, progressHandler: progressHandler)
                     }
                 }
             }.value

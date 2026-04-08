@@ -194,6 +194,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
                 AppLogger.info("一段式模式：跳过 LLM 模型加载", category: .general)
             } else {
                 AppLogger.info("开始加载 LLM 模型...", category: .general)
+                statusBar?.updateDownloadProgress(modelName: "LLM", progress: -1)
                 // 监控 LLM 下载进度并更新浮动指示器
                 let progressTask = Task { @MainActor in
                     var lastProgress = -1.0
