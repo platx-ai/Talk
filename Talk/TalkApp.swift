@@ -37,6 +37,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     private var cumulativeConfirmedText: String = ""  // 累积的确认文本
     private var recordingStartTime: Date? = nil  // 录音开始时间
 
+    // MARK: - 引擎状态追踪（用于热切换 diff）
+    var loadedASREngine: AppSettings.ASREngine?
+    var loadedLLMEngine: AppSettings.LLMEngine?
+    var loadedLLMModelId: String?
+    var loadedGemma4ModelSize: AppSettings.Gemma4ModelSize?
+    var pendingEngineReload: Bool = false
+
     func applicationDidFinishLaunching(_ notification: Notification) {
         Self.shared = self
         AppLogger.info("========================================", category: .general)
@@ -80,7 +87,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     }
 
     private func unloadIdleModels() {
-        let settings = AppSettings.load()
         let hasAnyModel = ASRService.shared.isModelLoaded
             || LLMService.shared.isModelLoaded
             || Gemma4ASREngine.shared.isModelLoaded
@@ -91,6 +97,49 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         LLMService.shared.unloadModel()
         Gemma4ASREngine.shared.unloadModel()
         isModelsReady = false
+    }
+
+    /// 引擎热切换：比较当前加载状态 vs 期望设置，卸载变化的引擎，重新加载
+    func reloadEngines() {
+        // 录音中不切换，排队到录音结束
+        if AudioRecorder.shared.isRecording {
+            pendingEngineReload = true
+            AppLogger.info("引擎切换已排队，等待录音结束", category: .general)
+            return
+        }
+
+        let settings = AppSettings.load()
+        let bundled = resolveBundledModelSources()
+        let llmModelId = bundled.llmModelPath ?? settings.llmModelId
+
+        let asrChanged = settings.asrEngine != loadedASREngine
+        let llmEngineChanged = settings.llmEngine != loadedLLMEngine
+        let llmModelChanged = llmModelId != loadedLLMModelId
+        let gemma4SizeChanged = settings.gemma4ModelSize != loadedGemma4ModelSize
+
+        guard asrChanged || llmEngineChanged || llmModelChanged || gemma4SizeChanged else {
+            AppLogger.debug("引擎设置未变化，无需重载", category: .general)
+            return
+        }
+
+        AppLogger.info("引擎设置变化，开始热切换", category: .general)
+
+        // 卸载变化的引擎
+        if asrChanged || gemma4SizeChanged {
+            ASRService.shared.unloadModel()
+            Gemma4ASREngine.shared.unloadModel()
+            AppLogger.info("已卸载 ASR 引擎", category: .general)
+        }
+        if llmEngineChanged || llmModelChanged || gemma4SizeChanged {
+            LLMService.shared.unloadModel()
+            if llmEngineChanged || gemma4SizeChanged {
+                Gemma4ASREngine.shared.unloadModel()
+            }
+            AppLogger.info("已卸载 LLM 引擎", category: .general)
+        }
+
+        isModelsReady = false
+        initializeServices(settings: settings)
     }
 
     func applicationWillTerminate(_ notification: Notification) {
@@ -106,7 +155,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
 
     private(set) var isModelsReady = false
 
-    private func initializeServices(settings: AppSettings) {
+    func initializeServices(settings: AppSettings) {
         if let reason = MLXRuntimeValidator.missingMetalLibraryReason() {
             AppLogger.error("启动预加载已跳过: \(reason)", category: .model)
             return
@@ -174,6 +223,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
             }
             isModelsReady = asrReady && (settings.isOnePassMode || LLMService.shared.isModelLoaded)
             statusBar?.updateProcessingStatus(.idle)
+
+            // 记录已加载的引擎状态（用于热切换 diff）
+            self.loadedASREngine = settings.asrEngine
+            self.loadedLLMEngine = settings.llmEngine
+            self.loadedLLMModelId = llmModelId
+            self.loadedGemma4ModelSize = settings.gemma4ModelSize
 
             if isModelsReady {
                 AppLogger.info("所有模型已就绪", category: .general)
@@ -776,6 +831,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
 
                 statusBar.showDoneAndDismiss()
                 self.resetIdleTimer()
+                if self.pendingEngineReload {
+                    self.pendingEngineReload = false
+                    self.reloadEngines()
+                }
             } catch {
                 AppLogger.error("转录处理失败: \(error.localizedDescription)", category: .general)
                 statusBar.updateProcessingStatus(.idle)
@@ -929,6 +988,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
 
                 statusBar.showDoneAndDismiss()
                 self.resetIdleTimer()
+                if self.pendingEngineReload {
+                    self.pendingEngineReload = false
+                    self.reloadEngines()
+                }
             } catch {
                 AppLogger.error("音频处理失败: \(error.localizedDescription)", category: .general)
                 statusBar.updateProcessingStatus(.idle)
@@ -939,13 +1002,30 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
 
     // MARK: - 捕获选中文本
 
-    /// 已知不支持 Accessibility 选中文本的 app（运行时学习）
-    private var axUnsupportedApps: Set<String> = []
+    /// 已知不支持 Accessibility 选中文本的 app（运行时学习，持久化到 UserDefaults）
+    private static let axUnsupportedAppsKey = "axUnsupportedApps"
+    private var axUnsupportedApps: Set<String> = Set(
+        UserDefaults.standard.stringArray(forKey: AppDelegate.axUnsupportedAppsKey) ?? []
+    ) {
+        didSet {
+            UserDefaults.standard.set(Array(axUnsupportedApps), forKey: Self.axUnsupportedAppsKey)
+        }
+    }
+
     /// 终端类 app — Cmd+C 发 SIGINT，绝不能用
-    private func isTerminalApp(_ bundleId: String) -> Bool {
+    static func isTerminalApp(_ bundleId: String) -> Bool {
         let keywords = ["terminal", "iterm", "kitty", "wezterm", "hyper", "warp", "alacritty"]
         let lower = bundleId.lowercased()
         return keywords.contains { lower.contains($0) }
+    }
+
+    /// 检测 Cmd+C 结果是否为无选区的整行复制（VSCode/Cursor 等编辑器行为）
+    /// 单行 + 以换行结尾 = 疑似无选区复制；多行选中不过滤
+    static func shouldTreatAsNoSelection(_ text: String) -> Bool {
+        guard !text.isEmpty else { return false }
+        let normalized = text.replacingOccurrences(of: "\r\n", with: "\n")
+        let trimmed = normalized.trimmingCharacters(in: .newlines)
+        return normalized.hasSuffix("\n") && !trimmed.contains("\n")
     }
 
     private func captureSelectedText() -> String? {
@@ -953,7 +1033,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
 
         // 已知不支持 AX 的应用，直接走 Cmd+C（除非是终端）
         if axUnsupportedApps.contains(bundleId) {
-            if isTerminalApp(bundleId) { return nil }
+            if Self.isTerminalApp(bundleId) { return nil }
             AppLogger.debug("选中捕获：\(bundleId) 已知不支持 AX，使用 Cmd+C", category: .ui)
             return captureSelectedTextViaClipboard()
         }
@@ -968,7 +1048,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         AppLogger.debug("选中捕获：\(bundleId) 不支持 AX，已记录。尝试 Cmd+C fallback", category: .ui)
 
         // 终端不用 Cmd+C
-        if isTerminalApp(bundleId) { return nil }
+        if Self.isTerminalApp(bundleId) { return nil }
         return captureSelectedTextViaClipboard()
     }
 
@@ -1031,10 +1111,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
 
         guard let text = selectedText, !text.isEmpty else { return nil }
 
-        // VSCode/Cursor 等编辑器无选区时 Cmd+C 复制整行（恰好一行且以换行结尾）
-        // 多行选中（含换行）是合法的，不应过滤
-        let trimmed = text.trimmingCharacters(in: .newlines)
-        if text.hasSuffix("\n") && !trimmed.contains("\n") {
+        if Self.shouldTreatAsNoSelection(text) {
             AppLogger.debug("Cmd+C 结果为单行+换行，疑似无选区整行复制，忽略", category: .ui)
             return nil
         }

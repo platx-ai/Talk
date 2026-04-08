@@ -136,7 +136,7 @@ private struct ASRSettingsTab: View {
                         }.tag(engine)
                     }
                 }
-                .onChange(of: settings.asrEngine) { _ in ToastManager.shared.show(String(localized: "已保存")) }
+                .onChange(of: settings.asrEngine) { _ in ToastManager.shared.show(String(localized: "已保存")); AppDelegate.shared?.reloadEngines() }
 
                 Text(settings.asrEngine.subtitle)
                     .font(.caption)
@@ -286,7 +286,7 @@ private struct ASRSettingsTab: View {
                     Text(size.displayName).tag(size)
                 }
             }
-            .onChange(of: settings.gemma4ModelSize) { _ in ToastManager.shared.show(String(localized: "已保存")) }
+            .onChange(of: settings.gemma4ModelSize) { _ in ToastManager.shared.show(String(localized: "已保存")); AppDelegate.shared?.reloadEngines() }
 
             Toggle(String(localized: "繁→简转换"), isOn: $settings.gemma4EnableT2S)
                 .onChange(of: settings.gemma4EnableT2S) { _ in ToastManager.shared.show(String(localized: "已保存")) }
@@ -321,7 +321,7 @@ private struct LLMSettingsTab: View {
                         Text(engine.displayName).tag(engine)
                     }
                 }
-                .onChange(of: settings.llmEngine) { _ in ToastManager.shared.show(String(localized: "已保存")) }
+                .onChange(of: settings.llmEngine) { _ in ToastManager.shared.show(String(localized: "已保存")); AppDelegate.shared?.reloadEngines() }
 
                 if settings.isOnePassMode {
                     Label(String(localized: "一段式模式：ASR 和 LLM 共用 Gemma 4，润色强度和自定义提示词仍然生效。"), systemImage: "bolt.fill")
@@ -342,7 +342,7 @@ private struct LLMSettingsTab: View {
                     Text("⭐ Qwen3.5-4B (2.8GB)").tag("mlx-community/Qwen3.5-4B-OptiQ-4bit")
                     Text("Qwen3.5-2B (1.6GB)").tag("mlx-community/Qwen3.5-2B-4bit")
                 }
-                .onChange(of: settings.llmModelId) { _ in ToastManager.shared.show(String(localized: "已保存")) }
+                .onChange(of: settings.llmModelId) { _ in ToastManager.shared.show(String(localized: "已保存")); AppDelegate.shared?.reloadEngines() }
                 .disabled(settings.llmEngine == .gemma4)
 
                 Picker(String(localized: "润色强度"), selection: $settings.polishIntensity) {

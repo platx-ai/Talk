@@ -15,9 +15,25 @@ struct ChatTemplateTests {
 
     @Test
     func qwen35EnableThinkingFalse() async throws {
+        // 使用本地缓存目录加载 tokenizer，避免 HubApi 访问 ~/Documents
         let modelId = "mlx-community/Qwen3.5-4B-OptiQ-4bit"
+        let cacheDir = FileManager.default.homeDirectoryForCurrentUser
+            .appendingPathComponent(".cache/huggingface/hub")
+        let dirName = "models--" + modelId.replacingOccurrences(of: "/", with: "--")
+        let modelDir = cacheDir.appendingPathComponent(dirName)
+
+        // 跳过：模型未缓存时无法测试
+        guard FileManager.default.fileExists(atPath: modelDir.path) else {
+            return
+        }
+
         let hub = HubApi()
-        let config = LanguageModelConfigurationFromHub(modelName: modelId, hubApi: hub)
+        let config = LanguageModelConfigurationFromHub(
+            modelFolder: modelDir.appendingPathComponent("snapshots").appendingPathComponent(
+                try FileManager.default.contentsOfDirectory(atPath: modelDir.appendingPathComponent("snapshots").path).first ?? ""
+            ),
+            hubApi: hub
+        )
 
         guard let tokenizerConfig = try await config.tokenizerConfig else {
             Issue.record("No tokenizer config found")
@@ -43,9 +59,6 @@ struct ChatTemplateTests {
             additionalContext: ["enable_thinking": false]
         )
         let decodedNoThink = tokenizer.decode(tokens: tokensNoThink)
-
-        print("DEFAULT last 60: \(decodedDefault.suffix(60))")
-        print("NOTHINK last 60: \(decodedNoThink.suffix(60))")
 
         // Default should end with <think>\n (open thinking)
         #expect(decodedDefault.hasSuffix("<think>\n"))
