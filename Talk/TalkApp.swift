@@ -120,6 +120,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
             switch settings.asrEngine {
             case .mlxLocal:
                 AppLogger.info("开始加载 ASR 模型...", category: .general)
+                statusBar?.updateDownloadProgress(modelName: "ASR", progress: -1)
                 do {
                     try await ASRService.shared.loadModel(modelId: settings.asrModelId, bundleResourcesURL: bundled.asrBundleResourcesURL)
                     AppLogger.info("ASR 模型加载完成", category: .general)
@@ -128,6 +129,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
                 }
             case .gemma4:
                 AppLogger.info("开始加载 Gemma4 模型...", category: .general)
+                statusBar?.updateDownloadProgress(modelName: "Gemma4", progress: -1)
                 do {
                     try await Gemma4ASREngine.shared.loadModel(modelId: settings.gemma4ModelId)
                     AppLogger.info("Gemma4 模型加载完成", category: .general)
@@ -143,12 +145,25 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
                 AppLogger.info("一段式模式：跳过 LLM 模型加载", category: .general)
             } else {
                 AppLogger.info("开始加载 LLM 模型...", category: .general)
+                // 监控 LLM 下载进度并更新浮动指示器
+                let progressTask = Task { @MainActor in
+                    var lastProgress = -1.0
+                    while LLMService.shared.isLoading {
+                        let p = LLMService.shared.loadingProgress
+                        if p != lastProgress {
+                            lastProgress = p
+                            statusBar?.updateDownloadProgress(modelName: "LLM", progress: p)
+                        }
+                        try? await Task.sleep(for: .milliseconds(200))
+                    }
+                }
                 do {
                     try await LLMService.shared.loadModel(modelId: llmModelId)
                     AppLogger.info("LLM 模型加载完成", category: .general)
                 } catch {
                     AppLogger.error("LLM 模型加载失败: \(error.localizedDescription)", category: .general)
                 }
+                progressTask.cancel()
             }
 
             let asrReady: Bool
@@ -688,10 +703,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
 
             do {
                 if !LLMService.shared.isModelLoaded {
-                    statusBar.updateProcessingStatus(.loadingModel)
-                }
-                if !LLMService.shared.isModelLoaded {
+                    statusBar.updateDownloadProgress(modelName: "LLM", progress: -1)
+                    // 监控下载进度
+                    let progressTask = Task { @MainActor in
+                        while LLMService.shared.isLoading {
+                            statusBar.updateDownloadProgress(modelName: "LLM", progress: LLMService.shared.loadingProgress)
+                            try? await Task.sleep(for: .milliseconds(200))
+                        }
+                    }
                     try await LLMService.shared.loadModel(modelId: llmModelId)
+                    progressTask.cancel()
                 }
 
                 statusBar.updateProcessingStatus(.polishing)

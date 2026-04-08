@@ -61,7 +61,7 @@ final class LocalTypeMenuBar {
         case .idle:
             floatingIndicator.dismiss()
         case .loadingModel:
-            floatingIndicator.updatePhase(.loadingModel)
+            floatingIndicator.updatePhase(.loadingModel())
             floatingIndicator.show()
         case .recording:
             floatingIndicator.updatePhase(.recording(startDate: Date(), isEditMode: isEditMode))
@@ -74,6 +74,11 @@ final class LocalTypeMenuBar {
         case .outputting:
             floatingIndicator.updatePhase(.outputting)
         }
+    }
+
+    func updateDownloadProgress(modelName: String, progress: Double) {
+        floatingIndicator.updatePhase(.loadingModel(name: modelName, progress: progress))
+        floatingIndicator.show()
     }
 
     func updateFloatingAudioLevel(_ level: Float) {

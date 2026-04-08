@@ -13,8 +13,8 @@ import AppKit
 @Observable
 @MainActor
 final class FloatingIndicatorState {
-    enum Phase {
-        case loadingModel
+    enum Phase: Equatable {
+        case loadingModel(name: String = "", progress: Double = -1) // progress < 0 = indeterminate
         case recording(startDate: Date, isEditMode: Bool)
         case recognizing
         case polishing
@@ -223,6 +223,18 @@ struct FloatingIndicatorContentView: View {
     @ViewBuilder
     private var iconView: some View {
         switch state.phase {
+        case .loadingModel(_, let progress) where progress >= 0:
+            // 有进度时显示环形进度
+            ZStack {
+                Circle()
+                    .stroke(.white.opacity(0.2), lineWidth: 2)
+                    .frame(width: 16, height: 16)
+                Circle()
+                    .trim(from: 0, to: CGFloat(progress))
+                    .stroke(.white, style: StrokeStyle(lineWidth: 2, lineCap: .round))
+                    .frame(width: 16, height: 16)
+                    .rotationEffect(.degrees(-90))
+            }
         case .loadingModel:
             ProgressView().controlSize(.small)
         case .recording(_, let isEditMode):
@@ -261,10 +273,20 @@ struct FloatingIndicatorContentView: View {
     @ViewBuilder
     private var textView: some View {
         switch state.phase {
-        case .loadingModel:
-            Text(String(localized: "加载模型中..."))
-                .font(.system(size: 12, weight: .medium))
-                .foregroundStyle(.primary)
+        case .loadingModel(let name, let progress):
+            if progress >= 0 {
+                Text("\(String(localized: "下载")) \(name) \(Int(progress * 100))%")
+                    .font(.system(size: 12, weight: .medium))
+                    .foregroundStyle(.primary)
+            } else if !name.isEmpty {
+                Text("\(String(localized: "加载")) \(name)...")
+                    .font(.system(size: 12, weight: .medium))
+                    .foregroundStyle(.primary)
+            } else {
+                Text(String(localized: "加载模型中..."))
+                    .font(.system(size: 12, weight: .medium))
+                    .foregroundStyle(.primary)
+            }
         case .recording(let startDate, let isEditMode):
             if state.realtimeText.isEmpty {
                 TimelineView(.periodic(from: startDate, by: 0.5)) { context in

@@ -131,7 +131,11 @@ final class LLMService {
                     let config = ModelConfiguration(directory: URL(fileURLWithPath: modelId))
                     return try await LLMModelFactory.shared.loadContainer(configuration: config)
                 } else {
-                    return try await loadModelContainer(id: modelId)
+                    return try await loadModelContainer(id: modelId) { progress in
+                        Task { @MainActor in
+                            LLMService.shared.loadingProgress = progress.fractionCompleted
+                        }
+                    }
                 }
             }.value
 
