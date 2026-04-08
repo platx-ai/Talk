@@ -40,6 +40,7 @@ final class LLMService {
 
 【严格规则】
 - 只输出清理后的文本，禁止输出任何解释、说明、前言
+- 禁止输出思考过程、分析步骤、推理过程
 - 禁止输出"好的"、"已修改"、"清理后的文本如下"等回应性语句
 - 如果输入为空，返回空字符串
 
@@ -64,6 +65,7 @@ final class LLMService {
 【严格规则】
 - 你的输出会直接替换用户选中的文本
 - 只输出修改后的文本，禁止任何解释、前言、总结
+- 禁止输出思考过程、分析步骤、推理过程
 - 如果不确定如何修改，原样返回选中文本
 
 【指令类型和示例】
@@ -227,17 +229,29 @@ final class LLMService {
                 AppLogger.debug("复用 ChatSession (app=\(sessionKey), rounds=\(appRoundCounts[sessionKey] ?? 0))", category: .llm)
             } else {
                 // 新 session 或 instructions 变了（提示词切换）
-                session = ChatSession(modelContainer, instructions: instructions, generateParameters: params)
+                // Qwen3.5 需要 enable_thinking=false 避免输出 "Thinking Process:" 元信息
+                session = ChatSession(
+                    modelContainer, instructions: instructions,
+                    generateParameters: params,
+                    additionalContext: ["enable_thinking": false]
+                )
                 appSessions[sessionKey] = session
                 appRoundCounts[sessionKey] = 0
-                AppLogger.debug("新建 ChatSession (app=\(sessionKey))", category: .llm)
+                AppLogger.debug("新建 ChatSession (app=\(sessionKey)), additionalContext=\(String(describing: session.additionalContext))", category: .llm)
             }
 
             let startTime = CFAbsoluteTimeGetCurrent()
             let response = try await session.respond(to: userMessage)
             let elapsed = CFAbsoluteTimeGetCurrent() - startTime
 
-            let polishedText = response.trimmingCharacters(in: CharacterSet.whitespacesAndNewlines)
+            AppLogger.debug("LLM raw response: \(response.prefix(300))", category: .llm)
+            var polishedText = Self.stripThinkingBlock(response)
+            // 如果 strip 后为空（模型只输出了思考过程），fallback 到原始输入
+            if polishedText.isEmpty {
+                AppLogger.warning("LLM 输出被完全 strip（全是思考内容），fallback 到原始文本", category: .llm)
+                polishedText = text
+            }
+            AppLogger.debug("LLM after strip: \(polishedText.prefix(200))", category: .llm)
 
             // 更新轮数计数
             let rounds = (appRoundCounts[sessionKey] ?? 0) + 1
@@ -301,7 +315,11 @@ type 取值: proper_noun, homophone, abbreviation
             let params = GenerateParameters(maxTokens: maxTokens)
 
             // 每次创建新 session（热词提取是独立任务，不需要历史上下文）
-            let session = ChatSession(modelContainer, instructions: instructions, generateParameters: params)
+            let session = ChatSession(
+                modelContainer, instructions: instructions,
+                generateParameters: params,
+                additionalContext: ["enable_thinking": false]
+            )
 
             let startTime = CFAbsoluteTimeGetCurrent()
             let response = try await session.respond(to: userMessage)
@@ -343,6 +361,32 @@ type 取值: proper_noun, homophone, abbreviation
             AppLogger.debug("热词 JSON 解析失败: \(error.localizedDescription), raw=\(text.prefix(100))", category: .llm)
             return []
         }
+    }
+
+    // MARK: - 后处理
+
+    /// 去除 Qwen3.5 等模型可能输出的思考块（XML 标签或纯文本 "Thinking Process:"）
+    static func stripThinkingBlock(_ text: String) -> String {
+        var result = text
+        // 去除 <think>...</think> 块（含换行）
+        while let range = result.range(of: "<think>[\\s\\S]*?</think>", options: .regularExpression) {
+            result = result.replacingCharacters(in: range, with: "")
+        }
+        // 去除可能残留的单独 <think> 或 </think> 标签
+        result = result.replacingOccurrences(of: "<think>", with: "")
+        result = result.replacingOccurrences(of: "</think>", with: "")
+        // 去除纯文本思考块："Thinking Process:" 直到文末（整个思考就是输出）
+        // 然后提取其后面可能跟的实际结果
+        if let thinkRange = result.range(of: "Thinking Process:") {
+            // 如果有 "Output:" 或 "Result:" 后面的实际内容，提取它
+            if let outputRange = result.range(of: "(?:Output|Result|Answer|最终结果|输出)[：:]\\s*", options: .regularExpression, range: thinkRange.lowerBound..<result.endIndex) {
+                result = String(result[outputRange.upperBound...])
+            } else {
+                // 整个输出都是思考过程，清空
+                result = result[result.startIndex..<thinkRange.lowerBound].trimmingCharacters(in: .whitespacesAndNewlines)
+            }
+        }
+        return result.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
     // MARK: - 历史管理
