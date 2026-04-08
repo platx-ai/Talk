@@ -1007,7 +1007,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
 
         let selectedText = pasteboard.string(forType: .string)
         AppLogger.debug("通过 Cmd+C 捕获选中文本: \(selectedText?.prefix(50) ?? "nil")...", category: .ui)
-        return selectedText?.isEmpty == true ? nil : selectedText
+
+        guard let text = selectedText, !text.isEmpty else { return nil }
+
+        // VSCode/Cursor 等编辑器无选区时 Cmd+C 复制整行（恰好一行且以换行结尾）
+        // 多行选中（含换行）是合法的，不应过滤
+        let trimmed = text.trimmingCharacters(in: .newlines)
+        if text.hasSuffix("\n") && !trimmed.contains("\n") {
+            AppLogger.debug("Cmd+C 结果为单行+换行，疑似无选区整行复制，忽略", category: .ui)
+            return nil
+        }
+
+        return text
     }
 
     private func setupMicrophonePermission() {

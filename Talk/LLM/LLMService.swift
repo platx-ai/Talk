@@ -192,6 +192,7 @@ final class LLMService {
                 instructions = Self.defaultEditPrompt
             }
             userMessage = "【选中的文本】\n\(selectedText)\n\n【语音指令】\n\(text)"
+            AppLogger.info("编辑模式: selectedText=\(selectedText.prefix(80))..., 语音指令=\(text.prefix(80))", category: .llm)
         } else {
             // 普通润色模式
             if let customPrompt, !customPrompt.isEmpty {
@@ -218,10 +219,19 @@ final class LLMService {
             let params = GenerateParameters(maxTokens: maxTokens)
 
             let sessionKey = appBundleId ?? "__global__"
+            let isEditMode = selectedText != nil && !selectedText!.isEmpty
 
-            // 获取或创建 per-app ChatSession（复用 KV Cache）
+            // 编辑模式：每次独立，不复用 session（避免历史对话污染编辑指令）
+            // 润色模式：复用 per-app ChatSession（KV Cache 加速 + 上下文关联）
             let session: ChatSession
-            if let existing = appSessions[sessionKey],
+            if isEditMode {
+                session = ChatSession(
+                    modelContainer, instructions: instructions,
+                    generateParameters: params,
+                    additionalContext: ["enable_thinking": false]
+                )
+                AppLogger.debug("编辑模式: 新建独立 ChatSession (app=\(sessionKey))", category: .llm)
+            } else if let existing = appSessions[sessionKey],
                existing.instructions == instructions {
                 // 复用已有 session — KV Cache 中已有之前对话的 token
                 session = existing
@@ -229,7 +239,6 @@ final class LLMService {
                 AppLogger.debug("复用 ChatSession (app=\(sessionKey), rounds=\(appRoundCounts[sessionKey] ?? 0))", category: .llm)
             } else {
                 // 新 session 或 instructions 变了（提示词切换）
-                // Qwen3.5 需要 enable_thinking=false 避免输出 "Thinking Process:" 元信息
                 session = ChatSession(
                     modelContainer, instructions: instructions,
                     generateParameters: params,
@@ -237,7 +246,7 @@ final class LLMService {
                 )
                 appSessions[sessionKey] = session
                 appRoundCounts[sessionKey] = 0
-                AppLogger.debug("新建 ChatSession (app=\(sessionKey)), additionalContext=\(String(describing: session.additionalContext))", category: .llm)
+                AppLogger.debug("新建 ChatSession (app=\(sessionKey))", category: .llm)
             }
 
             let startTime = CFAbsoluteTimeGetCurrent()
@@ -253,18 +262,20 @@ final class LLMService {
             }
             AppLogger.debug("LLM after strip: \(polishedText.prefix(200))", category: .llm)
 
-            // 更新轮数计数
-            let rounds = (appRoundCounts[sessionKey] ?? 0) + 1
-            appRoundCounts[sessionKey] = rounds
+            // 编辑模式不计入轮数（session 不缓存）
+            if !isEditMode {
+                let rounds = (appRoundCounts[sessionKey] ?? 0) + 1
+                appRoundCounts[sessionKey] = rounds
 
-            // 超过 maxHistoryRounds 时重置 session（防止 KV Cache 无限增长）
-            if rounds >= maxHistoryRounds {
-                appSessions.removeValue(forKey: sessionKey)
-                appRoundCounts.removeValue(forKey: sessionKey)
-                AppLogger.info("ChatSession 已重置 (app=\(sessionKey), 达到 \(maxHistoryRounds) 轮上限)", category: .llm)
+                // 超过 maxHistoryRounds 时重置 session（防止 KV Cache 无限增长）
+                if rounds >= maxHistoryRounds {
+                    appSessions.removeValue(forKey: sessionKey)
+                    appRoundCounts.removeValue(forKey: sessionKey)
+                    AppLogger.info("ChatSession 已重置 (app=\(sessionKey), 达到 \(maxHistoryRounds) 轮上限)", category: .llm)
+                }
             }
 
-            AppLogger.info("润色完成: \(String(format: "%.2f", elapsed))s, app=\(sessionKey), round=\(rounds)", category: .llm)
+            AppLogger.info("润色完成: \(String(format: "%.2f", elapsed))s, app=\(sessionKey), edit=\(isEditMode), round=\(appRoundCounts[sessionKey] ?? 0)", category: .llm)
 
             AppLogger.debug("文本润色完成: \(polishedText)", category: .llm)
             return polishedText
