@@ -60,6 +60,10 @@ final class HotKeyManager {
     private nonisolated(unsafe) var _cachedModifiers: UInt32 = defaultHotKey.modifiers
     private nonisolated(unsafe) var _cachedIsModifierOnly: Bool = true
     private nonisolated(unsafe) var _cachedWasPressed: Bool = false
+    /// 上次状态变化时间戳（用于 debounce 抖动事件）
+    private nonisolated(unsafe) var _lastStateChangeTime: UInt64 = 0
+    /// Debounce 间隔：50ms（过滤修饰键抖动）
+    static let debounceNanos: UInt64 = 50_000_000
 
     // MARK: - 初始化
 
@@ -198,6 +202,13 @@ final class HotKeyManager {
             // 只在状态真正变化时才 dispatch 到主线程
             let wasPressed = _cachedWasPressed
             if isDown != wasPressed {
+                // Debounce：过滤 50ms 内的重复状态变化（修饰键抖动）
+                let now = DispatchTime.now().uptimeNanoseconds
+                let elapsed = now - _lastStateChangeTime
+                if elapsed < Self.debounceNanos && _lastStateChangeTime != 0 {
+                    return
+                }
+                _lastStateChangeTime = now
                 _cachedWasPressed = isDown
                 Task { @MainActor [weak self] in
                     self?.handleKeyState(isDown: isDown)
@@ -242,6 +253,13 @@ final class HotKeyManager {
                 isKeyPressed = false
             }
         }
+    }
+
+    // MARK: - 测试入口
+
+    /// 测试用：直接调用 handleKeyState（绕过 CGEventTap）
+    func testHandleKeyState(isDown: Bool) {
+        handleKeyState(isDown: isDown)
     }
 
     // MARK: - 辅助方法

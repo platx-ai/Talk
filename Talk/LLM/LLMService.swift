@@ -312,20 +312,37 @@ final class LLMService {
     }
 
     private static let hotwordExtractionPrompt = """
-你是一个热词提取器。给定语音识别的原始输出和用户的修正版本，提取出属于 ASR 误识别导致的词语修正。
+你是一个 ASR 纠错提取器。给定【原始文本】（语音识别+润色后的输出）和【用户修改后】（用户手动修正后的版本），提取出 ASR 听错导致的词语修正。
 
-只提取以下类型：
-1. 专有名词拼写错误（公司名、产品名、人名、技术术语）
-2. ASR 同音字/近音字错误
-3. 缩写/术语识别错误
+【关键规则】
+- original = 原始文本中的错误词（ASR 听错的）
+- corrected = 用户修改后的正确词
+- 只提取 1-4 个字/词 级别的修正，不要提取整句话
+- 只输出 JSON 数组，无修正返回 []
+- 禁止输出思考过程
 
-不要提取：
-- 语法润色、删减口语词、调整语序
-- 标点变化
-- 纯粹的措辞偏好改写
+【提取范围】
+✅ 提取：同音/近音错误（skill→SQL）、专有名词（Cloud Code→Claude Code）、技术术语（OOS→OAuth）
+❌ 不提取：标点变化、删减口语词、语序调整、措辞改写、分段排版
 
-返回 JSON 数组，无修正则返回 []。每个元素包含 original、corrected、type 三个字段。
-type 取值: proper_noun, homophone, abbreviation
+【示例】
+
+输入：
+原始文本：触发一下这个 skill 吧。
+用户修改后：触发一下这个 SQL 吧。
+输出：[{"original":"skill","corrected":"SQL","type":"homophone"}]
+
+输入：
+原始文本：我们用 Cloud Code 来开发。
+用户修改后：我们用 Claude Code 来开发。
+输出：[{"original":"Cloud Code","corrected":"Claude Code","type":"proper_noun"}]
+
+输入：
+原始文本：嗯，就是说，我觉得这个方案可以。
+用户修改后：我觉得这个方案可以。
+输出：[]
+
+type 取值：proper_noun, homophone, abbreviation
 """
 
     /// 从用户编辑中提取热词修正（后台空闲时调用）
