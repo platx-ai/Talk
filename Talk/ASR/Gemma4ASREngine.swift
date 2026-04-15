@@ -7,7 +7,6 @@
 //
 
 import Foundation
-import Hub
 import MLX
 import MLXLMCommon
 import MLXVLM
@@ -85,15 +84,25 @@ final class Gemma4ASREngine {
         isLoading = true
         AppLogger.info("开始加载 Gemma4 模型: \(modelId)", category: .asr)
 
+        // 本地 snapshot 直连（参见 LLMService.loadModel 的注释）：
+        // 走 ~/.cache/huggingface/hub/models--<org>--<repo>/snapshots/<hash>/，
+        // ModelConfiguration(directory:) 让 downloadModel() 短路到 case .directory，
+        // 0 网络 / 0 ETag 校验，纯 mmap。
+        let cachedSnapshot: URL? = modelId.hasPrefix("/")
+            ? URL(fileURLWithPath: modelId)
+            : HFCacheResolver.snapshotDirectory(for: modelId)
+        if let snapshot = cachedSnapshot {
+            AppLogger.info("Gemma4 本地直接加载: \(snapshot.path)", category: .asr)
+        }
+
         do {
-            let configuration = ModelConfiguration(id: modelId)
-            // 先尝试离线加载（避免中国大陆用户 HuggingFace 超时）
             let context: ModelContext
-            do {
-                let offlineHub = HubApi(useOfflineMode: true)
-                context = try await VLMModelFactory.shared.load(hub: offlineHub, configuration: configuration)
-            } catch {
-                // 离线失败（本地无缓存），联网下载
+            if let snapshot = cachedSnapshot {
+                let configuration = ModelConfiguration(directory: snapshot)
+                context = try await VLMModelFactory.shared.load(configuration: configuration)
+            } else {
+                // 本地无缓存：联网下载
+                let configuration = ModelConfiguration(id: modelId)
                 context = try await VLMModelFactory.shared.load(configuration: configuration)
             }
 

@@ -125,30 +125,36 @@ final class LLMService {
 
         AppLogger.info("开始加载 LLM 模型: \(modelId)", category: .llm)
 
+        // 主线程上同步检查 ~/.cache/huggingface/hub/ 是否有本地 snapshot
+        // ——这是 Python huggingface_hub / HF CLI 的标准 cache 路径，老用户
+        // 通常已经下载好了。找到的话直接用 ModelConfiguration(directory:)
+        // 加载，跳过 swift-transformers HubApi 的 metadata + ETag 校验。
+        let cachedSnapshot: URL? = modelId.hasPrefix("/")
+            ? URL(fileURLWithPath: modelId)
+            : HFCacheResolver.snapshotDirectory(for: modelId)
+        if let snapshot = cachedSnapshot {
+            AppLogger.info("LLM 本地直接加载: \(snapshot.path)", category: .llm)
+        }
+
         do {
             // 在后台线程加载模型，避免阻塞主线程/UI
             let container: ModelContainer = try await Task.detached(priority: .userInitiated) {
-                if modelId.hasPrefix("/") {
-                    let config = ModelConfiguration(directory: URL(fileURLWithPath: modelId))
+                if let snapshot = cachedSnapshot {
+                    // 走本地目录路径 — downloadModel() 会立即 return directory，
+                    // 不调 hub.snapshot()，0 网络访问，0 SHA256 校验。
+                    let config = ModelConfiguration(directory: snapshot)
                     return try await LLMModelFactory.shared.loadContainer(configuration: config)
                 } else {
+                    // 本地无缓存：联网下载（HubApi 默认走 ~/Documents/huggingface/）
                     let progressHandler: @Sendable (Progress) -> Void = { progress in
                         let fraction = progress.fractionCompleted
-                        // 只在真正下载时更新进度（跳过 1.0 — 本地加载会直接报 100%）
                         if fraction > 0 && fraction < 1.0 {
                             Task { @MainActor in
                                 LLMService.shared.loadingProgress = fraction
                             }
                         }
                     }
-                    // 先尝试离线加载（避免中国大陆用户 HuggingFace 超时）
-                    do {
-                        let offlineHub = HubApi(useOfflineMode: true)
-                        return try await loadModelContainer(hub: offlineHub, id: modelId, progressHandler: progressHandler)
-                    } catch {
-                        // 离线失败（本地无缓存），联网下载
-                        return try await loadModelContainer(id: modelId, progressHandler: progressHandler)
-                    }
+                    return try await loadModelContainer(id: modelId, progressHandler: progressHandler)
                 }
             }.value
 
