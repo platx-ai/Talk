@@ -339,8 +339,9 @@ private struct LLMSettingsTab: View {
             Section {
                 Picker(String(localized: "模型选择"), selection: $settings.llmModelId) {
                     Text("Qwen3-4B (2.1GB)").tag("mlx-community/Qwen3-4B-Instruct-2507-4bit")
-                    Text("⭐ Qwen3.5-4B (2.8GB)").tag("mlx-community/Qwen3.5-4B-OptiQ-4bit")
+                    Text("⭐ Qwen3.5-4B MLX (2.8GB)").tag("mlx-community/Qwen3.5-4B-MLX-4bit")
                     Text("Qwen3.5-2B (1.6GB)").tag("mlx-community/Qwen3.5-2B-4bit")
+                    Text("Qwen3.5-4B OptiQ (2.8GB, legacy)").tag("mlx-community/Qwen3.5-4B-OptiQ-4bit")
                 }
                 .onChange(of: settings.llmModelId) { _ in ToastManager.shared.show(String(localized: "已保存")); AppDelegate.shared?.reloadEngines() }
                 .disabled(settings.llmEngine == .gemma4)

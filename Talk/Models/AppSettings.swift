@@ -274,7 +274,7 @@ final class AppSettings {
 
     // MARK: - LLM 设置
 
-    var llmModelId: String = "mlx-community/Qwen3.5-4B-OptiQ-4bit" { didSet { autoSave() } }
+    var llmModelId: String = "mlx-community/Qwen3.5-4B-MLX-4bit" { didSet { autoSave() } }
 
     enum PolishIntensity: String, Codable, CaseIterable {
         case light = "light"
@@ -389,11 +389,14 @@ final class AppSettings {
             .appendingPathComponent(".cache/huggingface/hub")
 
         // 优先用已有的（兼容老用户），没有再推荐新的
+        // NOTE: Qwen3.5-4B-OptiQ-4bit 在 mlx-swift 0.31.3+ 上 weight loading
+        //       会失败（mlx-swift#363 vs OptiQ 蒸馏权重结构的交互）——所以不
+        //       能作为默认。标准 MLX-4bit 打包是最稳的。
         let candidates = [
             "mlx-community/Qwen3-4B-Instruct-2507-4bit",   // 老用户最可能有
-            "mlx-community/Qwen3.5-4B-OptiQ-4bit",         // 推荐
+            "mlx-community/Qwen3.5-4B-MLX-4bit",           // 推荐：标准 MLX 打包
             "mlx-community/Qwen3.5-2B-4bit",               // 轻量
-            "mlx-community/Qwen3.5-4B-MLX-4bit",           // 备选
+            "mlx-community/Qwen3.5-4B-OptiQ-4bit",         // 备选：OptiQ 蒸馏（有兼容性问题）
         ]
 
         for modelId in candidates {
@@ -405,7 +408,7 @@ final class AppSettings {
         }
 
         // 没有缓存的模型，用推荐默认
-        return "mlx-community/Qwen3.5-4B-OptiQ-4bit"
+        return "mlx-community/Qwen3.5-4B-MLX-4bit"
     }
 }
 
