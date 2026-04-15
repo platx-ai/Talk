@@ -114,6 +114,7 @@ class MenuViewModel: ObservableObject {
         case asr = "识别中..."
         case polishing = "润色中..."
         case outputting = "输出中..."
+        case error = "错误"
 
         var localizedName: String {
             String(localized: String.LocalizationValue(rawValue))

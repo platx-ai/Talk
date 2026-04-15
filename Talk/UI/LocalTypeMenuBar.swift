@@ -19,12 +19,18 @@ final class LocalTypeMenuBar {
     private var popover: NSPopover?
     private let viewModel = MenuViewModel()
     private let floatingIndicator = FloatingIndicatorWindow()
+    private let stateMachine = ProcessingStateMachine()
     private var flashCapsulePanel: FloatingPanel?
     private var flashCapsuleDismissWorkItem: DispatchWorkItem?
 
     private init() {
         setupMenuBar()
         setupHotwordNotificationListener()
+        
+        // 监听状态变化
+        stateMachine.onStateChange = { [weak self] oldState, newState in
+            self?.updateUI(for: newState)
+        }
     }
 
     private func setupMenuBar() {
@@ -54,25 +60,69 @@ final class LocalTypeMenuBar {
     }
 
     func updateProcessingStatus(_ status: MenuViewModel.ProcessingStatus, isEditMode: Bool = false) {
-        viewModel.processingStatus = status
-        viewModel.isRecording = status == .recording
-
+        let newState = mapToProcessingState(status, isEditMode: isEditMode)
+        
+        if !stateMachine.transition(to: newState) {
+            // 状态转换失败，记录日志但不阻塞
+            AppLogger.warning("状态转换失败：\(stateMachine.currentState.description) → \(newState.description)")
+        }
+    }
+    
+    /// 将 MenuViewModel.ProcessingStatus 映射到 ProcessingState
+    private func mapToProcessingState(_ status: MenuViewModel.ProcessingStatus, isEditMode: Bool) -> ProcessingState {
         switch status {
         case .idle:
-            floatingIndicator.dismiss()
+            return .idle
         case .loadingModel:
-            floatingIndicator.updatePhase(.loadingModel())
-            floatingIndicator.show()
+            return .loadingModel(modelName: "Qwen3", progress: 0.5)
         case .recording:
-            floatingIndicator.updatePhase(.recording(startDate: Date(), isEditMode: isEditMode))
-            floatingIndicator.show()
+            return .recording(startDate: Date(), isEditMode: isEditMode)
         case .asr:
+            return .recognizing
+        case .polishing:
+            return .polishing
+        case .outputting:
+            return .outputting
+        }
+    }
+    
+    /// 根据状态更新 UI
+    private func updateUI(for state: ProcessingState) {
+        // 更新 floatingIndicator
+        switch state {
+        case .idle:
+            floatingIndicator.dismiss()
+        case .loadingModel(let name, let progress):
+            floatingIndicator.updatePhase(.loadingModel(name: name, progress: progress))
+            floatingIndicator.show()
+        case .recording(let startDate, let isEditMode):
+            floatingIndicator.updatePhase(.recording(startDate: startDate, isEditMode: isEditMode))
+            floatingIndicator.show()
+        case .recognizing:
             floatingIndicator.updatePhase(.recognizing)
             floatingIndicator.show()
         case .polishing:
             floatingIndicator.updatePhase(.polishing)
         case .outputting:
             floatingIndicator.updatePhase(.outputting)
+        case .error(let error):
+            floatingIndicator.updatePhase(.error(error))
+        }
+        
+        // 更新 viewModel
+        viewModel.processingStatus = mapToMenuViewModelStatus(state)
+    }
+    
+    /// 将 ProcessingState 映射回 MenuViewModel.ProcessingStatus
+    private func mapToMenuViewModelStatus(_ state: ProcessingState) -> MenuViewModel.ProcessingStatus {
+        switch state {
+        case .idle: return .idle
+        case .loadingModel(let name, let progress): return .loadingModel(name: name, progress: progress)
+        case .recording: return .recording
+        case .recognizing: return .asr
+        case .polishing: return .polishing
+        case .outputting: return .outputting
+        case .error(let error): return .error(error)
         }
     }
 

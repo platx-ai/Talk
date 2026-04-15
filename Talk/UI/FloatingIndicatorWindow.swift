@@ -20,6 +20,7 @@ final class FloatingIndicatorState {
         case polishing
         case outputting
         case done
+        case error(TalkError)
 
         var animationKey: String {
             switch self {
@@ -29,6 +30,7 @@ final class FloatingIndicatorState {
             case .polishing: return "polishing"
             case .outputting: return "outputting"
             case .done: return "done"
+            case .error: return "error"
             }
         }
     }
