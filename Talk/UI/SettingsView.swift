@@ -27,6 +27,9 @@ struct SettingsView: View {
 
             AdvancedSettingsTab(settings: settings)
                 .tabItem { Image(systemName: "gearshape.2") }
+
+            StatisticsView()
+                .tabItem { Label(String(localized: "统计"), systemImage: "chart.bar") }
         }
         .frame(width: 600, height: 520)
         .toast()
