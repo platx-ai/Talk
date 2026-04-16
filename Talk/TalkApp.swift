@@ -164,7 +164,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         let bundled = resolveBundledModelSources()
         let llmModelId = bundled.llmModelPath ?? settings.llmModelId
         Task {
-            statusBar?.updateProcessingStatus(.loadingModel)
+            statusBar?.updateProcessingStatus(.loadingModel(name: "Model", progress: -1))
 
             switch settings.asrEngine {
             case .mlxLocal:
@@ -450,7 +450,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         }
 
         if AudioRecorder.shared.isRecording {
-            statusBar.updateProcessingStatus(.recording)
+            statusBar.updateProcessingStatus(.recording(startDate: Date(), isEditMode: false))
             return false
         }
         do {
@@ -555,7 +555,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
                 AudioRecorder.shared.onAudioData = nil
             }
             try AudioRecorder.shared.startRecording(sampleRate: 16000)
-            statusBar.updateProcessingStatus(.recording, isEditMode: selectedTextBeforeRecording != nil)
+            statusBar.updateProcessingStatus(.recording(startDate: Date(), isEditMode: selectedTextBeforeRecording != nil))
             statusBar.updateFloatingRealtimeText("")  // 清空之前的实时文本
             AppLogger.info("\(trigger)触发：开始录音，目标应用: \(targetApp?.localizedName ?? "unknown")", category: .ui)
             return true
@@ -577,7 +577,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         AudioRecorder.shared.onAudioLevel = nil
         AudioRecorder.shared.onAudioData = nil
         AudioRecorder.shared.stopRecording()
-        statusBar.updateProcessingStatus(.asr)
+        statusBar.updateProcessingStatus(.recognizing)
 
         // 清理流式识别相关状态
         recordingStartTime = nil
@@ -859,7 +859,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
                 if settings.isOnePassMode {
                     // 一段式：Gemma4 直接输出润色文本（ASR + LLM 合一）
                     if !Gemma4ASREngine.shared.isModelLoaded {
-                        statusBar.updateProcessingStatus(.loadingModel)
+                        statusBar.updateProcessingStatus(.loadingModel(name: "Gemma4", progress: -1))
                         try await Gemma4ASREngine.shared.loadModel(modelId: settings.gemma4ModelId)
                     }
 
@@ -875,7 +875,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
                         appPrompt: effectiveAppPrompt
                     )
 
-                    statusBar.updateProcessingStatus(.asr)
+                    statusBar.updateProcessingStatus(.recognizing)
                     let result = try await Gemma4ASREngine.shared.transcribe(
                         audio: audio, sampleRate: sampleRate, prompt: prompt)
                     rawText = result
@@ -885,7 +885,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
                     // 两段式：ASR → LLM
 
                     // 1. Load models
-                    statusBar.updateProcessingStatus(.loadingModel)
+                    statusBar.updateProcessingStatus(.loadingModel(name: "Model", progress: -1))
                     if settings.asrEngine == .gemma4 {
                         if !Gemma4ASREngine.shared.isModelLoaded {
                             try await Gemma4ASREngine.shared.loadModel(modelId: settings.gemma4ModelId)
@@ -905,7 +905,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
                     }
 
                     // 2. ASR
-                    statusBar.updateProcessingStatus(.asr)
+                    statusBar.updateProcessingStatus(.recognizing)
                     if settings.asrEngine == .gemma4 {
                         rawText = try await Gemma4ASREngine.shared.transcribe(
                             audio: audio, sampleRate: sampleRate)

@@ -7,6 +7,7 @@
 
 import Testing
 import Foundation
+@testable import Talk
 
 @Suite("TalkError Tests")
 struct TalkErrorTests {

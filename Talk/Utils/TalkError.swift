@@ -8,7 +8,7 @@
 import Foundation
 
 /// Talk 统一错误类型
-enum TalkError: LocalizedError {
+public enum TalkError: LocalizedError, Equatable {
     // MARK: - 模型相关
     case modelNotLoaded(modelName: String)
     case modelDownloadFailed(modelName: String, reason: String)
@@ -35,13 +35,13 @@ enum TalkError: LocalizedError {
     // MARK: - 通用
     case unknown(reason: String)
     
-    enum InferenceStep: String {
+    public enum InferenceStep: String {
         case asr = "语音识别"
         case llm = "文本润色"
         case output = "文本注入"
     }
     
-    enum PermissionType: String {
+    public enum PermissionType: String {
         case microphone = "麦克风"
         case accessibility = "辅助功能"
         case camera = "摄像头"
@@ -49,7 +49,7 @@ enum TalkError: LocalizedError {
     
     // MARK: - LocalizedError 实现
     
-    var errorDescription: String? {
+    public var errorDescription: String? {
         switch self {
         case .modelNotLoaded(let model):
             return String(localized: "模型未加载：\(model)")
@@ -82,7 +82,7 @@ enum TalkError: LocalizedError {
         }
     }
     
-    var failureReason: String? {
+    public var failureReason: String? {
         switch self {
         case .modelNotLoaded, .modelLoadTimeout:
             return String(localized: "模型尚未加载完成，请稍后重试")
@@ -95,7 +95,7 @@ enum TalkError: LocalizedError {
         }
     }
     
-    var recoverySuggestion: String? {
+    public var recoverySuggestion: String? {
         switch self {
         case .modelNotLoaded, .modelLoadTimeout:
             return String(localized: "等待模型加载完成后重试")
@@ -114,7 +114,7 @@ enum TalkError: LocalizedError {
 }
 
 /// 用户可执行的恢复操作
-enum RecoveryAction {
+public enum RecoveryAction {
     case retry(action: () async throws -> Void)
     case openSettings
     case downloadModel

@@ -60,7 +60,7 @@ struct AggregateStats {
 /// 使用统计管理器
 @Observable
 @MainActor
-final class UsageStatisticsManager {
+final public class UsageStatisticsManager {
     static let shared = UsageStatisticsManager()
     
     private(set) var dailyStats: [DailyStats] = []
@@ -95,7 +95,7 @@ final class UsageStatisticsManager {
         do {
             let data = try Data(contentsOf: statsFilePath)
             dailyStats = try JSONDecoder().decode([DailyStats].self, from: data)
-            logger.info("加载了 \(dailyStats.count) 天的统计数据")
+            logger.info("加载了 \(self.dailyStats.count) 天的统计数据")
             cleanupOldStats()
         } catch {
             logger.error("加载统计数据失败：\(error.localizedDescription)")
@@ -117,11 +117,11 @@ final class UsageStatisticsManager {
     /// 清理 90 天前的旧数据
     private func cleanupOldStats() {
         let cutoffDate = Calendar.current.date(byAdding: .day, value: -maxHistoryDays, to: Date())!
-        let oldCount = dailyStats.count
+        let oldCount = self.dailyStats.count
         dailyStats.removeAll { $0.date < cutoffDate }
         
-        if dailyStats.count != oldCount {
-            logger.info("清理了 \(oldCount - dailyStats.count) 条旧统计数据")
+        if self.dailyStats.count != oldCount {
+            logger.info("清理了 \(oldCount - self.dailyStats.count) 条旧统计数据")
             saveStats()
         }
     }

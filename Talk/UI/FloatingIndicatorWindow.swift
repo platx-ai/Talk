@@ -171,6 +171,7 @@ struct FloatingIndicatorContentView: View {
         case .outputting:   return [.cyan, .mint, .cyan.opacity(0.3), .mint, .cyan]
         case .done:         return [.green, .mint, .green.opacity(0.3), .mint, .green]
         case .loadingModel: return [.white.opacity(0.3), .white.opacity(0.1), .white.opacity(0.3), .white.opacity(0.1), .white.opacity(0.3)]
+        case .error:        return [.red, .orange, .red.opacity(0.3), .orange, .red]
         }
     }
 
@@ -269,6 +270,10 @@ struct FloatingIndicatorContentView: View {
             Image(systemName: "checkmark.circle.fill")
                 .foregroundStyle(.green)
                 .font(.system(size: 14, weight: .medium))
+        case .error:
+            Image(systemName: "exclamationmark.circle.fill")
+                .foregroundStyle(.red)
+                .font(.system(size: 14, weight: .medium))
         }
     }
 
@@ -333,6 +338,10 @@ struct FloatingIndicatorContentView: View {
             Text(String(localized: "完成"))
                 .font(.system(size: 12, weight: .medium))
                 .foregroundStyle(.primary)
+        case .error(let error):
+            Text(String(localized: "错误：\(error.errorDescription ?? "")"))
+                .font(.system(size: 12, weight: .medium))
+                .foregroundStyle(.red)
         }
     }
 

@@ -8,7 +8,7 @@
 import Foundation
 
 /// 处理状态
-enum ProcessingState: Equatable {
+public enum ProcessingState: Equatable {
     case idle
     case loadingModel(modelName: String, progress: Double)
     case recording(startDate: Date, isEditMode: Bool)
@@ -21,25 +21,40 @@ enum ProcessingState: Equatable {
     func canTransition(to state: ProcessingState) -> Bool {
         switch self {
         case .idle:
-            return state == .loadingModel || state == .recording
+            if case .loadingModel = state { return true }
+            if case .recording = state { return true }
+            return false
             
         case .loadingModel:
-            return state == .idle || state == .recording
+            if case .idle = state { return true }
+            if case .recording = state { return true }
+            return false
             
         case .recording:
-            return state == .recognizing || state == .idle
+            if case .recognizing = state { return true }
+            if case .idle = state { return true }
+            return false
             
         case .recognizing:
-            return state == .polishing || state == .error || state == .idle
+            if case .polishing = state { return true }
+            if case .error = state { return true }
+            if case .idle = state { return true }
+            return false
             
         case .polishing:
-            return state == .outputting || state == .error || state == .idle
+            if case .outputting = state { return true }
+            if case .error = state { return true }
+            if case .idle = state { return true }
+            return false
             
         case .outputting:
-            return state == .idle || state == .error
+            if case .idle = state { return true }
+            if case .error = state { return true }
+            return false
             
         case .error:
-            return state == .idle
+            if case .idle = state { return true }
+            return false
         }
     }
     

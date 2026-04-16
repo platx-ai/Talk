@@ -7,6 +7,7 @@
 
 import Testing
 import Foundation
+@testable import Talk
 
 @Suite("UsageStatistics Tests")
 @MainActor
@@ -39,11 +40,11 @@ struct UsageStatisticsTests {
         }
         
         #expect(todayStats != nil)
-        #expect(todayStats?.sessionCount == 1)
+        #expect(todayStats?.sessionCount ?? 0 == 1)
         #expect(todayStats?.totalRecordingDuration == 10.0)
         #expect(todayStats?.asrInferenceTime == 2.0)
         #expect(todayStats?.llmInferenceTime == 3.0)
-        #expect(todayStats?.errorCount == 0)
+        #expect(todayStats?.errorCount ?? 0 == 0)
     }
     
     @Test("记录错误会话")
@@ -63,7 +64,7 @@ struct UsageStatisticsTests {
             Calendar.current.isDate($0.date, inSameDayAs: today) 
         }
         
-        #expect(todayStats?.errorCount >= 1)
+        #expect(todayStats?.errorCount ?? 0 >= 1)
     }
     
     @Test("记录编辑")
@@ -87,7 +88,7 @@ struct UsageStatisticsTests {
             Calendar.current.isDate($0.date, inSameDayAs: today) 
         }
         
-        #expect(todayStats?.editCount >= 1)
+        #expect(todayStats?.editCount ?? 0 >= 1)
     }
     
     @Test("获取最近 7 天数据 - 验证排序")
@@ -172,7 +173,11 @@ struct UsageStatisticsTests {
         }
         
         // 编辑率应该是 50%
-        #expect(todayStats?.editRate == 0.5, tolerance: 0.01)
+        if let editRate = todayStats?.editRate {
+            #expect(abs(editRate - 0.5) < 0.01)
+        } else {
+            Issue.record("todayStats is nil or editRate is nil")
+        }
     }
     
     @Test("平均会话时长计算")
@@ -201,6 +206,10 @@ struct UsageStatisticsTests {
         }
         
         // 平均时长应该是 10 秒
-        #expect(todayStats?.averageSessionDuration == 10.0, tolerance: 0.01)
+        if let avgDuration = todayStats?.averageSessionDuration {
+            #expect(abs(avgDuration - 10.0) < 0.01)
+        } else {
+            Issue.record("todayStats is nil or averageSessionDuration is nil")
+        }
     }
 }

@@ -10,7 +10,7 @@ import OSLog
 
 /// 处理状态机 — 管理状态转换并记录日志
 @MainActor
-final class ProcessingStateMachine {
+final public class ProcessingStateMachine {
     private(set) var currentState: ProcessingState = .idle
     private let logger = Logger(subsystem: "com.talk.app", category: "StateMachine")
     
@@ -20,13 +20,13 @@ final class ProcessingStateMachine {
     /// - Parameter newState: 目标状态
     /// - Returns: 是否转换成功
     func transition(to newState: ProcessingState) -> Bool {
-        guard currentState.canTransition(to: newState) else {
-            logger.warning("非法状态转换：\(currentState.description) → \(newState.description)")
+        guard self.currentState.canTransition(to: newState) else {
+            logger.warning("非法状态转换：\(self.currentState.description) → \(newState.description)")
             return false
         }
         
-        let oldState = currentState
-        currentState = newState
+        let oldState = self.currentState
+        self.currentState = newState
         
         logger.info("状态转换：\(oldState.description) → \(newState.description)")
         onStateChange?(oldState, newState)
@@ -49,7 +49,7 @@ final class ProcessingStateMachine {
     
     /// 检查是否在忙碌状态
     var isBusy: Bool {
-        switch currentState {
+        switch self.currentState {
         case .idle, .error: return false
         default: return true
         }

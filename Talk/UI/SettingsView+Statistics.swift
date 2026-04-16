@@ -52,7 +52,7 @@ struct OverviewSection: View {
     
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("总览", bundle: .main)
+            Text("总览")
                 .font(.headline)
             
             HStack(spacing: 20) {
@@ -129,11 +129,11 @@ struct Last7DaysChart: View {
     
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("最近 7 天", bundle: .main)
+            Text("最近 7 天")
                 .font(.headline)
             
             if stats.isEmpty {
-                Text("暂无数据", bundle: .main)
+                Text("暂无数据")
                     .font(.caption)
                     .foregroundStyle(.secondary)
                     .frame(maxWidth: .infinity)
@@ -176,11 +176,11 @@ struct DetailedStatsTable: View {
     
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("详细数据", bundle: .main)
+            Text("详细数据")
                 .font(.headline)
             
             if stats.isEmpty {
-                Text("暂无数据", bundle: .main)
+                Text("暂无数据")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             } else {
@@ -221,24 +221,24 @@ struct ClearStatsButton: View {
     
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text("危险操作", bundle: .main)
+            Text("危险操作")
                 .font(.headline)
             
-            Button("清除所有统计数据", bundle: .main, role: .destructive) {
+            Button("清除所有统计数据", role: .destructive) {
                 showConfirmation = true
             }
             
-            Text("此操作不可逆，将删除所有历史使用数据", bundle: .main)
+            Text("此操作不可逆，将删除所有历史使用数据")
                 .font(.caption)
                 .foregroundStyle(.secondary)
         }
         .confirmationDialog(String(localized: "确认清除"), isPresented: $showConfirmation) {
-            Button(String(localized: "清除", bundle: .main), role: .destructive) {
+            Button(String(localized: "清除"), role: .destructive) {
                 UsageStatisticsManager.shared.clearAllStats()
             }
-            Button(String(localized: "取消", bundle: .main), role: .cancel) {}
+            Button(String(localized: "取消"), role: .cancel) {}
         } message: {
-            Text(String(localized: "确定要清除所有统计数据吗？此操作不可逆。", bundle: .main))
+            Text(String(localized: "确定要清除所有统计数据吗？此操作不可逆。"))
         }
     }
 }

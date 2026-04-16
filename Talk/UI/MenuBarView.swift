@@ -30,7 +30,10 @@ struct MenuBarView: View {
                 Divider()
 
                 Label(viewModel.processingStatus.localizedName, systemImage: getStatusIcon())
-                    .foregroundColor(viewModel.processingStatus == .idle ? .primary : .accentColor)
+                    .foregroundColor({
+                        if case .idle = viewModel.processingStatus { return .primary }
+                        return .accentColor
+                    }())
             }
 
             Section {
@@ -74,9 +77,10 @@ struct MenuBarView: View {
         case .idle: return "circle.fill"
         case .loadingModel: return "arrow.down.circle"
         case .recording: return "record.circle.fill"
-        case .asr: return "waveform"
+        case .recognizing: return "waveform"
         case .polishing: return "sparkles"
         case .outputting: return "paperplane.fill"
+        case .error: return "exclamationmark.circle.fill"
         }
     }
 
@@ -107,17 +111,25 @@ class MenuViewModel: ObservableObject {
     @Published var isRecording = false
     @Published var processingStatus: ProcessingStatus = .idle
 
-    enum ProcessingStatus: String {
-        case idle = "空闲"
-        case loadingModel = "加载模型中..."
-        case recording = "录音中..."
-        case asr = "识别中..."
-        case polishing = "润色中..."
-        case outputting = "输出中..."
-        case error = "错误"
+    enum ProcessingStatus {
+        case idle
+        case loadingModel(name: String, progress: Double)
+        case recording(startDate: Date, isEditMode: Bool)
+        case recognizing
+        case polishing
+        case outputting
+        case error(TalkError)
 
         var localizedName: String {
-            String(localized: String.LocalizationValue(rawValue))
+            switch self {
+            case .idle: return String(localized: "空闲")
+            case .loadingModel: return String(localized: "加载模型中...")
+            case .recording: return String(localized: "录音中...")
+            case .recognizing: return String(localized: "识别中...")
+            case .polishing: return String(localized: "润色中...")
+            case .outputting: return String(localized: "输出中...")
+            case .error: return String(localized: "错误")
+            }
         }
     }
 

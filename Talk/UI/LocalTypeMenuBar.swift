@@ -73,16 +73,18 @@ final class LocalTypeMenuBar {
         switch status {
         case .idle:
             return .idle
-        case .loadingModel:
-            return .loadingModel(modelName: "Qwen3", progress: 0.5)
-        case .recording:
-            return .recording(startDate: Date(), isEditMode: isEditMode)
-        case .asr:
+        case .loadingModel(let name, let progress):
+            return .loadingModel(modelName: name, progress: progress)
+        case .recording(let startDate, let isEditModeValue):
+            return .recording(startDate: startDate, isEditMode: isEditModeValue)
+        case .recognizing:
             return .recognizing
         case .polishing:
             return .polishing
         case .outputting:
             return .outputting
+        case .error(let error):
+            return .error(error)
         }
     }
     
@@ -118,8 +120,8 @@ final class LocalTypeMenuBar {
         switch state {
         case .idle: return .idle
         case .loadingModel(let name, let progress): return .loadingModel(name: name, progress: progress)
-        case .recording: return .recording
-        case .recognizing: return .asr
+        case .recording(let startDate, let isEditMode): return .recording(startDate: startDate, isEditMode: isEditMode)
+        case .recognizing: return .recognizing
         case .polishing: return .polishing
         case .outputting: return .outputting
         case .error(let error): return .error(error)
