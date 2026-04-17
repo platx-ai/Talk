@@ -316,6 +316,7 @@ private struct InlineHistoryRow: View {
         var updatedItem = item
         updatedItem.polishedText = correctedText
         HistoryManager.shared.update(updatedItem)
+        UsageStatisticsManager.shared.recordEdit()
         isEditing = false
         isSaved = true  // 启用词库按钮
     }

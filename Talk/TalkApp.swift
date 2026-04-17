@@ -757,6 +757,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
             let bundled = resolveBundledModelSources()
             let llmModelId = bundled.llmModelPath ?? settings.llmModelId
 
+            // Streaming path: ASR already happened during recording (we got `text`),
+            // so asrTime is unknown here — record 0. processingTime measures the
+            // polish + inject phase the user actually waits for.
+            let processingStart = CFAbsoluteTimeGetCurrent()
+            var llmInferenceTime: TimeInterval = 0
+
             do {
                 if !LLMService.shared.isModelLoaded {
                     statusBar.updateDownloadProgress(modelName: "LLM", progress: -1)
@@ -789,6 +795,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
                 }
 
                 let editPrompt = settings.customEditPrompt.isEmpty ? nil : settings.customEditPrompt
+                let llmStart = CFAbsoluteTimeGetCurrent()
                 let polishedText = try await LLMService.shared.polish(
                     text: text,
                     intensity: settings.polishIntensity,
@@ -797,6 +804,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
                     selectedText: self.selectedTextBeforeRecording,
                     appBundleId: self.targetApp?.bundleIdentifier
                 )
+                llmInferenceTime = CFAbsoluteTimeGetCurrent() - llmStart
                 AppLogger.info("LLM 润色完成: \(polishedText)", category: .general)
 
                 statusBar.updateProcessingStatus(.outputting)
@@ -834,6 +842,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
 
                 statusBar.showDoneAndDismiss()
                 self.resetIdleTimer()
+                UsageStatisticsManager.shared.recordSession(
+                    recordingDuration: duration,
+                    processingTime: CFAbsoluteTimeGetCurrent() - processingStart,
+                    asrTime: 0,
+                    llmTime: llmInferenceTime,
+                    hadError: false
+                )
                 if self.pendingEngineReload {
                     self.pendingEngineReload = false
                     self.reloadEngines()
@@ -842,6 +857,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
                 AppLogger.error("转录处理失败: \(error.localizedDescription)", category: .general)
                 statusBar.updateProcessingStatus(.idle)
                 statusBar.showNotification(title: String(localized: "处理失败"), message: error.localizedDescription)
+                UsageStatisticsManager.shared.recordSession(
+                    recordingDuration: duration,
+                    processingTime: CFAbsoluteTimeGetCurrent() - processingStart,
+                    asrTime: 0,
+                    llmTime: llmInferenceTime,
+                    hadError: true
+                )
             }
         }
     }
@@ -853,6 +875,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
             let settings = AppSettings.load()
             let bundled = resolveBundledModelSources()
             let llmModelId = bundled.llmModelPath ?? settings.llmModelId
+
+            // Phase timings for usage stats. asrTime + llmTime ≤ processingTime
+            // (processingTime also covers model load, VAD, prompt build, output).
+            let processingStart = CFAbsoluteTimeGetCurrent()
+            var asrInferenceTime: TimeInterval = 0
+            var llmInferenceTime: TimeInterval = 0
 
             do {
                 let rawText: String
@@ -878,8 +906,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
                     )
 
                     statusBar.updateProcessingStatus(.asr)
+                    let asrStart = CFAbsoluteTimeGetCurrent()
                     let result = try await Gemma4ASREngine.shared.transcribe(
                         audio: audio, sampleRate: sampleRate, prompt: prompt)
+                    asrInferenceTime = CFAbsoluteTimeGetCurrent() - asrStart
                     rawText = result
                     polishedText = result  // 一段式：ASR 输出即最终结果
                     AppLogger.info("Gemma4 一段式完成: \(polishedText)", category: .general)
@@ -908,6 +938,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
 
                     // 2. ASR
                     statusBar.updateProcessingStatus(.asr)
+                    let asrStart = CFAbsoluteTimeGetCurrent()
                     if settings.asrEngine == .gemma4 {
                         rawText = try await Gemma4ASREngine.shared.transcribe(
                             audio: audio, sampleRate: sampleRate)
@@ -915,10 +946,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
                         rawText = try await ASRService.shared.transcribe(
                             audio: audio, sampleRate: sampleRate)
                     }
+                    asrInferenceTime = CFAbsoluteTimeGetCurrent() - asrStart
                     AppLogger.info("ASR 识别完成: \(rawText)", category: .general)
 
                     // 3. LLM Polish
                     statusBar.updateProcessingStatus(.polishing)
+                    let llmStart = CFAbsoluteTimeGetCurrent()
                     if settings.llmEngine == .gemma4 {
                         // Gemma4 音频感知润色：能听原始音频修正 ASR 错误
                         // 若有选中文本，切换到编辑模式（voice command on selected text）
@@ -948,6 +981,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
                         )
                         AppLogger.info("LLM 润色完成: \(polishedText)", category: .general)
                     }
+                    llmInferenceTime = CFAbsoluteTimeGetCurrent() - llmStart
                 }
 
                 statusBar.updateProcessingStatus(.outputting)
@@ -994,6 +1028,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
 
                 statusBar.showDoneAndDismiss()
                 self.resetIdleTimer()
+                UsageStatisticsManager.shared.recordSession(
+                    recordingDuration: duration,
+                    processingTime: CFAbsoluteTimeGetCurrent() - processingStart,
+                    asrTime: asrInferenceTime,
+                    llmTime: llmInferenceTime,
+                    hadError: false
+                )
                 if self.pendingEngineReload {
                     self.pendingEngineReload = false
                     self.reloadEngines()
@@ -1002,6 +1043,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
                 AppLogger.error("音频处理失败: \(error.localizedDescription)", category: .general)
                 statusBar.updateProcessingStatus(.idle)
                 statusBar.showNotification(title: String(localized: "处理失败"), message: error.localizedDescription)
+                UsageStatisticsManager.shared.recordSession(
+                    recordingDuration: duration,
+                    processingTime: CFAbsoluteTimeGetCurrent() - processingStart,
+                    asrTime: asrInferenceTime,
+                    llmTime: llmInferenceTime,
+                    hadError: true
+                )
             }
         }
     }

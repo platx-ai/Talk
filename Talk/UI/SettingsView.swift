@@ -27,6 +27,9 @@ struct SettingsView: View {
 
             AdvancedSettingsTab(settings: settings)
                 .tabItem { Image(systemName: "gearshape.2") }
+
+            StatisticsView()
+                .tabItem { Image(systemName: "chart.bar") }
         }
         .frame(width: 600, height: 520)
         .toast()
@@ -597,6 +600,8 @@ private struct AdvancedSettingsTab: View {
     @State private var showVocabularyView = false
     @State private var permissions = PermissionsSnapshot.empty
     @State private var pollTimer: Timer?
+    @State private var showClearHistoryConfirmation = false
+    @State private var historyCountAtConfirm = 0
 
     var body: some View {
         Form {
@@ -748,8 +753,36 @@ private struct AdvancedSettingsTab: View {
             } header: {
                 Text(String(localized: "日志"))
             }
+
+            // Danger zone — moved out of the menu bar after the menu-bar Clear
+            // button caused unrecoverable data loss with a single misclick.
+            Section {
+                VStack(alignment: .leading, spacing: 4) {
+                    Button(String(localized: "清空历史记录"), role: .destructive) {
+                        historyCountAtConfirm = HistoryManager.shared.items.count
+                        showClearHistoryConfirmation = true
+                    }
+                    Text(String(localized: "永久删除所有历史录音和对应的音频文件，无法恢复。"))
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            } header: {
+                Text(String(localized: "危险操作"))
+            }
         }
         .formStyle(.grouped)
+        .alert(
+            String(localized: "确认清空历史记录"),
+            isPresented: $showClearHistoryConfirmation
+        ) {
+            Button(String(localized: "取消"), role: .cancel) {}
+            Button(String(localized: "永久删除"), role: .destructive) {
+                HistoryManager.shared.clearAll()
+                ToastManager.shared.show(String(localized: "历史记录已清空"))
+            }
+        } message: {
+            Text(String(format: String(localized: "将永久删除 %d 条历史记录及对应音频。此操作无法撤销。"), historyCountAtConfirm))
+        }
         .onAppear {
             refreshPermissions()
             startPermissionPolling()
