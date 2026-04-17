@@ -788,10 +788,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
                     LLMService.shared.clearHistory(forApp: bid)
                 }
 
+                let editPrompt = settings.customEditPrompt.isEmpty ? nil : settings.customEditPrompt
                 let polishedText = try await LLMService.shared.polish(
                     text: text,
                     intensity: settings.polishIntensity,
                     customPrompt: effectivePrompt,
+                    customEditPrompt: editPrompt,
                     selectedText: self.selectedTextBeforeRecording,
                     appBundleId: self.targetApp?.bundleIdentifier
                 )
@@ -919,8 +921,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
                     statusBar.updateProcessingStatus(.polishing)
                     if settings.llmEngine == .gemma4 {
                         // Gemma4 音频感知润色：能听原始音频修正 ASR 错误
+                        // 若有选中文本，切换到编辑模式（voice command on selected text）
                         polishedText = try await Gemma4ASREngine.shared.polish(
-                            audio: audio, sampleRate: sampleRate, asrText: rawText)
+                            audio: audio, sampleRate: sampleRate, asrText: rawText,
+                            selectedText: self.selectedTextBeforeRecording
+                        )
                         AppLogger.info("Gemma4 润色完成: \(polishedText)", category: .general)
                     } else {
                         // Qwen3 LLM 纯文本润色

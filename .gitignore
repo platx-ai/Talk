@@ -39,3 +39,6 @@ TalkTests/RegressionSuite/
 TalkTests/TestAudio/
 TalkTests/Gemma4*
 .claude/worktrees/
+
+.tmp.rmlater.sh
+CLAUDE.local.md

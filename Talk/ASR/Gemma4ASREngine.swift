@@ -168,7 +168,7 @@ final class Gemma4ASREngine {
                 logits = model.callAsFunction(tokens.tokens, cache: cache)
             }
 
-            for _ in 0..<500 {
+            for step in 0..<500 {
                 let lastLogits = logits[0..., -1, 0...]
                 let nextToken = lastLogits.argMax(axis: -1).item(Int.self)
 
@@ -181,6 +181,8 @@ final class Gemma4ASREngine {
                 let nextTokenArray = MLXArray([Int32(nextToken)]).expandedDimensions(axis: 0)
                 logits = model.callAsFunction(nextTokenArray, cache: cache)
                 eval(logits)
+                // 每 8 个 token 让出主线程一次，让热键/UI 事件得到处理
+                if step % 8 == 7 { await Task.yield() }
             }
 
             let text = context.tokenizer.decode(tokens: outputTokens)
@@ -207,15 +209,42 @@ final class Gemma4ASREngine {
 
     // MARK: - 音频感知润色（Gemma4 作为 LLM 引擎）
 
-    /// Audio-aware polish: Gemma4 receives both audio and ASR text, corrects errors
-    func polish(audio: [Float], sampleRate: Int, asrText: String, prompt: String? = nil) async throws -> String {
+    /// Audio-aware polish: Gemma4 receives both audio and ASR text, corrects errors.
+    /// When `selectedText` is provided, switch to edit-command mode:
+    /// treat `asrText` as a voice instruction acting on the selected text.
+    func polish(
+        audio: [Float], sampleRate: Int, asrText: String,
+        prompt: String? = nil, selectedText: String? = nil
+    ) async throws -> String {
         guard isModelLoaded, let context = modelContext else {
             throw ASRError.modelNotLoaded
         }
 
-        let polishPrompt = prompt ?? "以下是语音识别的粗转录结果，可能有错字和同音字错误。请根据音频修正转录文本，使用简体中文，保留英文单词原样。只输出修正后的文本。\n\n粗转录：\(asrText)"
+        let isEditMode = !(selectedText?.isEmpty ?? true)
+        let polishPrompt: String
+        if let prompt {
+            polishPrompt = prompt
+        } else if isEditMode, let selectedText {
+            polishPrompt = """
+            你是一个文本编辑器。用户选中了一段文本，然后用语音给出修改指令（音频 + 粗转录）。
+            严格规则：
+            - 只输出修改后的文本，禁止任何解释、前言、总结
+            - 禁止输出思考过程、分析步骤
+            - 如果不确定如何修改，原样返回选中文本
+            指令类型包括替换词语、风格改写、纠错、格式转换等。
+            【选中的文本】
+            \(selectedText)
+            【语音指令粗转录】
+            \(asrText)
+            """
+        } else {
+            polishPrompt = "以下是语音识别的粗转录结果，可能有错字和同音字错误。请根据音频修正转录文本，使用简体中文，保留英文单词原样。只输出修正后的文本。\n\n粗转录：\(asrText)"
+        }
 
-        AppLogger.debug("Gemma4 开始音频感知润色，ASR 文本: \(asrText.prefix(50))...", category: .llm)
+        AppLogger.debug(
+            "Gemma4 开始\(isEditMode ? "编辑模式" : "音频感知润色")，ASR 文本: \(asrText.prefix(50))...",
+            category: .llm
+        )
 
         var input = UserInput(prompt: polishPrompt)
         input.audios = [audio]
@@ -238,7 +267,7 @@ final class Gemma4ASREngine {
                 logits = model.callAsFunction(tokens.tokens, cache: cache)
             }
 
-            for _ in 0..<500 {
+            for step in 0..<500 {
                 let lastLogits = logits[0..., -1, 0...]
                 let nextToken = lastLogits.argMax(axis: -1).item(Int.self)
                 if [1, 106, 50].contains(nextToken) { break }
@@ -246,6 +275,8 @@ final class Gemma4ASREngine {
                 let nextTokenArray = MLXArray([Int32(nextToken)]).expandedDimensions(axis: 0)
                 logits = model.callAsFunction(nextTokenArray, cache: cache)
                 eval(logits)
+                // 每 8 个 token 让出主线程一次，让热键/UI 事件得到处理
+                if step % 8 == 7 { await Task.yield() }
             }
 
             let text = context.tokenizer.decode(tokens: outputTokens)
@@ -256,7 +287,7 @@ final class Gemma4ASREngine {
                 result = traditionalToSimplified(result)
             }
 
-            AppLogger.info("Gemma4 润色完成: \(String(format: "%.2f", elapsed))s", category: .llm)
+            AppLogger.info("Gemma4 润色完成: \(String(format: "%.2f", elapsed))s (editMode=\(isEditMode))", category: .llm)
             return result
         } catch {
             AppLogger.error("Gemma4 润色失败: \(error.localizedDescription)", category: .llm)
