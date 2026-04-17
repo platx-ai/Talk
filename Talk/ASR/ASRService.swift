@@ -39,6 +39,11 @@ final class ASRService {
     /// 流式推理会话
     private var streamingSession: StreamingInferenceSession?
 
+    /// 消费 session.events 的 for-await 循环 Task。保留引用以便 stopStreaming
+    /// 能 cancel — 否则 session.cancel() 之后 buffered events 仍会被消费，
+    /// 在 main actor 上抢占 polish 推理 slot（戴耳机场景下尤其明显，详见 issue #15）。
+    private var eventLoopTask: Task<Void, Never>?
+
     /// 实时转录回调（confirmed: 已确认文本, provisional: 临时文本）
     var onTranscriptionUpdate: ((String, String) -> Void)?
 
@@ -163,11 +168,13 @@ final class ASRService {
 
         AppLogger.info("开始流式识别，延迟预设: \(delayPreset)", category: .asr)
 
-        // 监听事件流
-        Task {
+        // 监听事件流。保存 Task 引用以便 stopStreaming 能 cancel。
+        eventLoopTask?.cancel()
+        eventLoopTask = Task {
             guard let session = streamingSession else { return }
 
             for await event in session.events {
+                if Task.isCancelled { break }
                 switch event {
                 case .provisional(let text):
                     // 临时文本，可能还会变化
@@ -232,6 +239,8 @@ final class ASRService {
 
         AppLogger.info("停止流式识别", category: .asr)
         session.cancel()
+        eventLoopTask?.cancel()
+        eventLoopTask = nil
         streamingSession = nil
         isRecognizing = false
         onTranscriptionUpdate = nil
