@@ -1,4 +1,4 @@
-.PHONY: build build-release test run clean resolve download-models lint help
+.PHONY: build build-release test run clean resolve download-models lint help prompt-regress
 
 PROJECT = Talk.xcodeproj
 SCHEME = Talk
@@ -20,13 +20,24 @@ build: ## Build Debug configuration
 build-release: ## Build Release configuration
 	xcodebuild -project $(PROJECT) -scheme $(SCHEME) -configuration Release build $(SIGN_FLAGS)
 
-test: ## Run unit tests (excludes benchmarks)
+test: ## Run unit tests (excludes benchmarks and prompt regression — both need models)
 	xcodebuild -project $(PROJECT) -scheme $(SCHEME) -configuration Debug test $(SIGN_FLAGS) \
 		-destination 'platform=macOS' \
 		-only-testing:TalkTests \
 		-skip-testing:TalkTests/ASRBenchmarks \
 		-skip-testing:TalkTests/LLMBenchmarks \
-		-skip-testing:TalkTests/PipelineBenchmarks 2>&1 | tail -20
+		-skip-testing:TalkTests/PipelineBenchmarks \
+		-skip-testing:TalkTests/QwenPromptRegressionTests \
+		-skip-testing:TalkTests/Gemma4PromptRegressionTests 2>&1 | tail -20
+
+prompt-regress: ## Run LLM prompt regression tests (requires Qwen + Gemma4 models)
+	@echo "Running LLM prompt regression suite..."
+	@echo "Loads real Qwen3.5 + Gemma4 models — first run may be slow."
+	@echo ""
+	xcodebuild -project $(PROJECT) -scheme $(SCHEME) -configuration Debug test $(SIGN_FLAGS) \
+		-destination 'platform=macOS' \
+		-only-testing:TalkTests/QwenPromptRegressionTests \
+		-only-testing:TalkTests/Gemma4PromptRegressionTests 2>&1 | grep -E "passed|failed|Test Suite|got:" | tail -40
 
 benchmark: ## Run performance benchmarks (requires models downloaded)
 	@echo "Running Talk benchmarks..."
