@@ -220,7 +220,14 @@ final class Gemma4ASREngine {
             throw ASRError.modelNotLoaded
         }
 
+        // Empty input: skip the model entirely. Gemma4 will otherwise hallucinate
+        // pages of filler ("我觉得我觉得..."). Edit mode still runs because the
+        // command itself may be in the selectedText reference.
+        let trimmedAsr = asrText.trimmingCharacters(in: .whitespacesAndNewlines)
         let isEditMode = !(selectedText?.isEmpty ?? true)
+        if trimmedAsr.isEmpty && !isEditMode {
+            return ""
+        }
         let polishPrompt: String
         if let prompt {
             polishPrompt = prompt
@@ -238,7 +245,28 @@ final class Gemma4ASREngine {
             \(asrText)
             """
         } else {
-            polishPrompt = "以下是语音识别的粗转录结果，可能有错字和同音字错误。请根据音频修正转录文本，使用简体中文，保留英文单词原样。只输出修正后的文本。\n\n粗转录：\(asrText)"
+            polishPrompt = """
+            你是一个语音转写清理器。输入是音频 + ASR 粗转录，输出直接替换原文。
+
+            严格规则：
+            - 只输出清理后的文本，禁止解释、前言、"好的"、"修改后:" 等
+            - 禁止输出思考过程
+            - 使用简体中文，保留英文单词原样
+
+            清理任务：
+            1. 去叠字（ASR 常见错误）：
+               "历历史" → "历史"、"一一个" → "一个"、"例例" → "例"
+            2. 识别自我修正（丢弃被推翻的说法，保留最终意图）：
+               "我看看 OpenAI 不对是 Anthropic" → "我看看 Anthropic"
+               "明天三点，不对，五点" → "明天五点"
+            3. 去口语填充词：
+               "嗯嗯嗯今天天气" → "今天天气"
+               "啊这个嗯那个" → 删除
+            4. 修正同音字错误（结合音频上下文）
+            5. 添加合适标点
+
+            粗转录：\(asrText)
+            """
         }
 
         AppLogger.debug(
