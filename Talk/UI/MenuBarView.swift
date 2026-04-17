@@ -43,10 +43,9 @@ struct MenuBarView: View {
                 Button(action: onOpenSettings) {
                     Label(String(localized: "设置..."), systemImage: "gearshape.fill")
                 }
-
-                Button(action: clearHistory) {
-                    Label(String(localized: "清空历史"), systemImage: "trash.fill")
-                }
+                // "清空历史" was previously here, one careless click away from
+                // wiping all recordings. Moved to Settings → 高级 → 危险操作
+                // with a confirmation dialog.
             }
 
             Divider()
@@ -82,7 +81,6 @@ struct MenuBarView: View {
 
     private func startRecording() { viewModel.startRecording() }
     private func stopRecording() { viewModel.stopRecording() }
-    private func clearHistory() { viewModel.clearHistory() }
     private func quitApp() { viewModel.quitApp() }
 }
 
