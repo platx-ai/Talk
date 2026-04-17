@@ -220,13 +220,25 @@ final class Gemma4ASREngine {
             throw ASRError.modelNotLoaded
         }
 
-        // Empty input: skip the model entirely. Gemma4 will otherwise hallucinate
-        // pages of filler ("我觉得我觉得..."). Edit mode still runs because the
-        // command itself may be in the selectedText reference.
+        // Skip the model on degenerate inputs:
+        // - Empty input: would hallucinate "我觉得我觉得..." pages of filler.
+        // - Single-character or pure-filler input ("嗯", "啊", "好"): observed
+        //   2026-04-17 20:19:41 — input "嗯。" produced "我想说昨天的事。" because
+        //   the model mimicked one of our few-shot prompt examples instead of
+        //   actually polishing.
+        // Edit mode still runs because the command itself lives in selectedText.
         let trimmedAsr = asrText.trimmingCharacters(in: .whitespacesAndNewlines)
         let isEditMode = !(selectedText?.isEmpty ?? true)
-        if trimmedAsr.isEmpty && !isEditMode {
-            return ""
+        if !isEditMode {
+            if trimmedAsr.isEmpty { return "" }
+            // Pure filler / sub-2-character input: just return as-is, no polish.
+            let stripped = trimmedAsr.unicodeScalars.filter {
+                !["嗯", "啊", "呃", "哦", "唔", "诶", "。", "，", "！", "？", "."].contains(String($0))
+            }
+            if stripped.count < 2 {
+                AppLogger.debug("Gemma4 polish 跳过过短输入: \(trimmedAsr)", category: .llm)
+                return trimmedAsr
+            }
         }
         let polishPrompt: String
         if let prompt {
@@ -252,22 +264,16 @@ final class Gemma4ASREngine {
             处理原则（按优先级）：
             1. 保守第一：当不确定时，保留转录原文，不要猜测改写。
                宁可漏改一处口语，也不要把对的改成错的。
-            2. 去除明显的 ASR 错误：字符不自然地连续重复（如"昨昨昨天"），
-               输出去重后的形式。
+            2. 去除明显的 ASR 错误：字符不自然地连续重复，输出去重后的形式。
             3. 处理明显的自我修正：当用户带"不对"、"我是说"、"应该是" 等
-               修正词时，以修正后版本为准。
-            4. 删除口语填充词："嗯"、"啊"、"呃"等。
-
-            通用示例：
-            - "我想说昨昨昨天的事" → "我想说昨天的事"
-            - "明天三点，不对，五点开会" → "明天五点开会"
-            - "嗯啊那个，今天天气不错" → "今天天气不错"
-            - "今天天气真不错" → "今天天气真不错。"（无需改动，仅加标点）
+               修正词时，以修正后版本为准，丢弃被修正的内容。
+            4. 删除口语填充词（如"嗯"、"啊"、"呃"等）。
+            5. 按自然停顿加合适的中文标点。
 
             输出规则：
             - 直接输出最终文本，不要解释、不要加前言、不要重复任务说明。
+            - 不要复述本提示中的任何示例或规则文本。
             - 使用简体中文，保留英文单词原样。
-            - 按自然停顿加标点。
 
             参考转录：\(asrText)
             """
