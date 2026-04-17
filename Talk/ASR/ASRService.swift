@@ -220,12 +220,18 @@ final class ASRService {
     }
 
     /// 停止流式识别
+    ///
+    /// 关键点：调 `session.cancel()` 真正打断上游 `decodeTask.Task.detached`，
+    /// 否则它会继续跑完当前 window 的完整 decode（3-6 秒），期间 MLX 模型被锁住，
+    /// 后续的 batch `model.generate(...)` 要排队等它释放。这是 issue #13 6.5s gap
+    /// 的真正根因。
     func stopStreaming() {
-        guard streamingSession != nil else {
+        guard let session = streamingSession else {
             return
         }
 
         AppLogger.info("停止流式识别", category: .asr)
+        session.cancel()
         streamingSession = nil
         isRecognizing = false
         onTranscriptionUpdate = nil
