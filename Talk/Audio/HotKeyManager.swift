@@ -101,7 +101,12 @@ final class HotKeyManager {
     // MARK: - CGEventTap
 
     private func installCGEventTap() {
-        // 只监听需要的事件类型
+        // Always tear down any previous tap/thread first. Without this we'd
+        // leak ghost taps on every reload (settings change, hotkey re-register
+        // etc.); each ghost still receives events and dispatches its own
+        // handleKeyState — that's how a single key release showed up 7×.
+        removeCGEventTap()
+
         let eventMask: CGEventMask
         if _cachedIsModifierOnly {
             // 修饰键模式：只需要 flagsChanged
@@ -135,39 +140,86 @@ final class HotKeyManager {
             return
         }
 
+        // Source must be created on the main thread (this thread) so that we
+        // own a strong reference before the worker thread observes it. The
+        // worker only runs the run loop; it does not own lifecycle.
+        guard let source = CFMachPortCreateRunLoopSource(kCFAllocatorDefault, tap, 0) else {
+            AppLogger.error("无法创建 CGEventTap run loop source", category: .hotkey)
+            return
+        }
         eventTap = tap
-        runLoopSource = CFMachPortCreateRunLoopSource(kCFAllocatorDefault, tap, 0)
+        runLoopSource = source
 
-        // CGEventTap 在独立后台线程的 RunLoop 上运行，不阻塞主线程
-        let thread = Thread {
+        // Worker thread: just runs the run loop until stopped. We capture
+        // `tapRunLoop` synchronously so subsequent removeCGEventTap can stop
+        // it deterministically.
+        let started = DispatchSemaphore(value: 0)
+        let thread = Thread { [self] in
             let rl = CFRunLoopGetCurrent()!
             self.tapRunLoop = rl
-            CFRunLoopAddSource(rl, self.runLoopSource, .commonModes)
+            CFRunLoopAddSource(rl, source, .commonModes)
             CGEvent.tapEnable(tap: tap, enable: true)
+            started.signal()
             CFRunLoopRun()
+            // After CFRunLoopStop returns control here, the thread exits.
         }
         thread.name = "HotKeyManager.CGEventTap"
         thread.qualityOfService = .userInteractive
         thread.start()
         tapThread = thread
 
+        // Block briefly until the worker has installed the source. With this,
+        // a subsequent removeCGEventTap is guaranteed to see a valid tapRunLoop.
+        _ = started.wait(timeout: .now() + .milliseconds(200))
+
         isRegistered = true
         AppLogger.info("热键注册成功（CGEventTap 后台线程模式）", category: .hotkey)
     }
 
+    /// Tear down the tap *and* wait for the worker thread to actually exit.
+    /// Previously this only signalled stop and dropped references — the worker
+    /// could still be alive when the next install ran, leaving multiple taps
+    /// listening to the same key. mach ports were also never invalidated, so
+    /// even a "stopped" run loop could keep delivering events.
     private func removeCGEventTap() {
-        if let rl = tapRunLoop {
-            CFRunLoopStop(rl)
-            tapRunLoop = nil
-        }
+        let oldTap = eventTap
+        let oldSource = runLoopSource
+        let oldRL = tapRunLoop
+        let oldThread = tapThread
+
+        eventTap = nil
+        runLoopSource = nil
+        tapRunLoop = nil
         tapThread = nil
-        if let source = runLoopSource {
-            runLoopSource = nil
-            _ = source  // prevent premature release
+        isRegistered = false
+
+        // 1. Disable the tap so no new events are dispatched.
+        if let oldTap {
+            CGEvent.tapEnable(tap: oldTap, enable: false)
         }
-        if let tap = eventTap {
-            CGEvent.tapEnable(tap: tap, enable: false)
-            eventTap = nil
+        // 2. Remove from the run loop.
+        if let oldRL, let oldSource {
+            CFRunLoopRemoveSource(oldRL, oldSource, .commonModes)
+        }
+        // 3. Invalidate the mach port — this is what truly kills the tap.
+        if let oldTap {
+            CFMachPortInvalidate(oldTap)
+        }
+        // 4. Stop the run loop so the worker thread returns from CFRunLoopRun.
+        if let oldRL {
+            CFRunLoopStop(oldRL)
+        }
+        // 5. Block briefly until the thread actually exits. Without this a
+        //    fast install→remove→install can race the worker; the new tap
+        //    may end up sharing state with a not-yet-dead old one.
+        if let oldThread {
+            let deadline = Date().addingTimeInterval(0.2)
+            while oldThread.isExecuting && Date() < deadline {
+                Thread.sleep(forTimeInterval: 0.005)
+            }
+            if oldThread.isExecuting {
+                AppLogger.warning("CGEventTap 工作线程在 200ms 内未退出，将作为孤儿继续", category: .hotkey)
+            }
         }
     }
 
@@ -232,8 +284,30 @@ final class HotKeyManager {
         }
     }
 
+    /// 上次主线程 dispatch 的状态时间戳 — main-actor 层去重保险丝。
+    ///
+    /// Root cause of the original 7×-dispatch bug (2026-04-17 20:19:11) is fixed
+    /// in installCGEventTap/removeCGEventTap: ghost taps from previous registrations
+    /// were still alive because the old code never invalidated the mach port,
+    /// never removed the source from the run loop, and never waited for the
+    /// worker thread to exit. With those fixed there is exactly one tap at any
+    /// time and CGEvents arrive once.
+    ///
+    /// This dedup stays as a defence-in-depth guard: a future regression in the
+    /// install/remove path, or any other source pushing duplicate state changes
+    /// onto the main actor, will be caught here without re-introducing the data
+    /// loss / starvation symptoms.
+    private var _lastMainStateChange: Date = .distantPast
+    private static let mainDedupInterval: TimeInterval = 0.05  // 50ms
+
     @MainActor
     private func handleKeyState(isDown: Bool) {
+        let now = Date()
+        if now.timeIntervalSince(_lastMainStateChange) < Self.mainDedupInterval {
+            return
+        }
+        _lastMainStateChange = now
+
         if triggerMode == .pushToTalk {
             if isDown && !isKeyPressed {
                 isKeyPressed = true
