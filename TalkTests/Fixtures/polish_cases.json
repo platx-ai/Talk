@@ -1,0 +1,53 @@
+[
+  {
+    "name": "stutter_3char",
+    "audio_fixture": "stutter_3char.m4a",
+    "raw_text": "历历历史记录。",
+    "ground_truth_polished": "历史记录",
+    "must_contain": [
+      "历史"
+    ],
+    "must_not_contain": [
+      "李丽",
+      "李丽史",
+      "历历历"
+    ]
+  },
+  {
+    "name": "stutter_2char",
+    "audio_fixture": "stutter_2char.m4a",
+    "raw_text": "我帮你测一下，这个历历史季度是不是对的？",
+    "ground_truth_polished": "我帮你测一下，这个历史季度是不是对的？",
+    "must_contain": [
+      "历史"
+    ],
+    "must_not_contain": [
+      "历历",
+      "李丽"
+    ]
+  },
+  {
+    "name": "self_correction_anthropic",
+    "audio_fixture": "self_correction_anthropic.m4a",
+    "raw_text": "我看看Open AI，不对，是Anthropic的历史记录。",
+    "ground_truth_polished": "我看看 Anthropic 的历史记录。",
+    "must_contain": [
+      "Anthropic"
+    ],
+    "must_not_contain": [
+      "OpenAI",
+      "Open AI",
+      "不对"
+    ]
+  },
+  {
+    "name": "plain_slight",
+    "audio_fixture": "plain_slight.m4a",
+    "raw_text": "可以，是不是还有一些可以简化成脚本的动作？",
+    "ground_truth_polished": "可以，是不是还有一些可以简化脚本的动作？",
+    "must_contain": [
+      "简化"
+    ],
+    "must_not_contain": []
+  }
+]

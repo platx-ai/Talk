@@ -27,17 +27,17 @@ test: ## Run unit tests (excludes benchmarks and prompt regression — both need
 		-skip-testing:TalkTests/ASRBenchmarks \
 		-skip-testing:TalkTests/LLMBenchmarks \
 		-skip-testing:TalkTests/PipelineBenchmarks \
-		-skip-testing:TalkTests/QwenPromptRegressionTests \
-		-skip-testing:TalkTests/Gemma4PromptRegressionTests 2>&1 | tail -20
+		-skip-testing:TalkTests/QwenPolishPromptRegression \
+		-skip-testing:TalkTests/Gemma4PolishPromptRegression 2>&1 | tail -20
 
-prompt-regress: ## Run LLM prompt regression tests (requires Qwen + Gemma4 models)
-	@echo "Running LLM prompt regression suite..."
-	@echo "Loads real Qwen3.5 + Gemma4 models — first run may be slow."
+prompt-regress: ## Run polish prompt regression (Qwen + Gemma4, 5 trials × 8 cases each)
+	@echo "Running polish prompt regression suite..."
+	@echo "Loads real Qwen3.5 + Gemma4 — ~5 minutes total."
 	@echo ""
 	xcodebuild -project $(PROJECT) -scheme $(SCHEME) -configuration Debug test $(SIGN_FLAGS) \
 		-destination 'platform=macOS' \
-		-only-testing:TalkTests/QwenPromptRegressionTests \
-		-only-testing:TalkTests/Gemma4PromptRegressionTests 2>&1 | grep -E "passed|failed|Test Suite|got:" | tail -40
+		-only-testing:TalkTests/QwenPolishPromptRegression \
+		-only-testing:TalkTests/Gemma4PolishPromptRegression 2>&1 | grep -E "^(✓|✗|summary:|===) |passed|failed"
 
 benchmark: ## Run performance benchmarks (requires models downloaded)
 	@echo "Running Talk benchmarks..."

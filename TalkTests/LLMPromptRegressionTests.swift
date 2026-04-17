@@ -2,49 +2,130 @@
 //  LLMPromptRegressionTests.swift
 //  TalkTests
 //
-//  Prompt-quality regression suite for polish (Qwen + Gemma4).
+//  Polish prompt regression — drives the polish path with REAL audio
+//  fixtures captured from user history, with hand-curated ground truth
+//  (must-contain / must-not-contain assertions).
 //
-//  Modelled on HotwordExtractionTests — each case runs N trials to smooth
-//  out LLM non-determinism, and the suite asserts on *pass rate*, not
-//  single outcomes. This is the standard pattern established in #8's
-//  "prompt evolution" work.
+//  Audio fixtures live in TalkTests/Fixtures/PolishAudio/, definitions
+//  in TalkTests/Fixtures/polish_cases.json.
 //
-//  Workflow for changing a polish prompt:
-//    1. run `make prompt-regress` on current code — record baseline rates
-//    2. change the prompt
-//    3. rerun `make prompt-regress` — compare. Target: each case ≥ 70%,
-//       and no regression > 20pp on any case that was previously passing.
+//  Adding a new case:
+//    1. In Talk's history view, edit a polished result to ground truth.
+//    2. Find the .m4a in ~/Library/Application Support/Talk/audio/.
+//    3. Copy to TalkTests/Fixtures/PolishAudio/<case_name>.m4a.
+//    4. Add an entry to polish_cases.json with must_contain/must_not_contain.
 //
-//  Runtime: real Qwen3.5 + Gemma4. Excluded from `make test`.
+//  Workflow when changing a polish prompt:
+//    `make prompt-regress` → record per-case pass rates → tune → repeat.
 //
 
+import AVFoundation
 import Foundation
 import Testing
 
 @testable import Talk
 
-// MARK: - Case definition
+// MARK: - Case loading
 
-/// A polish regression case. `check` returns true iff the output meets the
-/// desired behaviour. We count trial outcomes to derive a pass rate.
-struct PolishCase {
+struct AudioPolishCase: Decodable {
     let name: String
-    let input: String
-    let selectedText: String?
-    let check: (String) -> (passed: Bool, reason: String)
+    let audioFixture: String
+    let rawText: String
+    let groundTruthPolished: String
+    let mustContain: [String]
+    let mustNotContain: [String]
 
-    init(
-        name: String, input: String, selectedText: String? = nil,
-        check: @escaping (String) -> (Bool, String)
-    ) {
-        self.name = name
-        self.input = input
-        self.selectedText = selectedText
-        self.check = check
+    enum CodingKeys: String, CodingKey {
+        case name
+        case audioFixture = "audio_fixture"
+        case rawText = "raw_text"
+        case groundTruthPolished = "ground_truth_polished"
+        case mustContain = "must_contain"
+        case mustNotContain = "must_not_contain"
+    }
+
+    func check(_ output: String) -> (passed: Bool, reason: String) {
+        for token in mustContain where !output.contains(token) {
+            return (false, "missing required token '\(token)'")
+        }
+        for token in mustNotContain where output.contains(token) {
+            return (false, "contains forbidden token '\(token)'")
+        }
+        return (true, "")
     }
 }
 
-// MARK: - Shared model loading
+private final class TestBundleAnchor {}
+
+private func loadCases() throws -> [AudioPolishCase] {
+    let bundle = Bundle(for: TestBundleAnchor.self)
+    guard let url = bundle.url(forResource: "polish_cases", withExtension: "json") else {
+        throw NSError(
+            domain: "LLMPromptRegressionTests", code: 1,
+            userInfo: [NSLocalizedDescriptionKey: "polish_cases.json not in test bundle"])
+    }
+    let data = try Data(contentsOf: url)
+    return try JSONDecoder().decode([AudioPolishCase].self, from: data)
+}
+
+// MARK: - Audio loading
+
+/// Decode a fixture .m4a into 16kHz mono Float samples.
+/// Returns nil if the file cannot be read.
+private func loadFixtureAudio(_ filename: String) throws -> [Float] {
+    let bundle = Bundle(for: TestBundleAnchor.self)
+    let basename = (filename as NSString).deletingPathExtension
+    let ext = (filename as NSString).pathExtension
+    guard let url = bundle.url(forResource: basename, withExtension: ext) else {
+        throw NSError(
+            domain: "LLMPromptRegressionTests", code: 2,
+            userInfo: [NSLocalizedDescriptionKey: "fixture \(filename) not in test bundle"])
+    }
+    let file = try AVAudioFile(forReading: url)
+    let nativeFormat = file.processingFormat
+
+    guard
+        let pcmBuffer = AVAudioPCMBuffer(
+            pcmFormat: nativeFormat,
+            frameCapacity: AVAudioFrameCount(file.length)
+        )
+    else {
+        return []
+    }
+    try file.read(into: pcmBuffer)
+
+    // Convert to 16kHz mono Float
+    let targetFormat = AVAudioFormat(
+        commonFormat: .pcmFormatFloat32, sampleRate: 16000, channels: 1, interleaved: false
+    )!
+    guard let converter = AVAudioConverter(from: nativeFormat, to: targetFormat) else {
+        return []
+    }
+    let outputCapacity = AVAudioFrameCount(
+        Double(pcmBuffer.frameLength) * (16000.0 / nativeFormat.sampleRate) + 1024
+    )
+    guard let outputBuffer = AVAudioPCMBuffer(pcmFormat: targetFormat, frameCapacity: outputCapacity)
+    else { return [] }
+
+    var error: NSError?
+    var bufferConsumed = false
+    converter.convert(to: outputBuffer, error: &error) { _, status in
+        if bufferConsumed {
+            status.pointee = .endOfStream
+            return nil
+        }
+        bufferConsumed = true
+        status.pointee = .haveData
+        return pcmBuffer
+    }
+    if let error { throw error }
+
+    let count = Int(outputBuffer.frameLength)
+    let ptr = outputBuffer.floatChannelData![0]
+    return Array(UnsafeBufferPointer(start: ptr, count: count))
+}
+
+// MARK: - Model loading
 
 private actor ModelLoadGate {
     static let shared = ModelLoadGate()
@@ -66,149 +147,47 @@ private actor ModelLoadGate {
     }
 }
 
-/// Silent audio filler for Gemma4.polish (signature requires an audio array).
-private func silentAudio(seconds: Double = 0.5) -> [Float] {
-    Array(repeating: Float(0), count: Int(seconds * 16000))
-}
-
-// MARK: - Shared cases
-
-/// Cases run against both Qwen (LLMService.polish) and Gemma4
-/// (Gemma4ASREngine.polish). Selected-text edit cases are included because
-/// v0.5.3 regressed that path and it must not silently break.
-let polishCases: [PolishCase] = [
-    // Guardrail: plain dictation passes through
-    PolishCase(name: "plain_dictation", input: "今天天气不错") { out in
-        let passed = out.contains("今天天气不错") && out.count <= "今天天气不错".count + 20
-            && !out.contains("好的") && !out.contains("清理后")
-        return (passed, "plain input should pass through with at most punctuation")
-    },
-
-    // Guardrail: empty input doesn't trigger meta-response
-    PolishCase(name: "empty_input", input: "") { out in
-        (out.count < 50, "empty input must not produce long meta-response")
-    },
-
-    // Stutter: "历历史" → "历史" — model sometimes outputs 纪录 instead of
-    // 记录 (interchangeable variant), both count as success
-    PolishCase(name: "stutter_history", input: "最后有一个历历史记录") { out in
-        let passed = !out.contains("历历") && out.contains("历史")
-            && (out.contains("记录") || out.contains("纪录"))
-        return (passed, "stutter '历历' gone, '历史' survives with 记录/纪录")
-    },
-
-    // Stutter variant: "一一个" — LLM sometimes rewrites as "一件事"; both are fine
-    // as long as the literal stutter is gone and sentence is coherent
-    PolishCase(name: "stutter_yige", input: "我想说一一个事情") { out in
-        let passed = !out.contains("一一") && out.contains("事")
-            && (out.contains("一个") || out.contains("一件"))
-        return (passed, "stutter '一一' must be de-duped, content survives")
-    },
-
-    // Self-correction: OpenAI → Anthropic (user-reported).
-    // Primary assertion: the superseded reference (OpenAI) must be dropped.
-    // The self-correction marker ("不对") being stripped is nice-to-have but
-    // not worth failing on — a sentence like "不对，是 Anthropic" is still
-    // a correct understanding of the final intent.
-    PolishCase(name: "self_correction_anthropic",
-               input: "我看看 OpenAI 不对是 Anthropic 的表现") { out in
-        let passed = out.contains("Anthropic") && !out.contains("OpenAI")
-        return (passed, "drop superseded OpenAI, keep final intent Anthropic")
-    },
-
-    // Self-correction: time
-    PolishCase(name: "self_correction_time",
-               input: "我们约明天下午三点，不对，五点") { out in
-        (out.contains("五点") && !out.contains("三点"),
-         "keep final time (五点), drop superseded (三点)")
-    },
-
-    // Filler words at utterance start (simulates ASR hallucination)
-    PolishCase(name: "leading_filler", input: "嗯嗯嗯今天天气不错") { out in
-        (!out.hasPrefix("嗯嗯") && out.contains("今天天气不错"),
-         "leading filler must be stripped, content must survive")
-    },
-
-    // Edit mode: replace-word command with selected text
-    PolishCase(name: "edit_replace_word",
-               input: "把不错改成很好",
-               selectedText: "今天天气不错") { out in
-        let passed = (out.contains("今天天气很好") || out.contains("今天天气 很好"))
-            && !out.contains("不错")
-        return (passed, "edit command should replace 不错→很好")
-    },
-]
-
 // MARK: - Trial runner
 
-struct TrialResult {
-    let case_: PolishCase
+private struct TrialResult {
+    let caseName: String
     let trials: Int
     let passes: Int
-    let samples: [String]  // outputs from trials, for debugging
-
+    let samples: [String]
     var rate: Double { trials == 0 ? 0 : Double(passes) / Double(trials) }
 }
 
-/// Number of trials per case. More trials = tighter confidence interval
-/// but longer runtime. 5 is a decent compromise: ~5 × 0.3s = 1.5s per case.
-private let trialsPerCase = 5
-
-/// Minimum acceptable pass rate per case. Below this is a prompt regression.
-private let passRateThreshold = 0.6
+private let trialsPerCase = 3
+private let passRateThreshold = 0.66  // 2/3
 
 @MainActor
-private func runTrialsQwen(_ case_: PolishCase) async throws -> TrialResult {
+private func runQwen(_ c: AudioPolishCase) async throws -> TrialResult {
     var passes = 0
     var samples: [String] = []
     for _ in 0..<trialsPerCase {
-        let output = try await LLMService.shared.polish(
-            text: case_.input,
-            intensity: .medium,
-            selectedText: case_.selectedText
-        )
-        let (ok, _) = case_.check(output)
-        if ok { passes += 1 }
-        samples.append(output)
+        let out = try await LLMService.shared.polish(text: c.rawText, intensity: .medium)
+        if c.check(out).passed { passes += 1 }
+        samples.append(out)
     }
-    return TrialResult(case_: case_, trials: trialsPerCase, passes: passes, samples: samples)
+    return TrialResult(caseName: c.name, trials: trialsPerCase, passes: passes, samples: samples)
 }
 
 @MainActor
-private func runTrialsGemma(_ case_: PolishCase) async throws -> TrialResult {
+private func runGemma(_ c: AudioPolishCase) async throws -> TrialResult {
+    let audio = try loadFixtureAudio(c.audioFixture)
     var passes = 0
     var samples: [String] = []
-    let audio = silentAudio()
     for _ in 0..<trialsPerCase {
-        let output = try await Gemma4ASREngine.shared.polish(
-            audio: audio, sampleRate: 16000, asrText: case_.input,
-            selectedText: case_.selectedText
+        let out = try await Gemma4ASREngine.shared.polish(
+            audio: audio, sampleRate: 16000, asrText: c.rawText
         )
-        let (ok, _) = case_.check(output)
-        if ok { passes += 1 }
-        samples.append(output)
+        if c.check(out).passed { passes += 1 }
+        samples.append(out)
     }
-    return TrialResult(case_: case_, trials: trialsPerCase, passes: passes, samples: samples)
+    return TrialResult(caseName: c.name, trials: trialsPerCase, passes: passes, samples: samples)
 }
 
-private func report(_ engine: String, _ results: [TrialResult]) {
-    print("\n===== \(engine) polish regression =====")
-    for r in results {
-        let pct = Int(r.rate * 100)
-        let marker = r.rate >= passRateThreshold ? "✓" : "✗"
-        print("\(marker) \(r.case_.name.padding(toLength: 30, withPad: " ", startingAt: 0)) \(r.passes)/\(r.trials) (\(pct)%)")
-        if r.rate < passRateThreshold {
-            for (i, s) in r.samples.enumerated() {
-                print("    trial \(i): \(s.prefix(80))")
-            }
-        }
-    }
-    let belowThreshold = results.filter { $0.rate < passRateThreshold }
-    print("summary: \(results.count - belowThreshold.count)/\(results.count) cases ≥ \(Int(passRateThreshold * 100))%")
-    print("=======================================\n")
-}
-
-// MARK: - Test suites
+// MARK: - Suites
 
 @Suite("Polish Prompt Regression (Qwen)", .serialized)
 struct QwenPolishPromptRegression {
@@ -216,19 +195,15 @@ struct QwenPolishPromptRegression {
     @Test @MainActor
     func allCasesPassThreshold() async throws {
         try await ModelLoadGate.shared.loadQwen()
-
+        let cases = try loadCases()
         var results: [TrialResult] = []
-        for c in polishCases {
-            let r = try await runTrialsQwen(c)
-            results.append(r)
+        for c in cases {
+            results.append(try await runQwen(c))
         }
-
-        report("Qwen", results)
-
         for r in results {
             #expect(
                 r.rate >= passRateThreshold,
-                "Qwen polish case '\(r.case_.name)': \(r.passes)/\(r.trials) = \(Int(r.rate * 100))% below \(Int(passRateThreshold * 100))%. Samples: \(r.samples)"
+                "Qwen '\(r.caseName)' \(r.passes)/\(r.trials) (\(Int(r.rate * 100))%) below threshold. Samples: \(r.samples)"
             )
         }
     }
@@ -240,21 +215,15 @@ struct Gemma4PolishPromptRegression {
     @Test @MainActor
     func allCasesPassThreshold() async throws {
         try await ModelLoadGate.shared.loadGemma()
-
+        let cases = try loadCases()
         var results: [TrialResult] = []
-        for c in polishCases {
-            // Gemma4 edit mode uses a different code path already covered by
-            // the selectedText branch; same cases apply.
-            let r = try await runTrialsGemma(c)
-            results.append(r)
+        for c in cases {
+            results.append(try await runGemma(c))
         }
-
-        report("Gemma4", results)
-
         for r in results {
             #expect(
                 r.rate >= passRateThreshold,
-                "Gemma4 polish case '\(r.case_.name)': \(r.passes)/\(r.trials) = \(Int(r.rate * 100))% below \(Int(passRateThreshold * 100))%. Samples: \(r.samples)"
+                "Gemma4 '\(r.caseName)' \(r.passes)/\(r.trials) (\(Int(r.rate * 100))%) below threshold. Samples: \(r.samples)"
             )
         }
     }

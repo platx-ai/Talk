@@ -38,6 +38,8 @@ experiments/
 TalkTests/RegressionSuite/
 TalkTests/TestAudio/
 TalkTests/Gemma4*
+# PolishAudio is small (24 files, ~800KB) and needed for prompt regression
+!TalkTests/Fixtures/PolishAudio/
 .claude/worktrees/
 
 .tmp.rmlater.sh
