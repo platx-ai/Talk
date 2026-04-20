@@ -220,9 +220,22 @@ final class AppSettings {
     var asrLanguage: ASRLanguage = .auto { didSet { autoSave() } }
     var enableStreamingInference: Bool = false { didSet { autoSave() } }
     var showRealtimeRecognition: Bool = false { didSet { autoSave() } }
-    var enableVADFilter: Bool = true { didSet { autoSave() } }
+    // VAD filter default OFF — Silero misjudges quiet speech as silence and
+    // crops the first syllable (reproduced 2026-04-20 when the user wore
+    // Bluetooth headphones: headset is not registered as an input device on
+    // macOS, so the built-in MacBook mic is still used but the user is
+    // farther from it → weak RMS → VAD throws away 40–70% of captured samples,
+    // including the leading word. ASR models (Qwen3-ASR, Gemma4) handle
+    // silence robustly on their own; skipping VAD costs ~100ms of extra ASR
+    // inference but never eats user speech.
+    var enableVADFilter: Bool = false { didSet { autoSave() } }
+    // VAD defaults tuned to survive weak signal (far-from-mic or Bluetooth-
+    // headset-connected-but-mic-not-routed scenarios). paddingChunks 1 → 8
+    // (~256ms) so the first syllable isn't clipped — users reported "第一句话
+    // 被吞掉" on quiet recordings, log showed VAD dropping 40–60% of the
+    // captured samples.
     var vadThreshold: Double = 0.5 { didSet { autoSave() } }
-    var vadPaddingChunks: Int = 1 { didSet { autoSave() } }
+    var vadPaddingChunks: Int = 8 { didSet { autoSave() } }
     var vadMinSpeechChunks: Int = 2 { didSet { autoSave() } }
 
     // MARK: - ASR 设置（Apple Speech）
@@ -471,11 +484,25 @@ extension AppSettings {
             self.enableStreamingInference = boolValue("showRealtimeRecognition", default: false)
         }
         self.showRealtimeRecognition = boolValue("showRealtimeRecognition", default: false)
-        self.enableVADFilter = boolValue("enableVADFilter", default: true)
+        // One-time migration: force-disable VAD for existing users. Old default
+        // was true, which crops the first syllable in quiet/Bluetooth scenarios.
+        // Users who've explicitly toggled it on can flip it back via Settings.
+        let vadMigrationKey = "vadFilterMigratedV2"
+        if defaults.bool(forKey: vadMigrationKey) {
+            self.enableVADFilter = boolValue("enableVADFilter", default: false)
+        } else {
+            self.enableVADFilter = false
+            defaults.set(false, forKey: "enableVADFilter")
+            defaults.set(true, forKey: vadMigrationKey)
+        }
         if defaults.object(forKey: "vadThreshold") != nil {
             self.vadThreshold = defaults.double(forKey: "vadThreshold")
         }
-        self.vadPaddingChunks = defaults.integer(forKey: "vadPaddingChunks") != 0 ? defaults.integer(forKey: "vadPaddingChunks") : 1
+        // Migrate old vadPaddingChunks: historical default was 1 (~32ms) which
+        // cropped the first syllable in quiet recordings. Anything < 4 was the
+        // old default; silently upgrade it to the new 8 (~256ms).
+        let storedPadding = defaults.integer(forKey: "vadPaddingChunks")
+        self.vadPaddingChunks = (storedPadding >= 4) ? storedPadding : 8
         self.vadMinSpeechChunks = defaults.integer(forKey: "vadMinSpeechChunks") != 0 ? defaults.integer(forKey: "vadMinSpeechChunks") : 2
 
         // Apple Speech settings
