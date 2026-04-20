@@ -37,6 +37,23 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     private var cumulativeConfirmedText: String = ""  // 累积的确认文本
     private var recordingStartTime: Date? = nil  // 录音开始时间
 
+    /// Process-wide activity token that keeps Talk's QoS at user-initiated
+    /// levels the entire time the app is running.
+    ///
+    /// Rationale: Talk is a menu-bar-only hotkey listener. It has no "idle"
+    /// state worth throttling — if the process is running the user may press
+    /// the hotkey at any moment and expect <1s end-to-end response. Without
+    /// this, macOS applies app nap to background / LSUIElement processes
+    /// while a full-screen app owns the foreground, silently downgrading
+    /// every Task (even .userInitiated) to background QoS. Seen 2026-04-20
+    /// 23:41:10: Gemma4 polish internally reported elapsed=0.93s but the
+    /// enclosing detached task wasn't scheduled for ~9s until a focus change
+    /// bumped the run loop.
+    ///
+    /// Held for the process lifetime; released on terminate. No begin/end
+    /// pairing across the recording pipeline — simpler and race-free.
+    private var activityToken: (any NSObjectProtocol)?
+
     // MARK: - 引擎状态追踪（用于热切换 diff）
     var loadedASREngine: AppSettings.ASREngine?
     var loadedLLMEngine: AppSettings.LLMEngine?
@@ -49,6 +66,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         AppLogger.info("========================================", category: .general)
         AppLogger.info("Talk 应用启动", category: .general)
         AppLogger.info("macOS 版本: \(ProcessInfo.processInfo.operatingSystemVersionString)", category: .general)
+
+        // Keep Talk at user-initiated QoS for its entire lifetime. See the
+        // activityToken declaration above for why per-recording begin/end was
+        // abandoned.
+        activityToken = ProcessInfo.processInfo.beginActivity(
+            options: [.userInitiated, .latencyCritical],
+            reason: "Talk hotkey listener + ASR/LLM pipeline"
+        )
 
         let settings = AppSettings.load()
         AppLogger.cleanOldLogs()
@@ -144,6 +169,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
 
     func applicationWillTerminate(_ notification: Notification) {
         AppLogger.info("应用即将退出", category: .general)
+        if let token = activityToken {
+            ProcessInfo.processInfo.endActivity(token)
+            activityToken = nil
+        }
         HotKeyManager.shared.unregisterHotKey()
         ASRService.shared.unloadModel()
         LLMService.shared.unloadModel()
