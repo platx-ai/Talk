@@ -61,15 +61,20 @@ struct AggregateStats {
     let averageEditRate: Double
     let averageErrorRate: Double
 
-    /// 格式化总时长
-    var totalDurationFormatted: String {
-        let hours = Int(totalDuration) / 3600
-        let minutes = (Int(totalDuration) % 3600) / 60
+    /// 格式化时长为 "X 小时 Y 分钟" 或 "Y 分钟"
+    static func formatDuration(_ duration: TimeInterval) -> String {
+        let hours = Int(duration) / 3600
+        let minutes = (Int(duration) % 3600) / 60
         if hours > 0 {
             return String(localized: "\(hours) 小时\(minutes) 分钟")
         } else {
             return String(localized: "\(minutes) 分钟")
         }
+    }
+
+    /// 格式化总时长
+    var totalDurationFormatted: String {
+        Self.formatDuration(totalDuration)
     }
 
     /// 估算节省时间（打字 100 字/分钟 vs 实际录音时长）
@@ -80,13 +85,7 @@ struct AggregateStats {
 
     /// 格式化节省时间
     var estimatedTimeSavedFormatted: String {
-        let hours = Int(estimatedTimeSaved) / 3600
-        let minutes = (Int(estimatedTimeSaved) % 3600) / 60
-        if hours > 0 {
-            return String(localized: "\(hours) 小时\(minutes) 分钟")
-        } else {
-            return String(localized: "\(minutes) 分钟")
-        }
+        Self.formatDuration(estimatedTimeSaved)
     }
 }
 
