@@ -126,80 +126,38 @@ final class Gemma4ASREngine {
     // MARK: - 转录
 
     /// 端到端转录：音频 → Gemma4 → 润色文本
+    ///
+    /// 推理跑在 `Task.detached` 后台 task 里，不占主线程。这是为了避免
+    /// 当 Talk 不是前台 app 时（用户在 Feishu / Cursor / Terminal 中），
+    /// 主线程 run loop 被 macOS 降 QoS 而导致每 token 调度间隔从 ~10ms 涨到
+    /// ~50ms，使一次推理从 1s 飙到 14s。整段循环在同一个 detached task
+    /// 中执行，所有 MLX 对象（model / cache / tokenizer / MLXArray）都
+    /// 在该 task 内创建和使用，不跨 task hop，等价于单线程访问 — 不需
+    /// 要 ModelContainer 那层 actor 包装。
     func transcribe(audio: [Float], sampleRate: Int, prompt: String? = nil) async throws -> String {
         guard isModelLoaded, let context = modelContext else {
             throw ASRError.modelNotLoaded
         }
 
         let effectivePrompt = prompt ?? Self.defaultPrompt
+        let enableT2S = AppSettings.shared.gemma4EnableT2S
 
         AppLogger.debug(
             "Gemma4 开始转录，音频长度: \(audio.count) 样点",
             category: .asr
         )
 
-        // 构建 UserInput，包含音频
-        var input = UserInput(prompt: effectivePrompt)
-        input.audios = [audio]
-
         do {
-            let startTime = CFAbsoluteTimeGetCurrent()
-
-            // prepare: 提取 mel → 构建 LMInput
-            let lmInput = try await context.processor.prepare(input: input)
-
-            AppLogger.debug(
-                "Gemma4 LMInput: tokens=\(lmInput.text.tokens.shape), hasAudio=\(lmInput.audio != nil), audioShape=\(lmInput.audio?.features.shape.description ?? "nil")",
-                category: .asr
-            )
-
-            // Generate: use model.prepare for first step (handles audio embedding),
-            // then callAsFunction for subsequent tokens
-            let model = context.model
-            let cache = model.newCache(parameters: nil)
-            let prepareResult = try model.prepare(lmInput, cache: cache, windowSize: nil)
-
-            var outputTokens = [Int]()
-            var logits: MLXArray
-            switch prepareResult {
-            case .logits(let result):
-                logits = result.logits
-            case .tokens(let tokens):
-                logits = model.callAsFunction(tokens.tokens, cache: cache)
-            }
-
-            for step in 0..<500 {
-                let lastLogits = logits[0..., -1, 0...]
-                let nextToken = lastLogits.argMax(axis: -1).item(Int.self)
-
-                // Stop on EOS tokens (from model's generation_config.json)
-                // <eos>=1, <turn|>=106, <tool_call|>=50
-                if [1, 106, 50].contains(nextToken) { break }
-
-                outputTokens.append(nextToken)
-
-                let nextTokenArray = MLXArray([Int32(nextToken)]).expandedDimensions(axis: 0)
-                logits = model.callAsFunction(nextTokenArray, cache: cache)
-                eval(logits)
-                // 每 8 个 token 让出主线程一次，让热键/UI 事件得到处理
-                if step % 8 == 7 { await Task.yield() }
-            }
-
-            let text = context.tokenizer.decode(tokens: outputTokens)
-
-            let elapsed = CFAbsoluteTimeGetCurrent() - startTime
-            var result = text.trimmingCharacters(in: .whitespacesAndNewlines)
-
-            // t2s 后处理
-            if AppSettings.shared.gemma4EnableT2S {
-                result = traditionalToSimplified(result)
-            }
-
-            AppLogger.info(
-                "Gemma4 转录完成: \(String(format: "%.2f", elapsed))s",
-                category: .asr
-            )
-
+            let result = try await Task.detached(priority: .userInitiated) { [audio] in
+                try await Self.runGenerate(
+                    context: context,
+                    prompt: effectivePrompt,
+                    audio: audio,
+                    enableT2S: enableT2S,
+                    label: "转录",
+                    category: .asr
+                )
+            }.value
             return result
         } catch {
             AppLogger.error("Gemma4 转录失败: \(error.localizedDescription)", category: .asr)
@@ -284,48 +242,20 @@ final class Gemma4ASREngine {
             category: .llm
         )
 
-        var input = UserInput(prompt: polishPrompt)
-        input.audios = [audio]
+        let enableT2S = AppSettings.shared.gemma4EnableT2S
+        let editLabel = isEditMode ? "编辑" : "润色"
 
         do {
-            let startTime = CFAbsoluteTimeGetCurrent()
-            let lmInput = try await context.processor.prepare(input: input)
-            eval(lmInput.text.tokens)
-
-            let model = context.model
-            let cache = model.newCache(parameters: nil)
-            let prepareResult = try model.prepare(lmInput, cache: cache, windowSize: nil)
-
-            var outputTokens = [Int]()
-            var logits: MLXArray
-            switch prepareResult {
-            case .logits(let result):
-                logits = result.logits
-            case .tokens(let tokens):
-                logits = model.callAsFunction(tokens.tokens, cache: cache)
-            }
-
-            for step in 0..<500 {
-                let lastLogits = logits[0..., -1, 0...]
-                let nextToken = lastLogits.argMax(axis: -1).item(Int.self)
-                if [1, 106, 50].contains(nextToken) { break }
-                outputTokens.append(nextToken)
-                let nextTokenArray = MLXArray([Int32(nextToken)]).expandedDimensions(axis: 0)
-                logits = model.callAsFunction(nextTokenArray, cache: cache)
-                eval(logits)
-                // 每 8 个 token 让出主线程一次，让热键/UI 事件得到处理
-                if step % 8 == 7 { await Task.yield() }
-            }
-
-            let text = context.tokenizer.decode(tokens: outputTokens)
-            let elapsed = CFAbsoluteTimeGetCurrent() - startTime
-            var result = text.trimmingCharacters(in: .whitespacesAndNewlines)
-
-            if AppSettings.shared.gemma4EnableT2S {
-                result = traditionalToSimplified(result)
-            }
-
-            AppLogger.info("Gemma4 润色完成: \(String(format: "%.2f", elapsed))s (editMode=\(isEditMode))", category: .llm)
+            let result = try await Task.detached(priority: .userInitiated) { [audio] in
+                try await Self.runGenerate(
+                    context: context,
+                    prompt: polishPrompt,
+                    audio: audio,
+                    enableT2S: enableT2S,
+                    label: editLabel,
+                    category: .llm
+                )
+            }.value
             return result
         } catch {
             AppLogger.error("Gemma4 润色失败: \(error.localizedDescription)", category: .llm)
@@ -333,9 +263,74 @@ final class Gemma4ASREngine {
         }
     }
 
+    // MARK: - 推理后台执行
+
+    /// 推理核心：在调用方提供的 task 上下文里跑（典型场景是 detached background task）。
+    ///
+    /// nonisolated 意味着可以从任何 actor 上下文调用 — 但 caller 必须保证
+    /// 对单个 ModelContext 的串行访问（model/cache 不是 thread-safe）。我们
+    /// 通过"每次只在一个 detached task 里调用"满足这个约束。
+    nonisolated private static func runGenerate(
+        context: ModelContext,
+        prompt: String,
+        audio: [Float],
+        enableT2S: Bool,
+        label: String,
+        category: AppLogger.Category
+    ) async throws -> String {
+        let startTime = CFAbsoluteTimeGetCurrent()
+
+        var input = UserInput(prompt: prompt)
+        input.audios = [audio]
+
+        let lmInput = try await context.processor.prepare(input: input)
+        eval(lmInput.text.tokens)
+
+        let model = context.model
+        let cache = model.newCache(parameters: nil)
+        let prepareResult = try model.prepare(lmInput, cache: cache, windowSize: nil)
+
+        var outputTokens = [Int]()
+        var logits: MLXArray
+        switch prepareResult {
+        case .logits(let result):
+            logits = result.logits
+        case .tokens(let tokens):
+            logits = model.callAsFunction(tokens.tokens, cache: cache)
+        }
+
+        // No more Task.yield(): we're on a background detached task, the main
+        // thread is free regardless of how long this loop runs.
+        for _ in 0..<500 {
+            let lastLogits = logits[0..., -1, 0...]
+            let nextToken = lastLogits.argMax(axis: -1).item(Int.self)
+            // Stop on EOS tokens (from model's generation_config.json)
+            // <eos>=1, <turn|>=106, <tool_call|>=50
+            if [1, 106, 50].contains(nextToken) { break }
+            outputTokens.append(nextToken)
+            let nextTokenArray = MLXArray([Int32(nextToken)]).expandedDimensions(axis: 0)
+            logits = model.callAsFunction(nextTokenArray, cache: cache)
+            eval(logits)
+        }
+
+        let text = context.tokenizer.decode(tokens: outputTokens)
+        let elapsed = CFAbsoluteTimeGetCurrent() - startTime
+        var result = text.trimmingCharacters(in: .whitespacesAndNewlines)
+
+        if enableT2S {
+            result = Self.traditionalToSimplified(result)
+        }
+
+        AppLogger.info(
+            "Gemma4 \(label)完成: \(String(format: "%.2f", elapsed))s",
+            category: category
+        )
+        return result
+    }
+
     // MARK: - 繁→简转换
 
-    private func traditionalToSimplified(_ text: String) -> String {
+    nonisolated private static func traditionalToSimplified(_ text: String) -> String {
         let t2s: [Character: Character] = [
             "對": "对", "實": "实", "驗": "验", "確": "确", "認": "认",
             "開": "开", "這": "这", "們": "们", "會": "会", "議": "议",
