@@ -154,4 +154,42 @@ struct UsageStatisticsTests {
         #expect(today != nil)
         #expect(abs((today?.averageSessionDuration ?? 0) - 10) < 0.001)
     }
+
+    @Test("recordSession accumulates totalCharacters")
+    func recordSessionAccumulatesCharacters() async throws {
+        let manager = freshManager()
+        manager.recordSession(
+            recordingDuration: 10, processingTime: 5,
+            asrTime: 2, llmTime: 3, characterCount: 50, hadError: false
+        )
+        manager.recordSession(
+            recordingDuration: 10, processingTime: 5,
+            asrTime: 2, llmTime: 3, characterCount: 30, hadError: false
+        )
+        #expect(manager.dailyStats.first?.totalCharacters == 80)
+    }
+
+    @Test("recordSession with error contributes 0 characters")
+    func recordSessionErrorZeroCharacters() async throws {
+        let manager = freshManager()
+        manager.recordSession(
+            recordingDuration: 10, processingTime: 5,
+            asrTime: 2, llmTime: 3, characterCount: 50, hadError: false
+        )
+        manager.recordSession(
+            recordingDuration: 10, processingTime: 5,
+            asrTime: 2, llmTime: 3, characterCount: 0, hadError: true
+        )
+        #expect(manager.dailyStats.first?.totalCharacters == 50)
+    }
+
+    @Test("backward compatible decoding without totalCharacters")
+    func backwardCompatibleDecoding() async throws {
+        let json = """
+        [{"id":"00000000-0000-0000-0000-000000000001","date":739545600,"sessionCount":1,"totalRecordingDuration":10,"totalProcessingTime":5,"asrInferenceTime":2,"llmInferenceTime":3,"editCount":0,"errorCount":0}]
+        """.data(using: .utf8)!
+        let stats = try JSONDecoder().decode([DailyStats].self, from: json)
+        #expect(stats.first?.totalCharacters == 0)
+        #expect(stats.first?.sessionCount == 1)
+    }
 }

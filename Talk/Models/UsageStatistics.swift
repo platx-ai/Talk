@@ -19,6 +19,7 @@ struct DailyStats: Codable, Identifiable {
     var llmInferenceTime: TimeInterval = 0        // LLM 推理总时长
     var editCount: Int = 0              // 用户编辑次数
     var errorCount: Int = 0             // 错误次数
+    var totalCharacters: Int = 0              // 总输出字符数
     
     /// 平均每次使用时长
     var averageSessionDuration: TimeInterval {
@@ -33,6 +34,20 @@ struct DailyStats: Codable, Identifiable {
     init(id: UUID = UUID(), date: Date = Date()) {
         self.id = id
         self.date = Calendar.current.startOfDay(for: date)
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        id = try container.decode(UUID.self, forKey: .id)
+        date = try container.decode(Date.self, forKey: .date)
+        sessionCount = try container.decode(Int.self, forKey: .sessionCount)
+        totalRecordingDuration = try container.decode(TimeInterval.self, forKey: .totalRecordingDuration)
+        totalProcessingTime = try container.decode(TimeInterval.self, forKey: .totalProcessingTime)
+        asrInferenceTime = try container.decode(TimeInterval.self, forKey: .asrInferenceTime)
+        llmInferenceTime = try container.decode(TimeInterval.self, forKey: .llmInferenceTime)
+        editCount = try container.decode(Int.self, forKey: .editCount)
+        errorCount = try container.decode(Int.self, forKey: .errorCount)
+        totalCharacters = try container.decodeIfPresent(Int.self, forKey: .totalCharacters) ?? 0
     }
 }
 
@@ -134,6 +149,7 @@ final public class UsageStatisticsManager {
         processingTime: TimeInterval,
         asrTime: TimeInterval,
         llmTime: TimeInterval,
+        characterCount: Int = 0,
         hadError: Bool = false
     ) {
         let today = Calendar.current.startOfDay(for: Date())
@@ -149,6 +165,7 @@ final public class UsageStatisticsManager {
             if hadError {
                 dailyStats[index].errorCount += 1
             }
+            dailyStats[index].totalCharacters += characterCount
             logger.debug("更新了今天的统计记录")
         } else {
             // 创建新记录
@@ -159,6 +176,7 @@ final public class UsageStatisticsManager {
             newDay.asrInferenceTime = asrTime
             newDay.llmInferenceTime = llmTime
             newDay.errorCount = hadError ? 1 : 0
+            newDay.totalCharacters = characterCount
             dailyStats.append(newDay)
             logger.info("创建了新的统计记录")
         }
