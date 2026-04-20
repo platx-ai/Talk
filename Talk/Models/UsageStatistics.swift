@@ -55,15 +55,33 @@ struct DailyStats: Codable, Identifiable {
 struct AggregateStats {
     let totalSessions: Int
     let totalDuration: TimeInterval
+    let totalCharacters: Int
     let totalEdits: Int
     let totalErrors: Int
     let averageEditRate: Double
     let averageErrorRate: Double
-    
+
     /// 格式化总时长
     var totalDurationFormatted: String {
         let hours = Int(totalDuration) / 3600
         let minutes = (Int(totalDuration) % 3600) / 60
+        if hours > 0 {
+            return String(localized: "\(hours) 小时\(minutes) 分钟")
+        } else {
+            return String(localized: "\(minutes) 分钟")
+        }
+    }
+
+    /// 估算节省时间（打字 100 字/分钟 vs 实际录音时长）
+    var estimatedTimeSaved: TimeInterval {
+        let typingTime = Double(totalCharacters) / 100.0 * 60.0
+        return max(0, typingTime - totalDuration)
+    }
+
+    /// 格式化节省时间
+    var estimatedTimeSavedFormatted: String {
+        let hours = Int(estimatedTimeSaved) / 3600
+        let minutes = (Int(estimatedTimeSaved) % 3600) / 60
         if hours > 0 {
             return String(localized: "\(hours) 小时\(minutes) 分钟")
         } else {
@@ -224,12 +242,14 @@ final public class UsageStatisticsManager {
     func getAggregateStats() -> AggregateStats {
         let totalSessions = dailyStats.reduce(0) { $0 + $1.sessionCount }
         let totalDuration = dailyStats.reduce(0) { $0 + $1.totalRecordingDuration }
+        let totalCharacters = dailyStats.reduce(0) { $0 + $1.totalCharacters }
         let totalEdits = dailyStats.reduce(0) { $0 + $1.editCount }
         let totalErrors = dailyStats.reduce(0) { $0 + $1.errorCount }
-        
+
         return AggregateStats(
             totalSessions: totalSessions,
             totalDuration: totalDuration,
+            totalCharacters: totalCharacters,
             totalEdits: totalEdits,
             totalErrors: totalErrors,
             averageEditRate: totalSessions > 0 ? Double(totalEdits) / Double(totalSessions) : 0,
