@@ -86,6 +86,10 @@ final class AudioRecorder: NSObject, @unchecked Sendable {
         withStateLock {
             recordingSampleRate = inputFormat.sampleRate
         }
+        AppLogger.info(
+            "录音 tap 安装: format=\(inputFormat.commonFormat.rawValue) sr=\(inputFormat.sampleRate) ch=\(inputFormat.channelCount) interleaved=\(inputFormat.isInterleaved)",
+            category: .audio
+        )
 
         input.installTap(
             onBus: 0,
@@ -94,7 +98,16 @@ final class AudioRecorder: NSObject, @unchecked Sendable {
         ) { [weak self] buffer, _ in
             guard let self = self else { return }
 
-            guard let channels = buffer.floatChannelData else { return }
+            guard let channels = buffer.floatChannelData else {
+                // Bluetooth HFP with non-Float format lands here: floatChannelData is
+                // nil when the buffer's format is not .pcmFormatFloat32. Silent drop
+                // explains the "波形条不跳 + 最终识别什么都没录上" Bluetooth symptom.
+                AppLogger.warning(
+                    "音频 tap: buffer.floatChannelData 为 nil (format=\(buffer.format.commonFormat.rawValue), frames=\(buffer.frameLength))",
+                    category: .audio
+                )
+                return
+            }
             let frameCount = Int(buffer.frameLength)
             let channelCount = Int(buffer.format.channelCount)
 
@@ -116,6 +129,15 @@ final class AudioRecorder: NSObject, @unchecked Sendable {
                 }
             }
 
+            // Hard gate: if we stopped recording, do no work at all. This prevents
+            // in-flight tap callbacks (which continue for ~100-300ms after
+            // AVAudioEngine.stop() because that is async) from posting dead
+            // work items to the main queue. Symptom that motivated this guard:
+            // after stop, polish finished on a background task in ~300ms but
+            // the "润色完成" log and the subsequent text injection had to hop
+            // back to the main actor — where 7+ stale `onAudioData` dispatches
+            // were queued ahead of it, creating a 2-3 second apparent stall
+            // that only cleared when a focus event bumped the run loop.
             let shouldAppend = self.withStateLock { self.isRecording }
             guard shouldAppend else { return }
 
@@ -128,7 +150,11 @@ final class AudioRecorder: NSObject, @unchecked Sendable {
             if !chunk.isEmpty {
                 let rms = sqrt(chunk.reduce(0) { $0 + $1 * $1 } / Float(chunk.count))
                 let level = min(1.0, rms * 5.0)
-                DispatchQueue.main.async {
+                // Only dispatch if a listener is registered. The closure capture
+                // itself doesn't guard against a nil callback being invoked after
+                // stopRecording clears it, but it's cheap enough to always post.
+                DispatchQueue.main.async { [weak self] in
+                    guard let self, self.withStateLock({ self.isRecording }) else { return }
                     self.onAudioLevel?(level)
                 }
             }
@@ -155,7 +181,13 @@ final class AudioRecorder: NSObject, @unchecked Sendable {
             }
 
             if shouldSendStreamingData {
-                DispatchQueue.main.async {
+                DispatchQueue.main.async { [weak self] in
+                    // Re-check after hop: by the time the main queue picks this up,
+                    // the user may have released the hotkey and stopRecording may
+                    // have already run. In that case onAudioData is nil and the
+                    // streaming session is down — feeding it just wastes a main
+                    // actor slot and prints "流式会话未启动" warnings.
+                    guard let self, self.withStateLock({ self.isRecording }) else { return }
                     self.onAudioData?(streamingChunk)
                 }
             }
