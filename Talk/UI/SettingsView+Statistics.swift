@@ -11,13 +11,7 @@ import SwiftUI
 struct StatisticsView: View {
     @ObservationIgnored
     private let statsManager = UsageStatisticsManager.shared
-    
-    private let numberFormatter: NumberFormatter = {
-        let formatter = NumberFormatter()
-        formatter.numberStyle = .decimal
-        return formatter
-    }()
-    
+
     var body: some View {
         // Match the other settings tabs (RecordingSettingsTab, ASRSettingsTab,
         // …) which use Form{} as the top-level container — Form gives consistent
@@ -104,9 +98,7 @@ struct OverviewSection: View {
     }
 
     private func formatCharacterCount(_ count: Int) -> String {
-        let formatter = NumberFormatter()
-        formatter.numberStyle = .decimal
-        return formatter.string(from: NSNumber(value: count)) ?? "\(count)"
+        count.formatted(.number)
     }
 }
 
