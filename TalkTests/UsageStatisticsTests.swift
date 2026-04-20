@@ -183,6 +183,72 @@ struct UsageStatisticsTests {
         #expect(manager.dailyStats.first?.totalCharacters == 50)
     }
 
+    @Test("getAggregateStats includes totalCharacters")
+    func aggregateStatsTotalCharacters() async throws {
+        let manager = freshManager()
+        manager.recordSession(
+            recordingDuration: 10, processingTime: 5,
+            asrTime: 2, llmTime: 3, characterCount: 100, hadError: false
+        )
+        manager.recordSession(
+            recordingDuration: 20, processingTime: 10,
+            asrTime: 4, llmTime: 6, characterCount: 200, hadError: false
+        )
+        let agg = manager.getAggregateStats()
+        #expect(agg.totalCharacters == 300)
+    }
+
+    @Test("estimatedTimeSaved = typingTime - recordingDuration")
+    func estimatedTimeSavedCalculation() async throws {
+        let manager = freshManager()
+        // 200 chars at 100 chars/min = 120s typing time
+        // Recording duration = 30s
+        // Expected saved time = 120 - 30 = 90s
+        manager.recordSession(
+            recordingDuration: 30, processingTime: 10,
+            asrTime: 2, llmTime: 3, characterCount: 200, hadError: false
+        )
+        let agg = manager.getAggregateStats()
+        #expect(abs(agg.estimatedTimeSaved - 90.0) < 0.001)
+    }
+
+    @Test("estimatedTimeSaved clamped to 0 for short inputs")
+    func estimatedTimeSavedClampedToZero() async throws {
+        let manager = freshManager()
+        // 5 chars at 100 chars/min = 3s typing time
+        // Recording duration = 10s
+        // Would be negative, clamp to 0
+        manager.recordSession(
+            recordingDuration: 10, processingTime: 5,
+            asrTime: 2, llmTime: 3, characterCount: 5, hadError: false
+        )
+        let agg = manager.getAggregateStats()
+        #expect(agg.estimatedTimeSaved == 0)
+    }
+
+    @Test("estimatedTimeSavedFormatted shows hours and minutes")
+    func estimatedTimeSavedFormatted() async throws {
+        let manager = freshManager()
+        // 10000 chars at 100 chars/min = 6000s = 100min = 1h40min
+        // Recording = 10s
+        // Saved = 5990s ≈ 1h39min (5990/3600=1, 5990%3600/60=39)
+        manager.recordSession(
+            recordingDuration: 10, processingTime: 5,
+            asrTime: 2, llmTime: 3, characterCount: 10000, hadError: false
+        )
+        let agg = manager.getAggregateStats()
+        #expect(agg.estimatedTimeSavedFormatted.contains("1"))
+        #expect(agg.estimatedTimeSavedFormatted.contains("39"))
+    }
+
+    @Test("estimatedTimeSaved is 0 when totalCharacters is 0")
+    func estimatedTimeSavedWithZeroCharacters() async throws {
+        let manager = freshManager()
+        // No sessions recorded — totalCharacters is 0
+        let agg = manager.getAggregateStats()
+        #expect(agg.estimatedTimeSaved == 0)
+    }
+
     @Test("backward compatible decoding without totalCharacters")
     func backwardCompatibleDecoding() async throws {
         let json = """
