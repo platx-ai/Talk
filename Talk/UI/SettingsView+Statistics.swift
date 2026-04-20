@@ -59,36 +59,54 @@ struct OverviewSection: View {
     let stats: AggregateStats
 
     var body: some View {
-        HStack(spacing: 12) {
-            StatCard(
-                title: String(localized: "总使用次数"),
-                value: "\(stats.totalSessions)",
-                icon: "mic.fill",
-                color: .blue
-            )
-
-            StatCard(
-                title: String(localized: "总录音时长"),
-                value: stats.totalDurationFormatted,
-                icon: "clock.fill",
-                color: .green
-            )
-
-            StatCard(
-                title: String(localized: "编辑率"),
-                value: String(format: "%.1f%%", stats.averageEditRate * 100),
-                icon: "pencil.tip.crop.circle",
-                color: .orange
-            )
-
-            StatCard(
-                title: String(localized: "错误率"),
-                value: String(format: "%.1f%%", stats.averageErrorRate * 100),
-                icon: "exclamationmark.triangle.fill",
-                color: .red
-            )
+        VStack(spacing: 12) {
+            HStack(spacing: 12) {
+                StatCard(
+                    title: String(localized: "总使用次数"),
+                    value: "\(stats.totalSessions)",
+                    icon: "mic.fill",
+                    color: .blue
+                )
+                StatCard(
+                    title: String(localized: "总输入字数"),
+                    value: formatCharacterCount(stats.totalCharacters),
+                    icon: "text.cursor",
+                    color: .purple
+                )
+                StatCard(
+                    title: String(localized: "累计节省时间"),
+                    value: stats.estimatedTimeSavedFormatted,
+                    icon: "bolt.fill",
+                    color: .yellow
+                )
+            }
+            HStack(spacing: 12) {
+                StatCard(
+                    title: String(localized: "总录音时长"),
+                    value: stats.totalDurationFormatted,
+                    icon: "clock.fill",
+                    color: .green
+                )
+                StatCard(
+                    title: String(localized: "编辑率"),
+                    value: String(format: "%.1f%%", stats.averageEditRate * 100),
+                    icon: "pencil.tip.crop.circle",
+                    color: .orange
+                )
+                StatCard(
+                    title: String(localized: "错误率"),
+                    value: String(format: "%.1f%%", stats.averageErrorRate * 100),
+                    icon: "exclamationmark.triangle.fill",
+                    color: .red
+                )
+            }
         }
-        .frame(maxWidth: .infinity)
+    }
+
+    private func formatCharacterCount(_ count: Int) -> String {
+        let formatter = NumberFormatter()
+        formatter.numberStyle = .decimal
+        return formatter.string(from: NSNumber(value: count)) ?? "\(count)"
     }
 }
 
@@ -113,6 +131,8 @@ struct StatCard: View {
             Text(value)
                 .font(.title2)
                 .fontWeight(.semibold)
+                .minimumScaleFactor(0.8)
+                .lineLimit(1)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding()
