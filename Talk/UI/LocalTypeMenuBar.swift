@@ -16,7 +16,6 @@ final class LocalTypeMenuBar {
     private var menuBarView: NSHostingController<MenuBarView>?
     private var settingsWindow: NSWindow?
     private var historyWindow: NSWindow?
-    private var popover: NSPopover?
     private let viewModel = MenuViewModel()
     private let floatingIndicator = FloatingIndicatorWindow()
     private var flashCapsulePanel: FloatingPanel?
@@ -35,20 +34,21 @@ final class LocalTypeMenuBar {
             return
         }
 
-        statusItem.button?.action = #selector(statusBarButtonClicked)
-        statusItem.button?.target = self
-
         let view = MenuBarView(viewModel: viewModel)
             .onOpenSettings { [weak self] in self?.openSettings() }
             .onOpenHistory { [weak self] in self?.openHistory() }
 
         menuBarView = NSHostingController(rootView: view)
-        
-        if let view = menuBarView?.view {
-            view.frame = NSRect(x: 0, y: 0, width: 30, height: 20)
+
+        if let hostingView = menuBarView?.view {
+            hostingView.frame = NSRect(x: 0, y: 0, width: 30, height: 20)
             statusItem.button?.subviews.forEach { $0.removeFromSuperview() }
-            statusItem.button?.addSubview(view)
+            statusItem.button?.addSubview(hostingView)
         }
+
+        // SwiftUI Menu handles click interaction — no button action needed
+        statusItem.button?.action = nil
+        statusItem.button?.target = nil
 
         AppLogger.info("菜单栏设置完成", category: .ui)
     }
@@ -94,29 +94,6 @@ final class LocalTypeMenuBar {
         viewModel.processingStatus = .idle
         viewModel.isRecording = false
         floatingIndicator.updatePhase(.done)
-    }
-
-    @objc private func statusBarButtonClicked() {
-        showPopover()
-    }
-
-    private func showPopover() {
-        guard statusItem != nil else { return }
-
-        let view = MenuBarView(viewModel: viewModel)
-            .onOpenSettings { [weak self] in self?.openSettings() }
-            .onOpenHistory { [weak self] in self?.openHistory() }
-
-        popover = NSPopover()
-        popover?.contentViewController = NSHostingController(rootView: view)
-        popover?.behavior = .transient
-        popover?.animates = true
-
-        if let button = statusItem?.button {
-            popover?.show(relativeTo: button.bounds,
-                          of: button,
-                          preferredEdge: .minY)
-        }
     }
 
     private func openSettings() {
