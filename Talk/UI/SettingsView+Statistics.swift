@@ -118,6 +118,8 @@ struct StatCard: View {
                 Text(title)
                     .font(.caption)
                     .foregroundStyle(.secondary)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.8)
             }
             
             Text(value)
