@@ -19,6 +19,7 @@ struct DailyStats: Codable, Identifiable {
     var llmInferenceTime: TimeInterval = 0        // LLM 推理总时长
     var editCount: Int = 0              // 用户编辑次数
     var errorCount: Int = 0             // 错误次数
+    var totalCharacters: Int = 0              // 总输出字符数
     
     /// 平均每次使用时长
     var averageSessionDuration: TimeInterval {
@@ -34,26 +35,57 @@ struct DailyStats: Codable, Identifiable {
         self.id = id
         self.date = Calendar.current.startOfDay(for: date)
     }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        id = try container.decode(UUID.self, forKey: .id)
+        date = try container.decode(Date.self, forKey: .date)
+        sessionCount = try container.decode(Int.self, forKey: .sessionCount)
+        totalRecordingDuration = try container.decode(TimeInterval.self, forKey: .totalRecordingDuration)
+        totalProcessingTime = try container.decode(TimeInterval.self, forKey: .totalProcessingTime)
+        asrInferenceTime = try container.decode(TimeInterval.self, forKey: .asrInferenceTime)
+        llmInferenceTime = try container.decode(TimeInterval.self, forKey: .llmInferenceTime)
+        editCount = try container.decode(Int.self, forKey: .editCount)
+        errorCount = try container.decode(Int.self, forKey: .errorCount)
+        totalCharacters = try container.decodeIfPresent(Int.self, forKey: .totalCharacters) ?? 0
+    }
 }
 
 /// 聚合统计
 struct AggregateStats {
     let totalSessions: Int
     let totalDuration: TimeInterval
+    let totalCharacters: Int
     let totalEdits: Int
     let totalErrors: Int
     let averageEditRate: Double
     let averageErrorRate: Double
-    
-    /// 格式化总时长
-    var totalDurationFormatted: String {
-        let hours = Int(totalDuration) / 3600
-        let minutes = (Int(totalDuration) % 3600) / 60
+
+    /// 格式化时长为 "X 小时 Y 分钟" 或 "Y 分钟"
+    static func formatDuration(_ duration: TimeInterval) -> String {
+        let hours = Int(duration) / 3600
+        let minutes = (Int(duration) % 3600) / 60
         if hours > 0 {
             return String(localized: "\(hours) 小时\(minutes) 分钟")
         } else {
             return String(localized: "\(minutes) 分钟")
         }
+    }
+
+    /// 格式化总时长
+    var totalDurationFormatted: String {
+        Self.formatDuration(totalDuration)
+    }
+
+    /// 估算节省时间（打字 100 字/分钟 vs 实际录音时长）
+    var estimatedTimeSaved: TimeInterval {
+        let typingTime = Double(totalCharacters) / 100.0 * 60.0
+        return max(0, typingTime - totalDuration)
+    }
+
+    /// 格式化节省时间
+    var estimatedTimeSavedFormatted: String {
+        Self.formatDuration(estimatedTimeSaved)
     }
 }
 
@@ -134,6 +166,7 @@ final public class UsageStatisticsManager {
         processingTime: TimeInterval,
         asrTime: TimeInterval,
         llmTime: TimeInterval,
+        characterCount: Int = 0,
         hadError: Bool = false
     ) {
         let today = Calendar.current.startOfDay(for: Date())
@@ -149,6 +182,7 @@ final public class UsageStatisticsManager {
             if hadError {
                 dailyStats[index].errorCount += 1
             }
+            dailyStats[index].totalCharacters += characterCount
             logger.debug("更新了今天的统计记录")
         } else {
             // 创建新记录
@@ -159,6 +193,7 @@ final public class UsageStatisticsManager {
             newDay.asrInferenceTime = asrTime
             newDay.llmInferenceTime = llmTime
             newDay.errorCount = hadError ? 1 : 0
+            newDay.totalCharacters = characterCount
             dailyStats.append(newDay)
             logger.info("创建了新的统计记录")
         }
@@ -206,12 +241,14 @@ final public class UsageStatisticsManager {
     func getAggregateStats() -> AggregateStats {
         let totalSessions = dailyStats.reduce(0) { $0 + $1.sessionCount }
         let totalDuration = dailyStats.reduce(0) { $0 + $1.totalRecordingDuration }
+        let totalCharacters = dailyStats.reduce(0) { $0 + $1.totalCharacters }
         let totalEdits = dailyStats.reduce(0) { $0 + $1.editCount }
         let totalErrors = dailyStats.reduce(0) { $0 + $1.errorCount }
-        
+
         return AggregateStats(
             totalSessions: totalSessions,
             totalDuration: totalDuration,
+            totalCharacters: totalCharacters,
             totalEdits: totalEdits,
             totalErrors: totalErrors,
             averageEditRate: totalSessions > 0 ? Double(totalEdits) / Double(totalSessions) : 0,

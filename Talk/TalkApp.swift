@@ -876,6 +876,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
                     processingTime: CFAbsoluteTimeGetCurrent() - processingStart,
                     asrTime: 0,
                     llmTime: llmInferenceTime,
+                    characterCount: polishedText.count,
                     hadError: false
                 )
                 if self.pendingEngineReload {
@@ -1062,6 +1063,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
                     processingTime: CFAbsoluteTimeGetCurrent() - processingStart,
                     asrTime: asrInferenceTime,
                     llmTime: llmInferenceTime,
+                    characterCount: polishedText.count,
                     hadError: false
                 )
                 if self.pendingEngineReload {
