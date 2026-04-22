@@ -32,8 +32,6 @@ struct AppSettingsTests {
         #expect(settings.enableConversationHistory == true)
         #expect(settings.outputMethod == .autoPaste)
         #expect(settings.outputDelay == .afterPolish)
-        #expect(settings.performanceMode == .speed)
-        #expect(settings.memoryMode == .normal)
         #expect(settings.launchAtLogin == false)
         #expect(settings.enableDetailedLogging == true)
         #expect(settings.logLevel == .debug)

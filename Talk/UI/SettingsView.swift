@@ -706,24 +706,6 @@ private struct AdvancedSettingsTab: View {
             }
 
             Section {
-                Picker(String(localized: "性能模式"), selection: $settings.performanceMode) {
-                    ForEach(AppSettings.PerformanceMode.allCases, id: \.self) { mode in
-                        Text(mode.displayName).tag(mode)
-                    }
-                }
-                .onChange(of: settings.performanceMode) { _ in ToastManager.shared.show(String(localized: "已保存")) }
-
-                Picker(String(localized: "内存模式"), selection: $settings.memoryMode) {
-                    ForEach(AppSettings.MemoryMode.allCases, id: \.self) { mode in
-                        Text(mode.displayName).tag(mode)
-                    }
-                }
-                .onChange(of: settings.memoryMode) { _ in ToastManager.shared.show(String(localized: "已保存")) }
-            } header: {
-                Text(String(localized: "性能优化"))
-            }
-
-            Section {
                 Picker(String(localized: "启动方式"), selection: .constant(false)) {
                     Text(String(localized: "用户手动启动")).tag(false)
                     Text(String(localized: "登录时自动启动")).tag(true)
@@ -890,26 +872,6 @@ extension AppSettings.AppLanguage {
         case .system: return String(localized: "跟随系统")
         case .chinese: return String(localized: "简体中文")
         case .english: return "English"
-        }
-    }
-}
-
-extension AppSettings.PerformanceMode {
-    var displayName: String {
-        switch self {
-        case .speed: return String(localized: "优先速度")
-        case .accuracy: return String(localized: "优先准确率")
-        case .balanced: return String(localized: "平衡模式")
-        }
-    }
-}
-
-extension AppSettings.MemoryMode {
-    var displayName: String {
-        switch self {
-        case .low: return String(localized: "8GB 内存")
-        case .normal: return String(localized: "16GB+ 内存")
-        case .auto: return String(localized: "自动适配")
         }
     }
 }

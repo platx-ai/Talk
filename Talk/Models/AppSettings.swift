@@ -348,22 +348,6 @@ final class AppSettings {
 
     var appLanguage: AppLanguage = .system { didSet { autoSave() } }
 
-    enum PerformanceMode: String, Codable, CaseIterable {
-        case speed = "speed"
-        case accuracy = "accuracy"
-        case balanced = "balanced"
-    }
-
-    var performanceMode: PerformanceMode = .speed { didSet { autoSave() } }
-
-    enum MemoryMode: String, Codable, CaseIterable {
-        case low = "low"
-        case normal = "normal"
-        case auto = "auto"
-    }
-
-    var memoryMode: MemoryMode = .normal { didSet { autoSave() } }
-
     // MARK: - 空闲卸载
 
     var idleUnloadMinutes: Int = 10 { didSet { autoSave() } }  // 0 = disabled
@@ -570,15 +554,6 @@ extension AppSettings {
             self.appLanguage = language
         }
 
-        if let mode = defaults.string(forKey: "performanceMode"),
-           let perfMode = PerformanceMode(rawValue: mode) {
-            self.performanceMode = perfMode
-        }
-        if let mode = defaults.string(forKey: "memoryMode"),
-           let memMode = MemoryMode(rawValue: mode) {
-            self.memoryMode = memMode
-        }
-
         // 0 = disabled, 需要区分"未设置"和"用户设为0"
         if defaults.object(forKey: "idleUnloadMinutes") != nil {
             self.idleUnloadMinutes = defaults.integer(forKey: "idleUnloadMinutes")
@@ -649,9 +624,6 @@ extension AppSettings {
         defaults.set(enableAudioHistory, forKey: "enableAudioHistory")
 
         defaults.set(appLanguage.rawValue, forKey: "appLanguage")
-
-        defaults.set(performanceMode.rawValue, forKey: "performanceMode")
-        defaults.set(memoryMode.rawValue, forKey: "memoryMode")
 
         defaults.set(idleUnloadMinutes, forKey: "idleUnloadMinutes")
 

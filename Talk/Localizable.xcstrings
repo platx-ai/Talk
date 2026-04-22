@@ -18,38 +18,6 @@
         }
       }
     },
-    "16GB+ 内存": {
-      "localizations": {
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "16GB+ 内存"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "16GB+ RAM"
-          }
-        }
-      }
-    },
-    "8GB 内存": {
-      "localizations": {
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "8GB 内存"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "8GB RAM"
-          }
-        }
-      }
-    },
     "Accessibility API 调用失败": {
       "localizations": {
         "zh-Hans": {
@@ -530,38 +498,6 @@
         }
       }
     },
-    "优先准确率": {
-      "localizations": {
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "优先准确率"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Accuracy Priority"
-          }
-        }
-      }
-    },
-    "优先速度": {
-      "localizations": {
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "优先速度"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Speed Priority"
-          }
-        }
-      }
-    },
     "会议纪要": {
       "localizations": {
         "zh-Hans": {
@@ -782,22 +718,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "Close"
-          }
-        }
-      }
-    },
-    "内存模式": {
-      "localizations": {
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "内存模式"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Memory Mode"
           }
         }
       }
@@ -1490,22 +1410,6 @@
         }
       }
     },
-    "平衡模式": {
-      "localizations": {
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "平衡模式"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Balanced"
-          }
-        }
-      }
-    },
     "应用专属提示词": {
       "localizations": {
         "zh-Hans": {
@@ -1854,38 +1758,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "Hotkey"
-          }
-        }
-      }
-    },
-    "性能优化": {
-      "localizations": {
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "性能优化"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Performance"
-          }
-        }
-      }
-    },
-    "性能模式": {
-      "localizations": {
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "性能模式"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Performance Mode"
           }
         }
       }
@@ -3054,22 +2926,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "Auto-paste: simulates Cmd+V after polishing. Clipboard only: result goes to clipboard, paste manually."
-          }
-        }
-      }
-    },
-    "自动适配": {
-      "localizations": {
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "自动适配"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Auto"
           }
         }
       }
