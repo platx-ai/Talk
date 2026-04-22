@@ -4888,40 +4888,6 @@
         }
       }
     },
-    "\\(hours) 小时\\(minutes) 分钟": {
-      "extractionState": "manual",
-      "localizations": {
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "\\(hours) 小时\\(minutes) 分钟"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "\\(hours)h \\(minutes)m"
-          }
-        }
-      }
-    },
-    "\\(minutes) 分钟": {
-      "extractionState": "manual",
-      "localizations": {
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "\\(minutes) 分钟"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "\\(minutes)m"
-          }
-        }
-      }
-    },
     "清空历史记录": {
       "extractionState": "manual",
       "localizations": {
@@ -5020,6 +4986,40 @@
           "stringUnit": {
             "state": "translated",
             "value": "History cleared"
+          }
+        }
+      }
+    },
+    "%lld 小时%lld 分钟": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld 小时%lld 分钟"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lldh %lldm"
+          }
+        }
+      }
+    },
+    "%lld 分钟": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld 分钟"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lldm"
           }
         }
       }

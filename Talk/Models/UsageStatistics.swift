@@ -66,9 +66,9 @@ struct AggregateStats {
         let hours = Int(duration) / 3600
         let minutes = (Int(duration) % 3600) / 60
         if hours > 0 {
-            return String(localized: "\(hours) 小时\(minutes) 分钟")
+            return String(format: String(localized: "%lld 小时%lld 分钟"), hours, minutes)
         } else {
-            return String(localized: "\(minutes) 分钟")
+            return String(format: String(localized: "%lld 分钟"), minutes)
         }
     }
 
