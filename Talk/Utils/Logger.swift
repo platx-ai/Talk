@@ -77,9 +77,13 @@ enum AppLogger {
 
         print("[\(levelLabel)] [\(category.rawValue)] \(message)")
 
+        // Capture timestamp at log-call time, not at file-write time. Otherwise
+        // a backlogged fileWriteQueue would make every entry look late and
+        // mask the real event timing.
+        let eventDate = Date()
         if level != .debug || AppSettings.load().enableDetailedLogging {
             fileWriteQueue.async {
-                writeToFile(message, level: level, category: category)
+                writeToFile(message, level: level, category: category, date: eventDate)
             }
         }
     }
@@ -100,8 +104,8 @@ enum AppLogger {
         return formatter
     }()
 
-    private static func writeToFile(_ message: String, level: Level, category: Category) {
-        let timestamp = dateFormatter.string(from: Date())
+    private static func writeToFile(_ message: String, level: Level, category: Category, date: Date) {
+        let timestamp = dateFormatter.string(from: date)
         let levelString: String
         switch level {
         case .debug: levelString = "DEBUG"
